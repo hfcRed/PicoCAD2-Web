@@ -44,5 +44,6 @@ export function parseModel(source: string): PicoCAD2Model {
 		motionDuration: raw.metadata.motion_duration,
 		shadingEnabled: raw.metadata.shading_mode !== 0,
 		camera: parseCameraState(raw),
+		projectionMode: raw.metadata.export_settings?.fov_type ?? "perspective",
 	};
 }

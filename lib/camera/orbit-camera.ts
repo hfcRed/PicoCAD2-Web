@@ -1,6 +1,6 @@
 import { mat4, vec3 } from "gl-matrix";
-import type { CameraState } from "../types/scene.ts";
-import { makePerspectiveMatrix } from "./projection.ts";
+import type { CameraState, ProjectionMode } from "../types/scene.ts";
+import { makeProjectionMatrix } from "./projection.ts";
 
 const EPSILON = 0.00001;
 const UP: vec3 = vec3.fromValues(0, 1, 0);
@@ -15,6 +15,7 @@ export class OrbitCamera {
 	distanceToTarget = 20;
 	target: vec3 = vec3.fromValues(0, 0, 0);
 	zoom = 1;
+	projectionMode: ProjectionMode = "perspective";
 
 	private readonly position: vec3 = vec3.create();
 	private readonly viewMatrix: mat4 = mat4.create();
@@ -109,7 +110,15 @@ export class OrbitCamera {
 	 * @returns The current projection matrix.
 	 */
 	getProjectionMatrix(aspect: number): mat4 {
-		makePerspectiveMatrix(this.projectionMatrix, this.zoom, aspect, 0.1, 1000);
+		makeProjectionMatrix(
+			this.projectionMatrix,
+			this.projectionMode,
+			this.zoom,
+			aspect,
+			0.1,
+			1000,
+			this.distanceToTarget,
+		);
 		return this.projectionMatrix;
 	}
 

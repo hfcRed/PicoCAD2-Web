@@ -7,7 +7,7 @@ import {
 	storeStaticTransforms,
 } from "./scene/scene-graph.ts";
 import type { PicoCAD2ViewerOptions } from "./types/options.ts";
-import type { PicoCAD2Model } from "./types/scene.ts";
+import type { PicoCAD2Model, ProjectionMode } from "./types/scene.ts";
 
 /** Controls animation playback state and timing. */
 class AnimationController {
@@ -89,6 +89,7 @@ export class PicoCAD2Viewer {
 
 	shading = true;
 	renderMode: "texture" | "color" | "none" = "texture";
+	projectionMode: ProjectionMode = "perspective";
 	wireframe = false;
 	wireframeColor: [number, number, number] = [1, 1, 1];
 
@@ -141,6 +142,7 @@ export class PicoCAD2Viewer {
 
 		if (options?.shading !== undefined) this.shading = options.shading;
 		if (options?.renderMode) this.renderMode = options.renderMode;
+		if (options?.projectionMode) this.projectionMode = options.projectionMode;
 		if (options?.wireframe !== undefined) this.wireframe = options.wireframe;
 		if (options?.wireframeColor) this.wireframeColor = options.wireframeColor;
 		if (options?.animationSpeed !== undefined) {
@@ -177,6 +179,7 @@ export class PicoCAD2Viewer {
 		this.animation.setDuration(this.model.motionDuration);
 		this.animation.time = 0;
 		this.shading = this.model.shadingEnabled;
+		this.projectionMode = this.model.projectionMode;
 
 		if (this.model.camera) {
 			this.camera.initFromState(this.model.camera);
@@ -200,6 +203,8 @@ export class PicoCAD2Viewer {
 	 */
 	draw(): void {
 		if (!this.model) return;
+
+		this.camera.projectionMode = this.projectionMode;
 
 		if (this.animation.playing || this.animation.time > 0) {
 			restoreStaticTransforms(this.model.root);
@@ -435,7 +440,7 @@ export class PicoCAD2Viewer {
 			const newMid = this.getPointerMidpoint();
 			const mdx = newMid.x - this.pinchMidpoint.x;
 			const mdy = newMid.y - this.pinchMidpoint.y;
-			const panScale = this.camera.distanceToTarget * 0.005;
+			const panScale = this.camera.distanceToTarget * 0.002;
 
 			this.camera.pan(mdx * panScale, mdy * panScale);
 			this.pinchMidpoint = newMid;
@@ -445,7 +450,7 @@ export class PicoCAD2Viewer {
 				this.inertiaX = -dx * 0.01;
 				this.inertiaY = dy * 0.01;
 			} else if (this.dragButton === 1 || this.dragButton === 2) {
-				const panScale = this.camera.distanceToTarget * 0.005;
+				const panScale = this.camera.distanceToTarget * 0.002;
 				this.camera.pan(dx * panScale, dy * panScale);
 			}
 		}

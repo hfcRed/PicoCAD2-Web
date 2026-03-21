@@ -58,12 +58,15 @@ export interface TextureData {
 	transparentColor: number;
 }
 
+export type ProjectionMode = "perspective" | "orthographic" | "fisheye";
+
 export interface PicoCAD2Model {
 	root: SceneNode;
 	texture: TextureData;
 	motionDuration: number;
 	shadingEnabled: boolean;
 	camera: CameraState | null;
+	projectionMode: ProjectionMode;
 }
 
 export interface CameraState {

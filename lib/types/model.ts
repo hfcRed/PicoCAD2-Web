@@ -1,3 +1,5 @@
+import type { ProjectionMode } from "./scene";
+
 export interface RawVec3 {
 	x: number;
 	y: number;
@@ -74,12 +76,17 @@ export interface RawTexture {
 	transparent_color: number;
 }
 
+export interface RawExportSettings {
+	fov_type?: ProjectionMode;
+}
+
 export interface RawMetadata {
 	version: string;
 	motion_duration: number;
 	shading_mode?: number;
 	face_mode?: number;
 	camera?: RawCameraState;
+	export_settings?: RawExportSettings;
 }
 
 export interface RawPicoCAD2File {

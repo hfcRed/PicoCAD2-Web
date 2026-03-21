@@ -97,16 +97,17 @@ export class PicoCAD2Viewer {
 	private animationFrameId: number | null = null;
 	private lastFrameTime = 0;
 	private cameraControlsEnabled = false;
-	private dragging = false;
 	private dragButton = 0;
-	private lastPointerX = 0;
-	private lastPointerY = 0;
+	private activePointers: Map<number, { x: number; y: number }> = new Map();
+	private pinchStartDist = 0;
+	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private readonly boundHandlers: {
 		onPointerDown: (e: PointerEvent) => void;
 		onPointerMove: (e: PointerEvent) => void;
 		onPointerUp: (e: PointerEvent) => void;
 		onWheel: (e: WheelEvent) => void;
 		onContextMenu: (e: Event) => void;
+		onTouchStart: (e: TouchEvent) => void;
 	};
 
 	/**
@@ -149,6 +150,7 @@ export class PicoCAD2Viewer {
 			onPointerUp: this.onPointerUp.bind(this),
 			onWheel: this.onWheel.bind(this),
 			onContextMenu: (e: Event) => e.preventDefault(),
+			onTouchStart: (e: TouchEvent) => e.preventDefault(),
 		};
 	}
 
@@ -269,6 +271,14 @@ export class PicoCAD2Viewer {
 			"contextmenu",
 			this.boundHandlers.onContextMenu,
 		);
+		this.canvas.addEventListener(
+			"touchstart",
+			this.boundHandlers.onTouchStart,
+			{
+				passive: false,
+			},
+		);
+		this.canvas.style.touchAction = "none";
 	}
 
 	/**
@@ -299,6 +309,11 @@ export class PicoCAD2Viewer {
 			"contextmenu",
 			this.boundHandlers.onContextMenu,
 		);
+		this.canvas.removeEventListener(
+			"touchstart",
+			this.boundHandlers.onTouchStart,
+		);
+		this.canvas.style.touchAction = "";
 	}
 
 	/**
@@ -325,37 +340,110 @@ export class PicoCAD2Viewer {
 		this.model = null;
 	}
 
-	private onPointerDown(e: PointerEvent): void {
-		this.dragging = true;
-		this.dragButton = e.button;
-		this.lastPointerX = e.clientX;
-		this.lastPointerY = e.clientY;
-		this.canvas.setPointerCapture(e.pointerId);
+	/**
+	 * Computes the distance between two active pointers.
+	 *
+	 * @returns The distance in pixels, or 0 if fewer than 2 pointers.
+	 */
+	private getPointerDistance(): number {
+		if (this.activePointers.size < 2) return 0;
+		const pts = [...this.activePointers.values()];
+		const dx = pts[1].x - pts[0].x;
+		const dy = pts[1].y - pts[0].y;
+		return Math.sqrt(dx * dx + dy * dy);
 	}
 
-	private onPointerMove(e: PointerEvent): void {
-		if (!this.dragging) return;
+	/**
+	 * Computes the midpoint between two active pointers.
+	 *
+	 * @returns The midpoint as {x, y}, or {0, 0} if fewer than 2 pointers.
+	 */
+	private getPointerMidpoint(): { x: number; y: number } {
+		if (this.activePointers.size < 2) return { x: 0, y: 0 };
+		const pts = [...this.activePointers.values()];
+		return {
+			x: (pts[0].x + pts[1].x) / 2,
+			y: (pts[0].y + pts[1].y) / 2,
+		};
+	}
 
-		const dx = e.clientX - this.lastPointerX;
-		const dy = e.clientY - this.lastPointerY;
-		this.lastPointerX = e.clientX;
-		this.lastPointerY = e.clientY;
+	/**
+	 * Handles pointer down events.
+	 *
+	 * @param e - The pointer event.
+	 */
+	private onPointerDown(e: PointerEvent): void {
+		this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+		this.dragButton = e.button;
+		this.canvas.setPointerCapture(e.pointerId);
 
-		// Left click (0): rotate
-		// Middle click (1) or Right click (2): pan
-		if (this.dragButton === 0) {
-			this.camera.rotate(-dx * 0.01, dy * 0.01);
-		} else if (this.dragButton === 1 || this.dragButton === 2) {
-			const panScale = this.camera.distanceToTarget * 0.005;
-			this.camera.pan(dx * panScale, dy * panScale);
+		if (this.activePointers.size === 2) {
+			this.pinchStartDist = this.getPointerDistance();
+			this.pinchMidpoint = this.getPointerMidpoint();
 		}
 	}
 
-	private onPointerUp(e: PointerEvent): void {
-		this.dragging = false;
-		this.canvas.releasePointerCapture(e.pointerId);
+	/**
+	 * Handles pointer move events.
+	 *
+	 * @param e - The pointer event.
+	 */
+	private onPointerMove(e: PointerEvent): void {
+		if (!this.activePointers.has(e.pointerId)) return;
+
+		const prev = this.activePointers.get(e.pointerId);
+		if (!prev) return;
+
+		const dx = e.clientX - prev.x;
+		const dy = e.clientY - prev.y;
+		this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+		if (this.activePointers.size === 2) {
+			const newDist = this.getPointerDistance();
+			if (this.pinchStartDist > 0) {
+				const delta = this.pinchStartDist - newDist;
+				this.camera.zoomBy(delta * 0.1);
+			}
+			this.pinchStartDist = newDist;
+
+			const newMid = this.getPointerMidpoint();
+			const mdx = newMid.x - this.pinchMidpoint.x;
+			const mdy = newMid.y - this.pinchMidpoint.y;
+			const panScale = this.camera.distanceToTarget * 0.005;
+
+			this.camera.pan(mdx * panScale, mdy * panScale);
+			this.pinchMidpoint = newMid;
+		} else if (this.activePointers.size === 1) {
+			if (e.pointerType === "touch" || this.dragButton === 0) {
+				this.camera.rotate(-dx * 0.01, dy * 0.01);
+			} else if (this.dragButton === 1 || this.dragButton === 2) {
+				const panScale = this.camera.distanceToTarget * 0.005;
+				this.camera.pan(dx * panScale, dy * panScale);
+			}
+		}
 	}
 
+	/**
+	 * Handles pointer up and pointer leave events.
+	 *
+	 * @param e - The pointer event.
+	 */
+	private onPointerUp(e: PointerEvent): void {
+		this.activePointers.delete(e.pointerId);
+		try {
+			this.canvas.releasePointerCapture(e.pointerId);
+		} catch {}
+
+		if (this.activePointers.size === 1) {
+			this.pinchStartDist = 0;
+		}
+	}
+
+	/**
+	 * Handles wheel events for zooming.
+	 *
+	 * @param e - The wheel event.
+	 */
 	private onWheel(e: WheelEvent): void {
 		e.preventDefault();
 		this.camera.zoomBy(e.deltaY * 0.05);

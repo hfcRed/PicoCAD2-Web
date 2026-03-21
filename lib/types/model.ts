@@ -1,4 +1,4 @@
-import type { ProjectionMode } from "./scene";
+import type { AnimationProp, Axis, ProjectionMode } from "./scene";
 
 export interface RawVec3 {
 	x: number;
@@ -31,8 +31,8 @@ export interface RawMesh {
 }
 
 export interface RawClip {
-	prop: "pos" | "rot" | "scale" | "visible";
-	axises: ("x" | "y" | "z")[];
+	prop: AnimationProp;
+	axises: Axis[];
 	start: number;
 	stop: number;
 	delta: number;

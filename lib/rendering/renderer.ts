@@ -2,7 +2,7 @@ import { mat4, vec3 } from "gl-matrix";
 import * as twgl from "twgl.js";
 import type { OrbitCamera } from "../camera/orbit-camera.ts";
 import { traverseNode, updateNodeMatrix } from "../scene/scene-graph.ts";
-import type { PicoCAD2Model, SceneNode } from "../types/scene.ts";
+import type { Color3, PicoCAD2Model, SceneNode } from "../types/scene.ts";
 import { buildAllBuffers, type NodeBuffers } from "./buffers.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
@@ -26,7 +26,7 @@ export interface RenderSettings {
 	/** 0 = texture, 1 = color */
 	renderMode: number;
 	wireframe: boolean;
-	wireframeColor: [number, number, number];
+	wireframeColor: Color3;
 }
 
 /** The main WebGL renderer for PicoCAD 2 models. */
@@ -207,7 +207,7 @@ export class Renderer {
 	 * @param vpMatrix - The view-projection matrix.
 	 * @param color - The wireframe color as [r, g, b].
 	 */
-	private drawWireframe(vpMatrix: mat4, color: [number, number, number]): void {
+	private drawWireframe(vpMatrix: mat4, color: Color3): void {
 		const gl = this.gl;
 
 		gl.useProgram(this.programs.wireframe.program);

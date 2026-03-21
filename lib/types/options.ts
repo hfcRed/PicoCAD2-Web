@@ -1,13 +1,13 @@
-import type { ProjectionMode } from "./scene.ts";
+import type { Color3, ProjectionMode, RenderMode } from "./scene.ts";
 
 /** Configuration options for the PicoCAD 2 viewer. */
 export interface PicoCAD2ViewerOptions {
 	canvas?: HTMLCanvasElement;
 	shading?: boolean;
-	renderMode?: "texture" | "color" | "none";
+	renderMode?: RenderMode;
 	projectionMode?: ProjectionMode;
 	wireframe?: boolean;
-	wireframeColor?: [number, number, number];
+	wireframeColor?: Color3;
 	animationSpeed?: number;
 	resolution?: {
 		width: number;

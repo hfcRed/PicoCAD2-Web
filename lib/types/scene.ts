@@ -1,5 +1,13 @@
 import type { mat4 } from "gl-matrix";
 
+export type Color3 = [number, number, number];
+
+export type RenderMode = "texture" | "color" | "none";
+
+export type AnimationProp = "pos" | "rot" | "scale" | "visible";
+
+export type Axis = "x" | "y" | "z";
+
 export interface Transform {
 	position: Float32Array;
 	rotation: Float32Array;
@@ -22,8 +30,8 @@ export interface Mesh {
 }
 
 export interface AnimationClip {
-	prop: "pos" | "rot" | "scale" | "visible";
-	axes: ("x" | "y" | "z")[];
+	prop: AnimationProp;
+	axes: Axis[];
 	start: number;
 	stop: number;
 	delta: number;

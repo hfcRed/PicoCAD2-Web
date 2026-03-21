@@ -7,7 +7,12 @@ import {
 	storeStaticTransforms,
 } from "./scene/scene-graph.ts";
 import type { PicoCAD2ViewerOptions } from "./types/options.ts";
-import type { PicoCAD2Model, ProjectionMode } from "./types/scene.ts";
+import type {
+	Color3,
+	PicoCAD2Model,
+	ProjectionMode,
+	RenderMode,
+} from "./types/scene.ts";
 
 /** Controls animation playback state and timing. */
 class AnimationController {
@@ -88,10 +93,10 @@ export class PicoCAD2Viewer {
 	readonly animation: AnimationController = new AnimationController();
 
 	shading = true;
-	renderMode: "texture" | "color" | "none" = "texture";
+	renderMode: RenderMode = "texture";
 	projectionMode: ProjectionMode = "perspective";
 	wireframe = false;
-	wireframeColor: [number, number, number] = [1, 1, 1];
+	wireframeColor: Color3 = [1, 1, 1];
 
 	private renderer: Renderer;
 	private model: PicoCAD2Model | null = null;

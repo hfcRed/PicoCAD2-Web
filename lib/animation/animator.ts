@@ -1,11 +1,16 @@
 import { traverseNode } from "../scene/scene-graph.ts";
-import type { AnimationClip, SceneNode } from "../types/scene.ts";
+import type {
+	AnimationClip,
+	AnimationProp,
+	Axis,
+	SceneNode,
+} from "../types/scene.ts";
 import { evaluateClip } from "./clip.ts";
 
-const PROPS = ["pos", "rot", "scale"] as const;
-const AXES = ["x", "y", "z"] as const;
-const AXIS_MAP: Record<string, number> = { x: 0, y: 1, z: 2 };
-const PROP_MAP: Record<string, "position" | "rotation" | "scale"> = {
+const TRANSFORM_PROPS: AnimationProp[] = ["pos", "rot", "scale"];
+const AXES: Axis[] = ["x", "y", "z"];
+const AXIS_INDEX: Record<Axis, number> = { x: 0, y: 1, z: 2 };
+const TRANSFORM_KEY: Record<string, "position" | "rotation" | "scale"> = {
 	pos: "position",
 	rot: "rotation",
 	scale: "scale",
@@ -24,16 +29,16 @@ const PROP_MAP: Record<string, "position" | "rotation" | "scale"> = {
  */
 function evaluateProperty(
 	node: SceneNode,
-	prop: (typeof PROPS)[number] | "visible",
-	axis: (typeof AXES)[number],
+	prop: AnimationProp,
+	axis: Axis,
 	time: number,
 ): number {
 	let value: number;
 	if (prop === "visible") {
 		value = node.originalVisible ? 1 : 0;
 	} else {
-		const transformProp = PROP_MAP[prop];
-		const axisIdx = AXIS_MAP[axis];
+		const transformProp = TRANSFORM_KEY[prop];
+		const axisIdx = AXIS_INDEX[axis];
 		value = node.staticTransform[transformProp][axisIdx];
 	}
 
@@ -41,7 +46,7 @@ function evaluateProperty(
 	for (const track of node.motions.tracks) {
 		for (const clip of track) {
 			if (clip.prop !== prop) continue;
-			if (!clip.axes.includes(axis as "x" | "y" | "z")) continue;
+			if (!clip.axes.includes(axis)) continue;
 			clips.push(clip);
 		}
 	}
@@ -66,11 +71,11 @@ function evaluateProperty(
  */
 export function evaluateMotions(root: SceneNode, time: number): void {
 	traverseNode(root, (node) => {
-		for (const prop of PROPS) {
+		for (const prop of TRANSFORM_PROPS) {
 			for (const axis of AXES) {
 				const v = evaluateProperty(node, prop, axis, time);
-				const transformProp = PROP_MAP[prop];
-				const axisIdx = AXIS_MAP[axis];
+				const transformProp = TRANSFORM_KEY[prop];
+				const axisIdx = AXIS_INDEX[axis];
 				node.transform[transformProp][axisIdx] = v;
 			}
 		}

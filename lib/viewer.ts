@@ -101,6 +101,9 @@ export class PicoCAD2Viewer {
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
+	private inertiaActive = false;
+	private inertiaX = 0;
+	private inertiaY = 0;
 	private readonly boundHandlers: {
 		onPointerDown: (e: PointerEvent) => void;
 		onPointerMove: (e: PointerEvent) => void;
@@ -225,6 +228,7 @@ export class PicoCAD2Viewer {
 			const dt = (now - this.lastFrameTime) / 1000;
 			this.lastFrameTime = now;
 
+			this.applyInertia();
 			this.animation.advance(dt);
 			this.draw();
 
@@ -341,6 +345,27 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Applies inertia decay to the camera after a drag gesture ends.
+	 */
+	private applyInertia(): void {
+		if (!this.inertiaActive) return;
+
+		const decay = 0.92;
+		this.inertiaX *= decay;
+		this.inertiaY *= decay;
+
+		const speed = Math.sqrt(
+			this.inertiaX * this.inertiaX + this.inertiaY * this.inertiaY,
+		);
+		if (speed < 0.0001) {
+			this.inertiaActive = false;
+			return;
+		}
+
+		this.camera.rotate(this.inertiaX, this.inertiaY);
+	}
+
+	/**
 	 * Computes the distance between two active pointers.
 	 *
 	 * @returns The distance in pixels, or 0 if fewer than 2 pointers.
@@ -373,6 +398,7 @@ export class PicoCAD2Viewer {
 	 * @param e - The pointer event.
 	 */
 	private onPointerDown(e: PointerEvent): void {
+		this.inertiaActive = false;
 		this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 		this.dragButton = e.button;
 		this.canvas.setPointerCapture(e.pointerId);
@@ -416,6 +442,8 @@ export class PicoCAD2Viewer {
 		} else if (this.activePointers.size === 1) {
 			if (e.pointerType === "touch" || this.dragButton === 0) {
 				this.camera.rotate(-dx * 0.01, dy * 0.01);
+				this.inertiaX = -dx * 0.01;
+				this.inertiaY = dy * 0.01;
 			} else if (this.dragButton === 1 || this.dragButton === 2) {
 				const panScale = this.camera.distanceToTarget * 0.005;
 				this.camera.pan(dx * panScale, dy * panScale);
@@ -429,6 +457,7 @@ export class PicoCAD2Viewer {
 	 * @param e - The pointer event.
 	 */
 	private onPointerUp(e: PointerEvent): void {
+		const hadMultiple = this.activePointers.size >= 2;
 		this.activePointers.delete(e.pointerId);
 		try {
 			this.canvas.releasePointerCapture(e.pointerId);
@@ -436,6 +465,15 @@ export class PicoCAD2Viewer {
 
 		if (this.activePointers.size === 1) {
 			this.pinchStartDist = 0;
+		}
+
+		if (this.activePointers.size === 0) {
+			const isRotate =
+				!hadMultiple && (e.pointerType === "touch" || this.dragButton === 0);
+			const speed = Math.sqrt(
+				this.inertiaX * this.inertiaX + this.inertiaY * this.inertiaY,
+			);
+			this.inertiaActive = isRotate && speed > 0.001;
 		}
 	}
 

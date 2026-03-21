@@ -1,0 +1,48 @@
+{
+	"name": "picocad2-web",
+	"author": "hfcRed",
+	"license": "MIT",
+	"description": "Package for viewing PicoCAD 2 files in the browser",
+	"private": false,
+	"version": "1.0.0",
+	"type": "module",
+	"exports": {
+		".": {
+			"import": "./dist/main.js",
+			"types": "./dist/main.d.ts"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/hfcRed/PicoCAD2-Web"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b ./tsconfig.lib.json && vite build",
+		"preview": "vite preview",
+		"prepublishOnly": "pnpm run build",
+		"format": "biome format --write .",
+		"lint": "biome lint --write .",
+		"check": "biome check --write ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.8",
+		"typescript": "~5.9.3",
+		"vite": "^8.0.1",
+		"vite-plugin-dts": "^4.5.4"
+	},
+	"keywords": [
+		"picocad",
+		"picocad2",
+		"3d",
+		"viewer",
+		"webgl",
+		"browser"
+	],
+	"engines": {
+		"node": ">=18.0.0"
+	}
+}

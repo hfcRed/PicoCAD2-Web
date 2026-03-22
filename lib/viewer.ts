@@ -126,6 +126,7 @@ export class PicoCAD2Viewer {
 	private resources: ModelResources | null = null;
 	private renderWidth = 128;
 	private renderHeight = 128;
+	private renderScale = 1;
 	private animationFrameId: number | null = null;
 	private lastFrameTime = 0;
 	private cameraControlsEnabled = false;
@@ -169,13 +170,7 @@ export class PicoCAD2Viewer {
 
 		const resolution = options?.resolution;
 		if (resolution) {
-			const scale = resolution.scale ?? 1;
-			this.renderWidth = resolution.width;
-			this.renderHeight = resolution.height;
-			this.canvas.width = resolution.width;
-			this.canvas.height = resolution.height;
-			this.canvas.style.width = `${resolution.width * scale}px`;
-			this.canvas.style.height = `${resolution.height * scale}px`;
+			this.setResolution(resolution.width, resolution.height, resolution.scale);
 		}
 
 		if (options?.shading !== undefined) this.shading = options.shading;
@@ -314,6 +309,9 @@ export class PicoCAD2Viewer {
 
 		const w = this.renderWidth;
 		const h = this.renderHeight;
+		const s = this.renderScale;
+		const dw = w * s;
+		const dh = h * s;
 
 		this.context.render(
 			this.camera,
@@ -323,18 +321,20 @@ export class PicoCAD2Viewer {
 			w,
 			h,
 		);
-		this.ctx2d.drawImage(this.context.canvas, 0, 0, w, h, 0, 0, w, h);
+		this.ctx2d.drawImage(this.context.canvas, 0, 0, w, h, 0, 0, dw, dh);
 
 		if (this.scanlines) {
 			const [sr, sg, sb] = this.scanlineColor;
 			this.ctx2d.fillStyle = `rgba(${Math.round(sr * 255)},${Math.round(sg * 255)},${Math.round(sb * 255)},0.25)`;
-			for (let y = 0; y < h; y += 2) {
-				this.ctx2d.fillRect(0, y, w, 1);
+			for (let y = 0; y < dh; y += 2 * s) {
+				this.ctx2d.fillRect(0, y, dw, s);
 			}
 		}
 
 		const font = this.context.font;
-		if (font) {
+		if (font && s > 0) {
+			this.ctx2d.save();
+			this.ctx2d.scale(s, s);
 			if (this.leftTag) {
 				font.drawText(
 					this.ctx2d,
@@ -355,6 +355,7 @@ export class PicoCAD2Viewer {
 					true,
 				);
 			}
+			this.ctx2d.restore();
 		}
 	}
 
@@ -464,16 +465,20 @@ export class PicoCAD2Viewer {
 
 	/**
 	 * Updates the canvas resolution.
+	 * The scene renders at `width × height`, then is upscaled by `scale` with
+	 * nearest-neighbor interpolation, matching PicoCAD 2's export behavior.
 	 *
-	 * @param width - The display width in pixels.
-	 * @param height - The display height in pixels.
+	 * @param width - The render width in pixels.
+	 * @param height - The render height in pixels.
 	 * @param scale - The pixel scale factor (default: 1).
 	 */
 	setResolution(width: number, height: number, scale = 1): void {
 		this.renderWidth = width;
 		this.renderHeight = height;
-		this.canvas.width = width;
-		this.canvas.height = height;
+		this.renderScale = scale;
+		this.canvas.width = width * scale;
+		this.canvas.height = height * scale;
+		this.ctx2d.imageSmoothingEnabled = false;
 		this.canvas.style.width = `${width * scale}px`;
 		this.canvas.style.height = `${height * scale}px`;
 	}

@@ -3,6 +3,17 @@ import * as twgl from "twgl.js";
 import { traverseNode } from "../scene/scene-graph.ts";
 import type { Face, Mesh, SceneNode } from "../types/scene.ts";
 
+export interface MeshBufferGroup {
+	bufferInfo: twgl.BufferInfo;
+	triangleCount: number;
+}
+
+export interface NodeBuffers {
+	node: SceneNode;
+	groups: (MeshBufferGroup | null)[];
+	wireframe: twgl.BufferInfo | null;
+}
+
 /**
  * Render groups based on face properties.
  * Group 0: Non-priority, single-sided
@@ -57,19 +68,6 @@ function computeFaceNormal(mesh: Mesh, face: Face): Float32Array {
 	vec3.normalize(normal, normal);
 
 	return normal as Float32Array;
-}
-
-/** GPU buffer data for a single render group of a mesh node. */
-export interface MeshBufferGroup {
-	bufferInfo: twgl.BufferInfo;
-	triangleCount: number;
-}
-
-/** All GPU buffer groups for a single scene node's mesh. */
-export interface NodeBuffers {
-	node: SceneNode;
-	groups: (MeshBufferGroup | null)[];
-	wireframe: twgl.BufferInfo | null;
 }
 
 /**

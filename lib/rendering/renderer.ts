@@ -9,6 +9,13 @@ import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
 
+export interface RenderSettings {
+	shading: boolean;
+	renderMode: number;
+	outlineSize: number;
+	outlineColor: Color3;
+}
+
 /**
  * Light direction in view space, matching PicoCAD 2's {0, -0.3, 1}.
  * Z is negated because gl-matrix's lookAt has z pointing away from the scene,
@@ -21,14 +28,6 @@ const LIGHT_DIR_VIEW = vec3.normalize(
 
 /** Ambient light level matching PicoCAD 2. */
 const AMBIENT = 0.15;
-
-export interface RenderSettings {
-	shading: boolean;
-	/** Numeric render mode: 0 = textured, 1 = flat color, 2 = none (wireframe only). */
-	renderMode: number;
-	outlineSize: number;
-	outlineColor: Color3;
-}
 
 export interface ModelResources {
 	indexTexture: WebGLTexture;

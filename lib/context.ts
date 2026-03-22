@@ -1,4 +1,5 @@
 import type { OrbitCamera } from "./camera/orbit-camera.ts";
+import { BitmapFont } from "./rendering/font.ts";
 import {
 	type ModelResources,
 	Renderer,
@@ -16,6 +17,7 @@ export class PicoCAD2Context {
 	readonly canvas: OffscreenCanvas;
 	readonly gl: WebGL2RenderingContext;
 	private renderer: Renderer;
+	font: BitmapFont | null = null;
 
 	/**
 	 * Rendering statistics from the most recent draw call.
@@ -40,6 +42,10 @@ export class PicoCAD2Context {
 		this.gl = gl;
 
 		this.renderer = new Renderer(gl);
+
+		BitmapFont.loadDefault().then((font) => {
+			this.font = font;
+		});
 	}
 
 	/**

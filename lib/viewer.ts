@@ -15,6 +15,13 @@ import type {
 	RenderMode,
 } from "./types/scene.ts";
 
+/** A text tag displayed in the viewport corner. */
+export interface ViewerTag {
+	text: string;
+	/** RGB color in 0-1 range. Defaults to white [1, 1, 1]. */
+	color?: Color3;
+}
+
 /** Controls animation playback state and timing. */
 class AnimationController {
 	private duration = 0;
@@ -101,6 +108,8 @@ export class PicoCAD2Viewer {
 	projectionMode: ProjectionMode = "perspective";
 	wireframe = false;
 	wireframeColor: Color3 = [1, 1, 1];
+	leftTag: ViewerTag | null = null;
+	rightTag: ViewerTag | null = null;
 
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
@@ -256,8 +265,39 @@ export class PicoCAD2Viewer {
 		const w = this.renderWidth;
 		const h = this.renderHeight;
 
-		this.context.render(this.camera, settings, this.model, this.resources, w, h);
+		this.context.render(
+			this.camera,
+			settings,
+			this.model,
+			this.resources,
+			w,
+			h,
+		);
 		this.ctx2d.drawImage(this.context.canvas, 0, 0, w, h, 0, 0, w, h);
+
+		const font = this.context.font;
+		if (font) {
+			if (this.leftTag) {
+				font.drawText(
+					this.ctx2d,
+					this.leftTag.text,
+					2,
+					h - 10,
+					this.leftTag.color ?? [1, 1, 1],
+				);
+			}
+
+			if (this.rightTag) {
+				font.drawText(
+					this.ctx2d,
+					this.rightTag.text,
+					w - 2,
+					h - 10,
+					this.rightTag.color ?? [1, 1, 1],
+					true,
+				);
+			}
+		}
 	}
 
 	/**

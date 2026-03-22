@@ -109,6 +109,8 @@ export class PicoCAD2Viewer {
 	projectionMode: ProjectionMode = "perspective";
 	wireframe = false;
 	wireframeColor: Color3 = [1, 1, 1];
+	outlineSize = 0;
+	outlineColor: Color3 = [0, 0, 0];
 	leftTag: ViewerTag | null = null;
 	rightTag: ViewerTag | null = null;
 	cameraMode: CameraMode = "fixed";
@@ -179,6 +181,8 @@ export class PicoCAD2Viewer {
 		if (options?.projectionMode) this.projectionMode = options.projectionMode;
 		if (options?.wireframe !== undefined) this.wireframe = options.wireframe;
 		if (options?.wireframeColor) this.wireframeColor = options.wireframeColor;
+		if (options?.outlineSize !== undefined) this.outlineSize = options.outlineSize;
+		if (options?.outlineColor) this.outlineColor = options.outlineColor;
 		if (options?.animationSpeed !== undefined) {
 			this.animation.speed = options.animationSpeed;
 		}
@@ -273,6 +277,8 @@ export class PicoCAD2Viewer {
 				this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2,
 			wireframe: this.wireframe,
 			wireframeColor: this.wireframeColor,
+			outlineSize: this.outlineSize,
+			outlineColor: this.outlineColor,
 		};
 
 		const w = this.renderWidth;

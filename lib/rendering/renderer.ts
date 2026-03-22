@@ -26,6 +26,8 @@ export interface RenderSettings {
 	renderMode: number;
 	wireframe: boolean;
 	wireframeColor: Color3;
+	outlineSize: number;
+	outlineColor: Color3;
 }
 
 export interface ModelResources {
@@ -46,6 +48,12 @@ export class Renderer {
 	private readonly mvpMatrix: mat4 = mat4.create();
 	private readonly lightDirWorld: vec3 = vec3.create();
 	private programs: ShaderPrograms;
+	private fbo: WebGLFramebuffer | null = null;
+	private fboTexture: WebGLTexture | null = null;
+	private fboDepth: WebGLRenderbuffer | null = null;
+	private fboWidth = 0;
+	private fboHeight = 0;
+	private emptyVao: WebGLVertexArrayObject | null = null;
 
 	/**
 	 * Creates a new renderer for the given WebGL 2 context.
@@ -86,11 +94,14 @@ export class Renderer {
 		resources: ModelResources,
 	): void {
 		const gl = this.gl;
+		const w = gl.canvas.width;
+		const h = gl.canvas.height;
+		const useOutline = settings.outlineSize > 0;
 
 		this.stats.drawCalls = 0;
 		this.stats.polyCount = 0;
 
-		const aspect = gl.canvas.width / gl.canvas.height;
+		const aspect = w / h;
 		const vpMatrix = camera.getViewProjectionMatrix(aspect);
 
 		// Compute world-space light direction from camera orientation.
@@ -115,17 +126,22 @@ export class Renderer {
 			(node) => node.visible,
 		);
 
-		// Set background color
 		const bgIdx = model.texture.backgroundColor;
 		const colors = model.texture.colors;
-		gl.clearColor(
-			colors[bgIdx * 3] ?? 0,
-			colors[bgIdx * 3 + 1] ?? 0,
-			colors[bgIdx * 3 + 2] ?? 0,
-			1,
-		);
+		const bgR = colors[bgIdx * 3] ?? 0;
+		const bgG = colors[bgIdx * 3 + 1] ?? 0;
+		const bgB = colors[bgIdx * 3 + 2] ?? 0;
+
+		if (useOutline) {
+			this.ensureFbo(w, h);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+			gl.clearColor(0, 0, 0, 0);
+		} else {
+			gl.clearColor(bgR, bgG, bgB, 1);
+		}
+
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+		gl.viewport(0, 0, w, h);
 
 		if (settings.renderMode < 2) {
 			this.drawModel(vpMatrix, settings, model, resources);
@@ -133,6 +149,11 @@ export class Renderer {
 
 		if (settings.wireframe) {
 			this.drawWireframe(vpMatrix, settings.wireframeColor, resources);
+		}
+
+		if (useOutline) {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			this.drawOutline(w, h, settings, bgR, bgG, bgB);
 		}
 	}
 
@@ -149,12 +170,139 @@ export class Renderer {
 	}
 
 	/**
-	 * Frees the shader programs held by this renderer.
+	 * Frees all GPU resources held by this renderer.
 	 */
 	dispose(): void {
 		const gl = this.gl;
 		gl.deleteProgram(this.programs.model.program);
 		gl.deleteProgram(this.programs.wireframe.program);
+		gl.deleteProgram(this.programs.outline.program);
+		this.disposeFbo();
+		if (this.emptyVao) {
+			gl.deleteVertexArray(this.emptyVao);
+			this.emptyVao = null;
+		}
+	}
+
+	/**
+	 * Ensures the framebuffer object exists and matches the given dimensions.
+	 *
+	 * @param w - The required width in pixels.
+	 * @param h - The required height in pixels.
+	 */
+	private ensureFbo(w: number, h: number): void {
+		if (this.fbo && this.fboWidth === w && this.fboHeight === h) return;
+
+		const gl = this.gl;
+		this.disposeFbo();
+
+		this.fbo = gl.createFramebuffer();
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
+
+		this.fboTexture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, this.fboTexture);
+		gl.texImage2D(
+			gl.TEXTURE_2D,
+			0,
+			gl.RGBA8,
+			w,
+			h,
+			0,
+			gl.RGBA,
+			gl.UNSIGNED_BYTE,
+			null,
+		);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.framebufferTexture2D(
+			gl.FRAMEBUFFER,
+			gl.COLOR_ATTACHMENT0,
+			gl.TEXTURE_2D,
+			this.fboTexture,
+			0,
+		);
+
+		this.fboDepth = gl.createRenderbuffer();
+		gl.bindRenderbuffer(gl.RENDERBUFFER, this.fboDepth);
+		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+		gl.framebufferRenderbuffer(
+			gl.FRAMEBUFFER,
+			gl.DEPTH_ATTACHMENT,
+			gl.RENDERBUFFER,
+			this.fboDepth,
+		);
+
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		this.fboWidth = w;
+		this.fboHeight = h;
+	}
+
+	/**
+	 * Frees the framebuffer resources.
+	 */
+	private disposeFbo(): void {
+		const gl = this.gl;
+
+		if (this.fbo) {
+			gl.deleteFramebuffer(this.fbo);
+			this.fbo = null;
+		}
+		if (this.fboTexture) {
+			gl.deleteTexture(this.fboTexture);
+			this.fboTexture = null;
+		}
+		if (this.fboDepth) {
+			gl.deleteRenderbuffer(this.fboDepth);
+			this.fboDepth = null;
+		}
+
+		this.fboWidth = 0;
+		this.fboHeight = 0;
+	}
+
+	/**
+	 * Applies the outline post-process shader.
+	 * Reads the FBO color texture and draws a fullscreen triangle to the default framebuffer.
+	 *
+	 * @param w - The render width in pixels.
+	 * @param h - The render height in pixels.
+	 * @param settings - The render settings containing outline parameters.
+	 * @param bgR - Background red component (0-1).
+	 * @param bgG - Background green component (0-1).
+	 * @param bgB - Background blue component (0-1).
+	 */
+	private drawOutline(
+		w: number,
+		h: number,
+		settings: RenderSettings,
+		bgR: number,
+		bgG: number,
+		bgB: number,
+	): void {
+		const gl = this.gl;
+
+		if (!this.emptyVao) {
+			this.emptyVao = gl.createVertexArray();
+		}
+
+		gl.viewport(0, 0, w, h);
+		gl.disable(gl.DEPTH_TEST);
+
+		gl.useProgram(this.programs.outline.program);
+
+		twgl.setUniforms(this.programs.outline, {
+			u_texture: this.fboTexture,
+			u_outlineSize: settings.outlineSize,
+			u_outlineColor: settings.outlineColor,
+			u_texelSize: [1 / w, 1 / h],
+			u_backgroundColor: [bgR, bgG, bgB],
+		});
+
+		gl.bindVertexArray(this.emptyVao);
+		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindVertexArray(null);
 	}
 
 	/**

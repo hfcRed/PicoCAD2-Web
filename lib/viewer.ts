@@ -111,6 +111,8 @@ export class PicoCAD2Viewer {
 	wireframeColor: Color3 = [1, 1, 1];
 	outlineSize = 0;
 	outlineColor: Color3 = [0, 0, 0];
+	scanlines = false;
+	scanlineColor: Color3 = [0, 0, 0];
 	leftTag: ViewerTag | null = null;
 	rightTag: ViewerTag | null = null;
 	cameraMode: CameraMode = "fixed";
@@ -183,6 +185,8 @@ export class PicoCAD2Viewer {
 		if (options?.wireframeColor) this.wireframeColor = options.wireframeColor;
 		if (options?.outlineSize !== undefined) this.outlineSize = options.outlineSize;
 		if (options?.outlineColor) this.outlineColor = options.outlineColor;
+		if (options?.scanlines !== undefined) this.scanlines = options.scanlines;
+		if (options?.scanlineColor) this.scanlineColor = options.scanlineColor;
 		if (options?.animationSpeed !== undefined) {
 			this.animation.speed = options.animationSpeed;
 		}
@@ -293,6 +297,14 @@ export class PicoCAD2Viewer {
 			h,
 		);
 		this.ctx2d.drawImage(this.context.canvas, 0, 0, w, h, 0, 0, w, h);
+
+		if (this.scanlines) {
+			const [sr, sg, sb] = this.scanlineColor;
+			this.ctx2d.fillStyle = `rgba(${Math.round(sr * 255)},${Math.round(sg * 255)},${Math.round(sb * 255)},0.25)`;
+			for (let y = 0; y < h; y += 2) {
+				this.ctx2d.fillRect(0, y, w, 1);
+			}
+		}
 
 		const font = this.context.font;
 		if (font) {

@@ -11,6 +11,8 @@ export interface PicoCAD2ViewerOptions {
 	wireframeColor?: Color3;
 	outlineSize?: number;
 	outlineColor?: Color3;
+	scanlines?: boolean;
+	scanlineColor?: Color3;
 	animationSpeed?: number;
 	cameraMode?: CameraMode;
 	cameraModeSpeed?: number;

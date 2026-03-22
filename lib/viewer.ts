@@ -183,7 +183,8 @@ export class PicoCAD2Viewer {
 		if (options?.projectionMode) this.projectionMode = options.projectionMode;
 		if (options?.wireframe !== undefined) this.wireframe = options.wireframe;
 		if (options?.wireframeColor) this.wireframeColor = options.wireframeColor;
-		if (options?.outlineSize !== undefined) this.outlineSize = options.outlineSize;
+		if (options?.outlineSize !== undefined)
+			this.outlineSize = options.outlineSize;
 		if (options?.outlineColor) this.outlineColor = options.outlineColor;
 		if (options?.scanlines !== undefined) this.scanlines = options.scanlines;
 		if (options?.scanlineColor) this.scanlineColor = options.scanlineColor;

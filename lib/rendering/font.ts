@@ -11,7 +11,7 @@ interface Glyph {
  */
 const ALPHABET = [
 	..."ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz0123456789",
-	...'_!"#$%&\'()*+,-./:;<=>?[]\\^_\'{}|~@',
+	..."_!\"#$%&'()*+,-./:;<=>?[]\\^_'{}|~@",
 	..."ÄÁÀÂÅÃÇçäáàâåãÑñÏÍÌÎÜÚÙÛïíìîüúùû",
 	..."ÖÓÒÔÕŸÝYöóòôõÿýyËÉÈÊ",
 ];
@@ -30,10 +30,7 @@ export class BitmapFont {
 	 * @param glyphs - Map of character to glyph data.
 	 * @param offset - The vertical offset to apply when drawing.
 	 */
-	private constructor(
-		glyphs: Map<string, Glyph>,
-		offset: number,
-	) {
+	private constructor(glyphs: Map<string, Glyph>, offset: number) {
 		this.glyphs = glyphs;
 		this.offset = offset;
 	}
@@ -77,8 +74,15 @@ export class BitmapFont {
 	 * @param imgH - The image height in pixels.
 	 * @returns The parsed bitmap font.
 	 */
-	static parse(data: Uint8ClampedArray, imgW: number, imgH: number): BitmapFont {
-		const getPixel = (x: number, y: number): [number, number, number, number] => {
+	static parse(
+		data: Uint8ClampedArray,
+		imgW: number,
+		imgH: number,
+	): BitmapFont {
+		const getPixel = (
+			x: number,
+			y: number,
+		): [number, number, number, number] => {
 			const i = (y * imgW + x) * 4;
 			return [data[i], data[i + 1], data[i + 2], data[i + 3]];
 		};

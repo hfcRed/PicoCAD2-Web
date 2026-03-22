@@ -20,7 +20,6 @@ const LIGHT_DIR_VIEW = vec3.normalize(
 /** Ambient light level matching PicoCAD 2. */
 const AMBIENT = 0.15;
 
-/** Current render settings. */
 export interface RenderSettings {
 	shading: boolean;
 	/** 0 = texture, 1 = color */
@@ -29,16 +28,24 @@ export interface RenderSettings {
 	wireframeColor: Color3;
 }
 
+export interface ModelResources {
+	indexTexture: WebGLTexture;
+	paletteTexture: WebGLTexture;
+	nodeBuffers: NodeBuffers[];
+}
+
+export interface RenderStats {
+	drawCalls: number;
+	polyCount: number;
+}
+
 /** The main WebGL renderer for PicoCAD 2 models. */
 export class Renderer {
 	readonly gl: WebGL2RenderingContext;
-	private programs: ShaderPrograms;
-	private indexTexture: WebGLTexture | null = null;
-	private paletteTexture: WebGLTexture | null = null;
-	private nodeBuffers: NodeBuffers[] = [];
-	private model: PicoCAD2Model | null = null;
+	readonly stats: RenderStats = { drawCalls: 0, polyCount: 0 };
 	private readonly mvpMatrix: mat4 = mat4.create();
 	private readonly lightDirWorld: vec3 = vec3.create();
+	private programs: ShaderPrograms;
 
 	/**
 	 * Creates a new renderer for the given WebGL 2 context.
@@ -51,30 +58,37 @@ export class Renderer {
 	}
 
 	/**
-	 * Loads a parsed model into the renderer, creating all GPU resources.
+	 * Creates GPU resources for a parsed model.
 	 *
 	 * @param model - The parsed PicoCAD 2 model.
+	 * @returns The GPU resources needed to render this model.
 	 */
-	loadModel(model: PicoCAD2Model): void {
-		this.dispose();
-		this.model = model;
-
-		this.indexTexture = createIndexTexture(this.gl, model.texture);
-		this.paletteTexture = createPaletteTexture(this.gl, model.texture);
-		this.nodeBuffers = buildAllBuffers(this.gl, model.root);
+	createModelResources(model: PicoCAD2Model): ModelResources {
+		return {
+			indexTexture: createIndexTexture(this.gl, model.texture),
+			paletteTexture: createPaletteTexture(this.gl, model.texture),
+			nodeBuffers: buildAllBuffers(this.gl, model.root),
+		};
 	}
 
 	/**
-	 * Renders a single frame of the loaded model.
+	 * Renders a single frame of the given model.
 	 *
 	 * @param camera - The orbit camera providing view/projection matrices.
 	 * @param settings - The current render settings.
+	 * @param model - The parsed model.
+	 * @param resources - The GPU resources for this model.
 	 */
-	draw(camera: OrbitCamera, settings: RenderSettings): void {
-		if (!this.model) return;
-
+	draw(
+		camera: OrbitCamera,
+		settings: RenderSettings,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+	): void {
 		const gl = this.gl;
-		const model = this.model;
+
+		this.stats.drawCalls = 0;
+		this.stats.polyCount = 0;
 
 		const aspect = gl.canvas.width / gl.canvas.height;
 		const vpMatrix = camera.getViewProjectionMatrix(aspect);
@@ -114,12 +128,33 @@ export class Renderer {
 		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
 		if (settings.renderMode < 2) {
-			this.drawModel(vpMatrix, settings);
+			this.drawModel(vpMatrix, settings, model, resources);
 		}
 
 		if (settings.wireframe) {
-			this.drawWireframe(vpMatrix, settings.wireframeColor);
+			this.drawWireframe(vpMatrix, settings.wireframeColor, resources);
 		}
+	}
+
+	/**
+	 * Frees GPU resources for a specific model.
+	 *
+	 * @param resources - The model resources to dispose.
+	 */
+	disposeModelResources(resources: ModelResources): void {
+		const gl = this.gl;
+		gl.deleteTexture(resources.indexTexture);
+		gl.deleteTexture(resources.paletteTexture);
+		resources.nodeBuffers = [];
+	}
+
+	/**
+	 * Frees the shader programs held by this renderer.
+	 */
+	dispose(): void {
+		const gl = this.gl;
+		gl.deleteProgram(this.programs.model.program);
+		gl.deleteProgram(this.programs.wireframe.program);
 	}
 
 	/**
@@ -127,8 +162,15 @@ export class Renderer {
 	 *
 	 * @param vpMatrix - The view-projection matrix.
 	 * @param settings - The current render settings.
+	 * @param model - The parsed model.
+	 * @param resources - The GPU resources.
 	 */
-	private drawModel(vpMatrix: mat4, settings: RenderSettings): void {
+	private drawModel(
+		vpMatrix: mat4,
+		settings: RenderSettings,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+	): void {
 		const gl = this.gl;
 
 		gl.useProgram(this.programs.model.program);
@@ -137,13 +179,13 @@ export class Renderer {
 		gl.depthMask(true);
 
 		// Draw priority faces
-		this.drawGroups(vpMatrix, settings, [2, 3]);
+		this.drawGroups(vpMatrix, settings, [2, 3], model, resources);
 
 		// Clear depth buffer
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 
 		// Draw non-priority faces
-		this.drawGroups(vpMatrix, settings, [0, 1]);
+		this.drawGroups(vpMatrix, settings, [0, 1], model, resources);
 
 		gl.disable(gl.DEPTH_TEST);
 	}
@@ -154,17 +196,19 @@ export class Renderer {
 	 * @param vpMatrix - The view-projection matrix.
 	 * @param settings - The current render settings.
 	 * @param groupIndices - Which render groups to draw.
+	 * @param model - The parsed model.
+	 * @param resources - The GPU resources.
 	 */
 	private drawGroups(
 		vpMatrix: mat4,
 		settings: RenderSettings,
 		groupIndices: number[],
+		model: PicoCAD2Model,
+		resources: ModelResources,
 	): void {
 		const gl = this.gl;
-		const model = this.model;
-		if (!model) return;
 
-		for (const nb of this.nodeBuffers) {
+		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.visible) continue;
 			if (!this.isNodeVisible(nb.node)) continue;
 
@@ -185,8 +229,8 @@ export class Renderer {
 				const uniforms = {
 					u_mvp: this.mvpMatrix,
 					u_worldMatrix: nb.node.localMatrix,
-					u_indexTexture: this.indexTexture,
-					u_paletteTexture: this.paletteTexture,
+					u_indexTexture: resources.indexTexture,
+					u_paletteTexture: resources.paletteTexture,
 					u_lightDir: this.lightDirWorld,
 					u_ambient: AMBIENT,
 					u_transparentColor: model.texture.transparentColor,
@@ -197,6 +241,9 @@ export class Renderer {
 				twgl.setBuffersAndAttributes(gl, this.programs.model, group.bufferInfo);
 				twgl.setUniforms(this.programs.model, uniforms);
 				twgl.drawBufferInfo(gl, group.bufferInfo);
+
+				this.stats.drawCalls++;
+				this.stats.polyCount += (group.bufferInfo.numElements ?? 0) / 3;
 			}
 		}
 	}
@@ -206,8 +253,13 @@ export class Renderer {
 	 *
 	 * @param vpMatrix - The view-projection matrix.
 	 * @param color - The wireframe color as [r, g, b].
+	 * @param resources - The GPU resources.
 	 */
-	private drawWireframe(vpMatrix: mat4, color: Color3): void {
+	private drawWireframe(
+		vpMatrix: mat4,
+		color: Color3,
+		resources: ModelResources,
+	): void {
 		const gl = this.gl;
 
 		gl.useProgram(this.programs.wireframe.program);
@@ -215,7 +267,7 @@ export class Renderer {
 		gl.depthFunc(gl.LEQUAL);
 		gl.disable(gl.CULL_FACE);
 
-		for (const nb of this.nodeBuffers) {
+		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.visible || !nb.wireframe) continue;
 			if (!this.isNodeVisible(nb.node)) continue;
 
@@ -229,6 +281,8 @@ export class Renderer {
 			twgl.setBuffersAndAttributes(gl, this.programs.wireframe, nb.wireframe);
 			twgl.setUniforms(this.programs.wireframe, uniforms);
 			twgl.drawBufferInfo(gl, nb.wireframe, gl.LINES);
+
+			this.stats.drawCalls++;
 		}
 
 		gl.disable(gl.DEPTH_TEST);
@@ -247,24 +301,5 @@ export class Renderer {
 		// we just check this node's own visibility flag.
 		// Parent visibility gating happens during animation evaluation.
 		return _node.visible;
-	}
-
-	/**
-	 * Frees all GPU resources held by this renderer.
-	 */
-	dispose(): void {
-		const gl = this.gl;
-
-		if (this.indexTexture) {
-			gl.deleteTexture(this.indexTexture);
-			this.indexTexture = null;
-		}
-		if (this.paletteTexture) {
-			gl.deleteTexture(this.paletteTexture);
-			this.paletteTexture = null;
-		}
-
-		this.nodeBuffers = [];
-		this.model = null;
 	}
 }

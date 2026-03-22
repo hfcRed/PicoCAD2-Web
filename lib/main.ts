@@ -1,3 +1,5 @@
+export { PicoCAD2Context } from "./context.ts";
+export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type { PicoCAD2ViewerOptions } from "./types/options.ts";
 export type {
 	CameraState,

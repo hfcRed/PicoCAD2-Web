@@ -1,7 +1,8 @@
 import { evaluateMotions } from "./animation/animator.ts";
 import { OrbitCamera } from "./camera/orbit-camera.ts";
+import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
-import { Renderer, type RenderSettings } from "./rendering/renderer.ts";
+import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import {
 	restoreStaticTransforms,
 	storeStaticTransforms,
@@ -85,10 +86,13 @@ class AnimationController {
 /**
  * The main PicoCAD 2 viewer class.
  * Provides a complete API for loading, rendering, and interacting with PicoCAD 2 models.
+ *
+ * Uses a shared {@link PicoCAD2Context} for WebGL rendering. If no context is provided,
+ * one is created internally. Multiple viewers can share a single context to avoid
+ * the browser's ~16 active WebGL context limit.
  */
 export class PicoCAD2Viewer {
 	readonly canvas: HTMLCanvasElement;
-	readonly gl: WebGL2RenderingContext;
 	readonly camera: OrbitCamera = new OrbitCamera();
 	readonly animation: AnimationController = new AnimationController();
 
@@ -98,8 +102,13 @@ export class PicoCAD2Viewer {
 	wireframe = false;
 	wireframeColor: Color3 = [1, 1, 1];
 
-	private renderer: Renderer;
+	private context: PicoCAD2Context;
+	private ownsContext: boolean;
+	private ctx2d: CanvasRenderingContext2D;
 	private model: PicoCAD2Model | null = null;
+	private resources: ModelResources | null = null;
+	private renderWidth = 128;
+	private renderHeight = 128;
 	private animationFrameId: number | null = null;
 	private lastFrameTime = 0;
 	private cameraControlsEnabled = false;
@@ -127,23 +136,29 @@ export class PicoCAD2Viewer {
 	constructor(options?: PicoCAD2ViewerOptions) {
 		this.canvas = options?.canvas ?? document.createElement("canvas");
 
+		if (options?.context) {
+			this.context = options.context;
+			this.ownsContext = false;
+		} else {
+			this.context = new PicoCAD2Context();
+			this.ownsContext = true;
+		}
+
+		const ctx2d = this.canvas.getContext("2d");
+		if (!ctx2d) throw new Error("Could not get 2D canvas context");
+		ctx2d.imageSmoothingEnabled = false;
+		this.ctx2d = ctx2d;
+
 		const resolution = options?.resolution;
 		if (resolution) {
 			const scale = resolution.scale ?? 1;
+			this.renderWidth = resolution.width;
+			this.renderHeight = resolution.height;
 			this.canvas.width = resolution.width;
 			this.canvas.height = resolution.height;
 			this.canvas.style.width = `${resolution.width * scale}px`;
 			this.canvas.style.height = `${resolution.height * scale}px`;
 		}
-
-		const gl = this.canvas.getContext("webgl2", {
-			antialias: false,
-			alpha: false,
-		});
-		if (!gl) throw new Error("WebGL 2 is not supported");
-		this.gl = gl;
-
-		this.renderer = new Renderer(gl);
 
 		if (options?.shading !== undefined) this.shading = options.shading;
 		if (options?.renderMode) this.renderMode = options.renderMode;
@@ -165,6 +180,15 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * The WebGL 2 rendering context used by this viewer.
+	 *
+	 * @returns The shared WebGL 2 context.
+	 */
+	get gl(): WebGL2RenderingContext {
+		return this.context.gl;
+	}
+
+	/**
 	 * Whether a model is currently loaded.
 	 *
 	 * @returns True if a model is loaded.
@@ -179,8 +203,13 @@ export class PicoCAD2Viewer {
 	 * @param source - The raw JSON string content of the model file.
 	 */
 	load(source: string): void {
+		if (this.resources) {
+			this.context.disposeModelResources(this.resources);
+			this.resources = null;
+		}
+
 		this.model = parseModel(source);
-		this.renderer.loadModel(this.model);
+		this.resources = this.context.createModelResources(this.model);
 		this.animation.setDuration(this.model.motionDuration);
 		this.animation.time = 0;
 		this.shading = this.model.shadingEnabled;
@@ -207,7 +236,7 @@ export class PicoCAD2Viewer {
 	 * Draws a single frame.
 	 */
 	draw(): void {
-		if (!this.model) return;
+		if (!this.model || !this.resources) return;
 
 		this.camera.projectionMode = this.projectionMode;
 
@@ -224,7 +253,11 @@ export class PicoCAD2Viewer {
 			wireframeColor: this.wireframeColor,
 		};
 
-		this.renderer.draw(this.camera, settings);
+		const w = this.renderWidth;
+		const h = this.renderHeight;
+
+		this.context.render(this.camera, settings, this.model, this.resources, w, h);
+		this.ctx2d.drawImage(this.context.canvas, 0, 0, w, h, 0, 0, w, h);
 	}
 
 	/**
@@ -338,6 +371,8 @@ export class PicoCAD2Viewer {
 	 * @param scale - The pixel scale factor (default: 1).
 	 */
 	setResolution(width: number, height: number, scale = 1): void {
+		this.renderWidth = width;
+		this.renderHeight = height;
 		this.canvas.width = width;
 		this.canvas.height = height;
 		this.canvas.style.width = `${width * scale}px`;
@@ -350,7 +385,16 @@ export class PicoCAD2Viewer {
 	dispose(): void {
 		this.stopRenderLoop();
 		this.disableCameraControls();
-		this.renderer.dispose();
+
+		if (this.resources) {
+			this.context.disposeModelResources(this.resources);
+			this.resources = null;
+		}
+
+		if (this.ownsContext) {
+			this.context.dispose();
+		}
+
 		this.model = null;
 	}
 

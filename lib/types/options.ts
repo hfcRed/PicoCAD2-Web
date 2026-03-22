@@ -1,8 +1,9 @@
+import type { PicoCAD2Context } from "../context.ts";
 import type { Color3, ProjectionMode, RenderMode } from "./scene.ts";
 
-/** Configuration options for the PicoCAD 2 viewer. */
 export interface PicoCAD2ViewerOptions {
 	canvas?: HTMLCanvasElement;
+	context?: PicoCAD2Context;
 	shading?: boolean;
 	renderMode?: RenderMode;
 	projectionMode?: ProjectionMode;

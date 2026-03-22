@@ -2,7 +2,7 @@ import { mat4, vec3 } from "gl-matrix";
 import * as twgl from "twgl.js";
 import type { OrbitCamera } from "../camera/orbit-camera.ts";
 import { traverseNode, updateNodeMatrix } from "../scene/scene-graph.ts";
-import type { Color3, PicoCAD2Model, SceneNode } from "../types/scene.ts";
+import type { Color3, PicoCAD2Model } from "../types/scene.ts";
 import { buildAllBuffers, type NodeBuffers } from "./buffers.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
@@ -22,7 +22,7 @@ const AMBIENT = 0.15;
 
 export interface RenderSettings {
 	shading: boolean;
-	/** 0 = texture, 1 = color */
+	/** Numeric render mode: 0 = textured, 1 = flat color, 2 = none (wireframe only). */
 	renderMode: number;
 	wireframe: boolean;
 	wireframeColor: Color3;
@@ -358,7 +358,6 @@ export class Renderer {
 
 		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.visible) continue;
-			if (!this.isNodeVisible(nb.node)) continue;
 
 			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.localMatrix);
 
@@ -417,7 +416,6 @@ export class Renderer {
 
 		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.visible || !nb.wireframe) continue;
-			if (!this.isNodeVisible(nb.node)) continue;
 
 			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.localMatrix);
 
@@ -436,18 +434,4 @@ export class Renderer {
 		gl.disable(gl.DEPTH_TEST);
 	}
 
-	/**
-	 * Checks if a node is visible by tracing up the scene graph.
-	 * In PicoCAD 2, hidden parent nodes hide all children.
-	 *
-	 * @param node - The node to check.
-	 * @returns True if the node and all ancestors are visible.
-	 */
-	private isNodeVisible(_node: SceneNode): boolean {
-		// Since we build buffers via traverseNode which visits all descendants
-		// and the render traversal already gates on visibility,
-		// we just check this node's own visibility flag.
-		// Parent visibility gating happens during animation evaluation.
-		return _node.visible;
-	}
 }

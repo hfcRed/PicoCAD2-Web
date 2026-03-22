@@ -45,7 +45,12 @@ export class BitmapFont {
 		const img = new Image();
 		img.crossOrigin = "anonymous";
 		img.src = url;
-		await img.decode();
+
+		try {
+			await img.decode();
+		} catch {
+			throw new Error(`Failed to load font image: ${url}`);
+		}
 
 		const canvas = new OffscreenCanvas(img.width, img.height);
 		const ctx = canvas.getContext("2d");

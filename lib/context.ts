@@ -45,6 +45,8 @@ export class PicoCAD2Context {
 
 		BitmapFont.loadDefault().then((font) => {
 			this.font = font;
+		}).catch((err) => {
+			console.warn("Failed to load bitmap font:", err);
 		});
 	}
 

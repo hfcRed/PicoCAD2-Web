@@ -36,7 +36,12 @@ export function parseModel(source: string): PicoCAD2Model {
 		);
 	}
 
-	const raw: RawPicoCAD2File = JSON.parse(source);
+	let raw: RawPicoCAD2File;
+	try {
+		raw = JSON.parse(source);
+	} catch {
+		throw new Error("Failed to parse PicoCAD 2 model: invalid JSON");
+	}
 
 	return {
 		root: parseGraph(raw.graph),

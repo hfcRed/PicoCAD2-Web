@@ -1,7 +1,16 @@
-import type { RawPicoCAD2File } from "../types/model.ts";
-import type { CameraState, PicoCAD2Model } from "../types/scene.ts";
+import type { RawExportSettings, RawPicoCAD2File } from "../types/model.ts";
+import type {
+	CameraMode,
+	CameraState,
+	Color3,
+	ExportSettings,
+	PicoCAD2Model,
+} from "../types/scene.ts";
 import { parseGraph } from "./graph-parser.ts";
 import { parseTexture } from "./texture-parser.ts";
+
+/** Valid camera mode values from PicoCAD 2 export settings. */
+const CAMERA_MODES = new Set<CameraMode>(["spin", "sway", "pingpong", "fixed"]);
 
 /**
  * Parses the camera state from raw metadata, if present.
@@ -18,6 +27,47 @@ function parseCameraState(raw: RawPicoCAD2File): CameraState | null {
 		distanceToTarget: cam.distance_to_target,
 		theta: cam.theta,
 		omega: cam.omega,
+	};
+}
+
+/**
+ * Resolves a palette color index to an RGB Color3.
+ *
+ * @param colors - The palette colors as a flat Float32Array.
+ * @param index - The palette index (0-15).
+ * @returns The resolved color, or white if the index is out of range.
+ */
+function paletteColor(colors: Float32Array, index: number): Color3 {
+	const i = index * 3;
+	if (i + 2 >= colors.length) return [1, 1, 1];
+	return [colors[i], colors[i + 1], colors[i + 2]];
+}
+
+/**
+ * Parses export settings from raw metadata, resolving palette indices to colors.
+ *
+ * @param raw - The raw export settings from the model file.
+ * @param colors - The parsed palette colors.
+ * @returns The fully resolved export settings.
+ */
+function parseExportSettings(
+	raw: RawExportSettings | undefined,
+	colors: Float32Array,
+): ExportSettings {
+	const anim = raw?.anim as CameraMode | undefined;
+	return {
+		cameraMode: anim && CAMERA_MODES.has(anim) ? anim : "fixed",
+		cameraModeDirection: raw?.dir === 1 ? "right" : "left",
+		cameraModeSpeed: raw?.speed ?? 5,
+		animate: raw?.animate ?? false,
+		outlineSize: raw?.outline_size ?? 0,
+		outlineColor: paletteColor(colors, raw?.outline_color ?? 0),
+		scanlines: raw?.scanlines ?? false,
+		scanlineColor: paletteColor(colors, raw?.scanline_color ?? 0),
+		watermark: raw?.watermark ?? "",
+		watermarkColor: paletteColor(colors, raw?.watermark_color ?? 15),
+		watermark2: raw?.watermark2 ?? "",
+		watermark2Color: paletteColor(colors, raw?.watermark2_color ?? 15),
 	};
 }
 
@@ -43,12 +93,18 @@ export function parseModel(source: string): PicoCAD2Model {
 		throw new Error("Failed to parse PicoCAD 2 model: invalid JSON");
 	}
 
+	const texture = parseTexture(raw.texture);
+
 	return {
 		root: parseGraph(raw.graph),
-		texture: parseTexture(raw.texture),
+		texture,
 		motionDuration: raw.metadata.motion_duration,
 		shadingEnabled: raw.metadata.shading_mode !== 0,
 		camera: parseCameraState(raw),
 		projectionMode: raw.metadata.export_settings?.fov_type ?? "perspective",
+		exportSettings: parseExportSettings(
+			raw.metadata.export_settings,
+			texture.colors,
+		),
 	};
 }

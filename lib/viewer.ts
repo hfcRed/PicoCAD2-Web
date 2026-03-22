@@ -240,10 +240,36 @@ export class PicoCAD2Viewer {
 
 		this.model = parseModel(source);
 		this.resources = this.context.createModelResources(this.model);
-		this.animation.setDuration(this.model.motionDuration);
-		this.animation.time = 0;
 		this.shading = this.model.shadingEnabled;
 		this.projectionMode = this.model.projectionMode;
+
+		this.animation.setDuration(this.model.motionDuration);
+		this.animation.time = 0;
+
+		const es = this.model.exportSettings;
+		this.cameraMode = es.cameraMode;
+		this.cameraModeDirection = es.cameraModeDirection;
+		this.cameraModeSpeed = es.cameraModeSpeed;
+		this.outlineSize = es.outlineSize;
+		this.outlineColor = es.outlineColor;
+		this.scanlines = es.scanlines;
+		this.scanlineColor = es.scanlineColor;
+
+		if (es.animate) {
+			this.animation.play();
+		}
+
+		if (es.watermark) {
+			this.rightTag = { text: es.watermark, color: es.watermarkColor };
+		} else {
+			this.rightTag = null;
+		}
+
+		if (es.watermark2) {
+			this.leftTag = { text: es.watermark2, color: es.watermark2Color };
+		} else {
+			this.leftTag = null;
+		}
 
 		if (this.model.camera) {
 			this.camera.initFromState(this.model.camera);

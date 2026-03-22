@@ -70,6 +70,21 @@ export type ProjectionMode = "perspective" | "orthographic" | "fisheye";
 
 export type CameraMode = "spin" | "sway" | "pingpong" | "fixed";
 
+export interface ExportSettings {
+	cameraMode: CameraMode;
+	cameraModeDirection: "left" | "right";
+	cameraModeSpeed: number;
+	animate: boolean;
+	outlineSize: number;
+	outlineColor: Color3;
+	scanlines: boolean;
+	scanlineColor: Color3;
+	watermark: string;
+	watermarkColor: Color3;
+	watermark2: string;
+	watermark2Color: Color3;
+}
+
 export interface PicoCAD2Model {
 	root: SceneNode;
 	texture: TextureData;
@@ -77,6 +92,7 @@ export interface PicoCAD2Model {
 	shadingEnabled: boolean;
 	camera: CameraState | null;
 	projectionMode: ProjectionMode;
+	exportSettings: ExportSettings;
 }
 
 export interface CameraState {

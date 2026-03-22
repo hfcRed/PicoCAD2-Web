@@ -6,6 +6,7 @@ export type {
 	CameraMode,
 	CameraState,
 	Color3,
+	ExportSettings,
 	PicoCAD2Model,
 	ProjectionMode,
 	RenderMode,

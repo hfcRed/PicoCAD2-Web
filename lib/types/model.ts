@@ -78,6 +78,18 @@ export interface RawTexture {
 
 export interface RawExportSettings {
 	fov_type?: ProjectionMode;
+	anim?: string;
+	dir?: number;
+	speed?: number;
+	animate?: boolean;
+	outline_size?: number;
+	outline_color?: number;
+	scanlines?: boolean;
+	scanline_color?: number;
+	watermark?: string;
+	watermark_color?: number;
+	watermark2?: string;
+	watermark2_color?: number;
 }
 
 export interface RawMetadata {

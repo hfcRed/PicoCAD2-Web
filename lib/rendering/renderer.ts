@@ -4,6 +4,8 @@ import type { OrbitCamera } from "../camera/orbit-camera.ts";
 import { traverseNode, updateNodeMatrix } from "../scene/scene-graph.ts";
 import type { Color3, PicoCAD2Model } from "../types/scene.ts";
 import { buildAllBuffers, type NodeBuffers } from "./buffers.ts";
+import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
+import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
 
@@ -24,8 +26,6 @@ export interface RenderSettings {
 	shading: boolean;
 	/** Numeric render mode: 0 = textured, 1 = flat color, 2 = none (wireframe only). */
 	renderMode: number;
-	wireframe: boolean;
-	wireframeColor: Color3;
 	outlineSize: number;
 	outlineColor: Color3;
 }
@@ -48,11 +48,6 @@ export class Renderer {
 	private readonly mvpMatrix: mat4 = mat4.create();
 	private readonly lightDirWorld: vec3 = vec3.create();
 	private programs: ShaderPrograms;
-	private fbo: WebGLFramebuffer | null = null;
-	private fboTexture: WebGLTexture | null = null;
-	private fboDepth: WebGLRenderbuffer | null = null;
-	private fboWidth = 0;
-	private fboHeight = 0;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 
 	/**
@@ -86,17 +81,27 @@ export class Renderer {
 	 * @param settings - The current render settings.
 	 * @param model - The parsed model.
 	 * @param resources - The GPU resources for this model.
+	 * @param time - Elapsed time in seconds for animated effects.
+	 * @param pipeline - The per-viewer post-process pipeline.
 	 */
 	draw(
 		camera: OrbitCamera,
 		settings: RenderSettings,
 		model: PicoCAD2Model,
 		resources: ModelResources,
+		time: number,
+		pipeline: PostProcessPipeline,
 	): void {
 		const gl = this.gl;
 		const w = gl.canvas.width;
 		const h = gl.canvas.height;
-		const useOutline = settings.outlineSize > 0;
+
+		const gradOutline = pipeline.getPostEffect("gradientOutline");
+		const useGradientOutline =
+			gradOutline instanceof GradientOutlineEffect && gradOutline.enabled;
+		const useOutline = settings.outlineSize > 0 && !useGradientOutline;
+		const hasEffects = pipeline.hasActiveEffects();
+		const useFbo = useOutline || hasEffects;
 
 		this.stats.drawCalls = 0;
 		this.stats.polyCount = 0;
@@ -115,7 +120,6 @@ export class Renderer {
 		this.lightDirWorld[1] = v[4] * lx + v[5] * ly + v[6] * lz;
 		this.lightDirWorld[2] = v[8] * lx + v[9] * ly + v[10] * lz;
 
-		// Update node matrices
 		traverseNode(
 			model.root,
 			(node) => {
@@ -132,11 +136,21 @@ export class Renderer {
 		const bgG = colors[bgIdx * 3 + 1] ?? 0;
 		const bgB = colors[bgIdx * 3 + 2] ?? 0;
 
-		if (useOutline) {
-			this.ensureFbo(w, h);
-			gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
-			gl.clearColor(0, 0, 0, 0);
+		if (useGradientOutline) {
+			(gradOutline as GradientOutlineEffect).backgroundColor = [bgR, bgG, bgB];
+		}
+
+		if (useFbo) {
+			pipeline.pool.ensure(gl, w, h);
+			pipeline.pool.bindScene(gl);
+
+			if (useOutline || useGradientOutline) {
+				gl.clearColor(0, 0, 0, 0);
+			} else {
+				gl.clearColor(bgR, bgG, bgB, 1);
+			}
 		} else {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 			gl.clearColor(bgR, bgG, bgB, 1);
 		}
 
@@ -147,13 +161,30 @@ export class Renderer {
 			this.drawModel(vpMatrix, settings, model, resources);
 		}
 
-		if (settings.wireframe) {
-			this.drawWireframe(vpMatrix, settings.wireframeColor, resources);
+		if (pipeline.hasActiveSceneEffects()) {
+			const ctx = { gl, width: w, height: h, time };
+			for (const effect of pipeline.sceneEffects) {
+				if (!effect.enabled) continue;
+				if (!effect.initialized) {
+					effect.init(gl);
+				}
+				effect.render(ctx, vpMatrix, resources);
+			}
 		}
 
+		if (!useFbo) return;
+
 		if (useOutline) {
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-			this.drawOutline(w, h, settings, bgR, bgG, bgB);
+			const inputTexture = pipeline.pool.swap(gl);
+			gl.viewport(0, 0, w, h);
+			this.drawOutline(w, h, inputTexture, settings, bgR, bgG, bgB);
+		}
+
+		if (pipeline.hasActivePostEffects()) {
+			const ctx = { gl, width: w, height: h, time };
+			pipeline.execute(ctx);
+		} else {
+			pipeline.blit(gl, w, h);
 		}
 	}
 
@@ -175,9 +206,8 @@ export class Renderer {
 	dispose(): void {
 		const gl = this.gl;
 		gl.deleteProgram(this.programs.model.program);
-		gl.deleteProgram(this.programs.wireframe.program);
 		gl.deleteProgram(this.programs.outline.program);
-		this.disposeFbo();
+
 		if (this.emptyVao) {
 			gl.deleteVertexArray(this.emptyVao);
 			this.emptyVao = null;
@@ -185,89 +215,12 @@ export class Renderer {
 	}
 
 	/**
-	 * Ensures the framebuffer object exists and matches the given dimensions.
-	 *
-	 * @param w - The required width in pixels.
-	 * @param h - The required height in pixels.
-	 */
-	private ensureFbo(w: number, h: number): void {
-		if (this.fbo && this.fboWidth === w && this.fboHeight === h) return;
-
-		const gl = this.gl;
-		this.disposeFbo();
-
-		this.fbo = gl.createFramebuffer();
-		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
-
-		this.fboTexture = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D, this.fboTexture);
-		gl.texImage2D(
-			gl.TEXTURE_2D,
-			0,
-			gl.RGBA8,
-			w,
-			h,
-			0,
-			gl.RGBA,
-			gl.UNSIGNED_BYTE,
-			null,
-		);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.framebufferTexture2D(
-			gl.FRAMEBUFFER,
-			gl.COLOR_ATTACHMENT0,
-			gl.TEXTURE_2D,
-			this.fboTexture,
-			0,
-		);
-
-		this.fboDepth = gl.createRenderbuffer();
-		gl.bindRenderbuffer(gl.RENDERBUFFER, this.fboDepth);
-		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
-		gl.framebufferRenderbuffer(
-			gl.FRAMEBUFFER,
-			gl.DEPTH_ATTACHMENT,
-			gl.RENDERBUFFER,
-			this.fboDepth,
-		);
-
-		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-		this.fboWidth = w;
-		this.fboHeight = h;
-	}
-
-	/**
-	 * Frees the framebuffer resources.
-	 */
-	private disposeFbo(): void {
-		const gl = this.gl;
-
-		if (this.fbo) {
-			gl.deleteFramebuffer(this.fbo);
-			this.fbo = null;
-		}
-		if (this.fboTexture) {
-			gl.deleteTexture(this.fboTexture);
-			this.fboTexture = null;
-		}
-		if (this.fboDepth) {
-			gl.deleteRenderbuffer(this.fboDepth);
-			this.fboDepth = null;
-		}
-
-		this.fboWidth = 0;
-		this.fboHeight = 0;
-	}
-
-	/**
 	 * Applies the outline post-process shader.
-	 * Reads the FBO color texture and draws a fullscreen triangle to the default framebuffer.
+	 * Reads the input texture and draws to the currently bound framebuffer.
 	 *
 	 * @param w - The render width in pixels.
 	 * @param h - The render height in pixels.
+	 * @param inputTexture - The scene texture to detect outlines from.
 	 * @param settings - The render settings containing outline parameters.
 	 * @param bgR - Background red component (0-1).
 	 * @param bgG - Background green component (0-1).
@@ -276,6 +229,7 @@ export class Renderer {
 	private drawOutline(
 		w: number,
 		h: number,
+		inputTexture: WebGLTexture,
 		settings: RenderSettings,
 		bgR: number,
 		bgG: number,
@@ -293,7 +247,7 @@ export class Renderer {
 		gl.useProgram(this.programs.outline.program);
 
 		twgl.setUniforms(this.programs.outline, {
-			u_texture: this.fboTexture,
+			u_texture: inputTexture,
 			u_outlineSize: settings.outlineSize,
 			u_outlineColor: settings.outlineColor,
 			u_texelSize: [1 / w, 1 / h],
@@ -336,6 +290,7 @@ export class Renderer {
 		this.drawGroups(vpMatrix, settings, [0, 1], model, resources);
 
 		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.CULL_FACE);
 	}
 
 	/**
@@ -394,44 +349,4 @@ export class Renderer {
 			}
 		}
 	}
-
-	/**
-	 * Draws wireframe edges for all visible mesh nodes.
-	 *
-	 * @param vpMatrix - The view-projection matrix.
-	 * @param color - The wireframe color as [r, g, b].
-	 * @param resources - The GPU resources.
-	 */
-	private drawWireframe(
-		vpMatrix: mat4,
-		color: Color3,
-		resources: ModelResources,
-	): void {
-		const gl = this.gl;
-
-		gl.useProgram(this.programs.wireframe.program);
-		gl.enable(gl.DEPTH_TEST);
-		gl.depthFunc(gl.LEQUAL);
-		gl.disable(gl.CULL_FACE);
-
-		for (const nb of resources.nodeBuffers) {
-			if (!nb.node.visible || !nb.wireframe) continue;
-
-			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.localMatrix);
-
-			const uniforms = {
-				u_mvp: this.mvpMatrix,
-				u_color: color,
-			};
-
-			twgl.setBuffersAndAttributes(gl, this.programs.wireframe, nb.wireframe);
-			twgl.setUniforms(this.programs.wireframe, uniforms);
-			twgl.drawBufferInfo(gl, nb.wireframe, gl.LINES);
-
-			this.stats.drawCalls++;
-		}
-
-		gl.disable(gl.DEPTH_TEST);
-	}
-
 }

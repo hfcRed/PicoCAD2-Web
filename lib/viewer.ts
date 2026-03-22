@@ -2,6 +2,7 @@ import { evaluateMotions } from "./animation/animator.ts";
 import { OrbitCamera } from "./camera/orbit-camera.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
+import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import {
 	restoreStaticTransforms,
@@ -15,11 +16,10 @@ import type {
 	ProjectionMode,
 	RenderMode,
 } from "./types/scene.ts";
+import { ViewerExtras } from "./viewer-extras.ts";
 
-/** A text tag displayed in the viewport corner. */
 export interface ViewerTag {
 	text: string;
-	/** RGB color in 0-1 range. Defaults to white [1, 1, 1]. */
 	color?: Color3;
 }
 
@@ -103,12 +103,12 @@ export class PicoCAD2Viewer {
 	readonly canvas: HTMLCanvasElement;
 	readonly camera: OrbitCamera = new OrbitCamera();
 	readonly animation: AnimationController = new AnimationController();
+	readonly extras: ViewerExtras;
+	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
 
 	shading = true;
 	renderMode: RenderMode = "texture";
 	projectionMode: ProjectionMode = "perspective";
-	wireframe = false;
-	wireframeColor: Color3 = [1, 1, 1];
 	outlineSize = 0;
 	outlineColor: Color3 = [0, 0, 0];
 	scanlines = false;
@@ -129,6 +129,7 @@ export class PicoCAD2Viewer {
 	private renderScale = 1;
 	private animationFrameId: number | null = null;
 	private lastFrameTime = 0;
+	private elapsedTime = 0;
 	private cameraControlsEnabled = false;
 	private dragButton = 0;
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
@@ -168,6 +169,8 @@ export class PicoCAD2Viewer {
 		ctx2d.imageSmoothingEnabled = false;
 		this.ctx2d = ctx2d;
 
+		this.extras = new ViewerExtras(this.pipeline);
+
 		const resolution = options?.resolution;
 		if (resolution) {
 			this.setResolution(resolution.width, resolution.height, resolution.scale);
@@ -176,8 +179,6 @@ export class PicoCAD2Viewer {
 		if (options?.shading !== undefined) this.shading = options.shading;
 		if (options?.renderMode) this.renderMode = options.renderMode;
 		if (options?.projectionMode) this.projectionMode = options.projectionMode;
-		if (options?.wireframe !== undefined) this.wireframe = options.wireframe;
-		if (options?.wireframeColor) this.wireframeColor = options.wireframeColor;
 		if (options?.outlineSize !== undefined)
 			this.outlineSize = options.outlineSize;
 		if (options?.outlineColor) this.outlineColor = options.outlineColor;
@@ -301,8 +302,6 @@ export class PicoCAD2Viewer {
 			shading: this.shading,
 			renderMode:
 				this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2,
-			wireframe: this.wireframe,
-			wireframeColor: this.wireframeColor,
 			outlineSize: this.outlineSize,
 			outlineColor: this.outlineColor,
 		};
@@ -320,8 +319,16 @@ export class PicoCAD2Viewer {
 			this.resources,
 			w,
 			h,
+			this.elapsedTime,
+			this.pipeline,
 		);
-		this.ctx2d.drawImage(this.context.canvas, 0, 0, w, h, 0, 0, dw, dh);
+
+		// Use transferToImageBitmap to atomically capture the WebGL drawing buffer.
+		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
+		// when multiple viewers render in sequence within the same frame.
+		const bitmap = this.context.canvas.transferToImageBitmap();
+		this.ctx2d.drawImage(bitmap, 0, 0, w, h, 0, 0, dw, dh);
+		bitmap.close();
 
 		if (this.scanlines) {
 			const [sr, sg, sb] = this.scanlineColor;
@@ -369,6 +376,7 @@ export class PicoCAD2Viewer {
 		const loop = (now: number): void => {
 			const dt = (now - this.lastFrameTime) / 1000;
 			this.lastFrameTime = now;
+			this.elapsedTime += dt;
 
 			this.applyInertia();
 			this.animation.advance(dt);
@@ -494,6 +502,8 @@ export class PicoCAD2Viewer {
 			this.context.disposeModelResources(this.resources);
 			this.resources = null;
 		}
+
+		this.pipeline.dispose(this.context.gl);
 
 		if (this.ownsContext) {
 			this.context.dispose();

@@ -12,8 +12,6 @@ export interface PicoCAD2ViewerOptions {
 	shading?: boolean;
 	renderMode?: RenderMode;
 	projectionMode?: ProjectionMode;
-	wireframe?: boolean;
-	wireframeColor?: Color3;
 	outlineSize?: number;
 	outlineColor?: Color3;
 	scanlines?: boolean;

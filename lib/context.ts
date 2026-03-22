@@ -1,4 +1,5 @@
 import type { OrbitCamera } from "./camera/orbit-camera.ts";
+import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import { BitmapFont } from "./rendering/font.ts";
 import {
 	type ModelResources,
@@ -43,11 +44,13 @@ export class PicoCAD2Context {
 
 		this.renderer = new Renderer(gl);
 
-		BitmapFont.loadDefault().then((font) => {
-			this.font = font;
-		}).catch((err) => {
-			console.warn("Failed to load bitmap font:", err);
-		});
+		BitmapFont.loadDefault()
+			.then((font) => {
+				this.font = font;
+			})
+			.catch((err) => {
+				console.warn("Failed to load bitmap font:", err);
+			});
 	}
 
 	/**
@@ -69,6 +72,8 @@ export class PicoCAD2Context {
 	 * @param resources - The GPU resources for this model.
 	 * @param width - The render width in pixels.
 	 * @param height - The render height in pixels.
+	 * @param time - Elapsed time in seconds for animated effects.
+	 * @param pipeline - The per-viewer post-process pipeline.
 	 */
 	render(
 		camera: OrbitCamera,
@@ -77,13 +82,15 @@ export class PicoCAD2Context {
 		resources: ModelResources,
 		width: number,
 		height: number,
+		time: number,
+		pipeline: PostProcessPipeline,
 	): void {
 		if (this.canvas.width !== width || this.canvas.height !== height) {
 			this.canvas.width = width;
 			this.canvas.height = height;
 		}
 
-		this.renderer.draw(camera, settings, model, resources);
+		this.renderer.draw(camera, settings, model, resources, time, pipeline);
 	}
 
 	/**

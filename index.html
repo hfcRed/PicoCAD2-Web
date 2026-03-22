@@ -11,7 +11,18 @@
     />
   </head>
   <body>
-    <div id="app"></div>
+    <main class="container">
+      <h1>PicoCAD 2 Web Viewer</h1>
+      <section>
+        <h2>Performance Test</h2>
+        <fieldset role="group">
+          <input type="number" id="perf-count" value="6" min="1" max="500" />
+          <button id="perf-apply" type="button">Apply</button>
+        </fieldset>
+        <small id="perf-stats">---</small>
+        <div id="perf-grid"></div>
+      </section>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

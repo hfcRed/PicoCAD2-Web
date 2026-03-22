@@ -1,0 +1,10 @@
+#perf-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	justify-content: center;
+}
+
+#perf-grid canvas {
+	border-radius: 5px;
+}

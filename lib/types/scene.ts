@@ -68,6 +68,8 @@ export interface TextureData {
 
 export type ProjectionMode = "perspective" | "orthographic" | "fisheye";
 
+export type CameraMode = "spin" | "sway" | "pingpong" | "fixed";
+
 export interface PicoCAD2Model {
 	root: SceneNode;
 	texture: TextureData;

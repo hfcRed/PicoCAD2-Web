@@ -3,6 +3,7 @@ export { BitmapFont } from "./rendering/font.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type { PicoCAD2ViewerOptions } from "./types/options.ts";
 export type {
+	CameraMode,
 	CameraState,
 	Color3,
 	PicoCAD2Model,

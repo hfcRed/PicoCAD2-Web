@@ -9,6 +9,7 @@ import {
 } from "./scene/scene-graph.ts";
 import type { PicoCAD2ViewerOptions } from "./types/options.ts";
 import type {
+	CameraMode,
 	Color3,
 	PicoCAD2Model,
 	ProjectionMode,
@@ -110,6 +111,9 @@ export class PicoCAD2Viewer {
 	wireframeColor: Color3 = [1, 1, 1];
 	leftTag: ViewerTag | null = null;
 	rightTag: ViewerTag | null = null;
+	cameraMode: CameraMode = "fixed";
+	cameraModeSpeed = 5;
+	cameraModeDirection: "left" | "right" = "left";
 
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
@@ -125,6 +129,7 @@ export class PicoCAD2Viewer {
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
+	private cameraModeTime = 0;
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;
@@ -176,6 +181,13 @@ export class PicoCAD2Viewer {
 		if (options?.wireframeColor) this.wireframeColor = options.wireframeColor;
 		if (options?.animationSpeed !== undefined) {
 			this.animation.speed = options.animationSpeed;
+		}
+		if (options?.cameraMode) this.cameraMode = options.cameraMode;
+		if (options?.cameraModeSpeed !== undefined) {
+			this.cameraModeSpeed = options.cameraModeSpeed;
+		}
+		if (options?.cameraModeDirection) {
+			this.cameraModeDirection = options.cameraModeDirection;
 		}
 
 		this.boundHandlers = {
@@ -248,6 +260,7 @@ export class PicoCAD2Viewer {
 		if (!this.model || !this.resources) return;
 
 		this.camera.projectionMode = this.projectionMode;
+		this.camera.omegaOffset = this.computeCameraModeOffset();
 
 		if (this.animation.playing || this.animation.time > 0) {
 			restoreStaticTransforms(this.model.root);
@@ -313,6 +326,7 @@ export class PicoCAD2Viewer {
 
 			this.applyInertia();
 			this.animation.advance(dt);
+			this.cameraModeTime += dt;
 			this.draw();
 
 			this.animationFrameId = requestAnimationFrame(loop);
@@ -457,6 +471,47 @@ export class PicoCAD2Viewer {
 		}
 
 		this.camera.rotate(this.inertiaX, this.inertiaY);
+	}
+
+	/**
+	 * Computes the camera mode omega offset for the current frame.
+	 *
+	 * When animation is playing, the cycle duration syncs to the animation
+	 * duration so the camera completes exactly one full cycle per animation loop.
+	 * Otherwise, {@link cameraModeSpeed} controls the cycle duration.
+	 *
+	 * @returns The omega offset in radians.
+	 */
+	private computeCameraModeOffset(): number {
+		if (this.cameraMode === "fixed") return 0;
+
+		const dir = this.cameraModeDirection === "right" ? 1 : -1;
+
+		let time: number;
+		let cycleDuration: number;
+
+		if (this.animation.playing && this.model && this.model.motionDuration > 0) {
+			time = this.animation.time;
+			cycleDuration = this.model.motionDuration;
+		} else {
+			time = this.cameraModeTime;
+			cycleDuration = this.cameraModeSpeed;
+		}
+
+		switch (this.cameraMode) {
+			case "spin": {
+				return (time / cycleDuration) * 2 * Math.PI * dir;
+			}
+			case "sway": {
+				const r = time / cycleDuration;
+				return -dir * Math.sin(r * 2 * Math.PI) * (Math.PI / 4);
+			}
+			case "pingpong": {
+				let r = (time % cycleDuration) / cycleDuration;
+				if (r > 0.5) r = 1 - r;
+				return -dir * r * 2 * Math.PI;
+			}
+		}
 	}
 
 	/**

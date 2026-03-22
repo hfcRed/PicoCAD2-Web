@@ -12,10 +12,27 @@ export class OrbitCamera {
 	/** Vertical orbit angle (elevation) in radians. */
 	theta = 0.4;
 
+	private _omegaOffset = 0;
 	distanceToTarget = 20;
 	target: vec3 = vec3.fromValues(0, 0, 0);
 	zoom = 1;
 	projectionMode: ProjectionMode = "perspective";
+
+	/**
+	 * Additional horizontal rotation offset in radians, applied on top of omega.
+	 * Used by camera modes (spin, sway, pingpong) to add auto-rotation
+	 * without modifying the user-controlled omega value.
+	 */
+	get omegaOffset(): number {
+		return this._omegaOffset;
+	}
+
+	set omegaOffset(value: number) {
+		if (this._omegaOffset !== value) {
+			this._omegaOffset = value;
+			this.needsUpdate = true;
+		}
+	}
 
 	private readonly position: vec3 = vec3.create();
 	private readonly viewMatrix: mat4 = mat4.create();
@@ -82,13 +99,15 @@ export class OrbitCamera {
 	 * Computes the camera position from spherical coordinates.
 	 */
 	private updatePosition(): void {
+		const omega = this.omega + this._omegaOffset;
 		const cosTheta = Math.cos(this.theta);
+
 		this.position[0] =
-			this.target[0] + this.distanceToTarget * Math.cos(this.omega) * cosTheta;
+			this.target[0] + this.distanceToTarget * Math.cos(omega) * cosTheta;
 		this.position[1] =
 			this.target[1] + this.distanceToTarget * Math.sin(this.theta);
 		this.position[2] =
-			this.target[2] + this.distanceToTarget * Math.sin(this.omega) * cosTheta;
+			this.target[2] + this.distanceToTarget * Math.sin(omega) * cosTheta;
 	}
 
 	/**

@@ -597,6 +597,7 @@ export class PicoCAD2Viewer {
 		this.onDispose?.();
 		this.stopRenderLoop();
 		this.disableCameraControls();
+		this.unwatchResize();
 
 		if (this.resources) {
 			this.context.disposeModelResources(this.resources);

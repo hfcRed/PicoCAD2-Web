@@ -53,9 +53,10 @@ const viewer = new PicoCAD2Viewer({
   resolution: { width: 128, height: 128, scale: 2 },
 
   // Rendering
-  shading: true,                  // Enable lighting (default: true)
-  renderMode: "texture",          // "texture" | "color" | "none" (default: "texture")
-  projectionMode: "perspective",  // "perspective" | "orthographic" | "fisheye" (default: "perspective")
+  shading: true,                    // Enable lighting (default: true)
+  renderMode: "texture",            // "texture" | "color" | "none" (default: "texture")
+  projectionMode: "perspective",    // "perspective" | "orthographic" | "fisheye" (default: "perspective")
+  backgroundColor: [0.1, 0.1, 0.1], // Override background color, or null for model default (default: null)
 
   // Outline
   outlineSize: 0,                 // Outline width in pixels (default: 0, disabled)
@@ -72,6 +73,17 @@ const viewer = new PicoCAD2Viewer({
 
   // Animation
   animationSpeed: 1,              // Animation playback speed multiplier (default: 1)
+
+  // Post-processing extras (all disabled by default)
+  extras: {
+    bloom: { enabled: true, threshold: 0.6, intensity: 1.5 },
+    noise: { enabled: true, amount: 0.05 },
+  },
+
+  // Callbacks
+  onLoad: (info) => console.log("Loaded:", info),
+  onFrame: (dt) => { /* called every frame */ },
+  onDispose: () => console.log("Disposed"),
 });
 ```
 
@@ -96,6 +108,7 @@ All properties can be read and modified at any time after construction:
 viewer.shading = false;
 viewer.renderMode = "color";
 viewer.projectionMode = "orthographic";
+viewer.backgroundColor = [0.2, 0, 0.3];
 
 // Outline
 viewer.outlineSize = 2;
@@ -159,8 +172,75 @@ viewer.animation.setTime(1.5);  // Jump to 1.5 seconds
 ## Resolution
 
 ```typescript
-// Update resolution at any time (width, height, scale)
-viewer.setResolution(256, 256, 2);
+// Update resolution at any time
+viewer.setResolution(256, 256, 2); // width, height, scale (default: 1)
+
+// Auto-resize: observe the canvas's parent element and update resolution on size changes
+viewer.watchResize(2); // scale factor (default: 1)
+
+// Stop observing
+viewer.unwatchResize();
+```
+
+## Model Info
+
+After loading a model, metadata is available via the `modelInfo` property:
+
+```typescript
+viewer.load(modelString);
+
+const info = viewer.modelInfo;
+// info.nodeCount         - Total scene nodes
+// info.polyCount         - Total polygon faces
+// info.animationDuration - Animation length in seconds
+// info.hasAnimation      - Whether the model has animation data
+```
+
+## Callbacks
+
+```typescript
+// Called after a model is loaded, receives ModelInfo
+viewer.onLoad = (info) => {
+  console.log(`Loaded ${info.polyCount} polygons`);
+};
+
+// Called every render loop frame with the delta time in seconds
+viewer.onFrame = (dt) => {
+  fpsCounter.update(dt);
+};
+
+// Called at the start of dispose(), before resources are freed
+viewer.onDispose = () => {
+  console.log("Viewer disposed");
+};
+```
+
+Callbacks can also be set via constructor options (`onLoad`, `onFrame`, `onDispose`).
+
+## State Serialization
+
+Capture and restore the entire viewer state for sharing or persistence:
+
+```typescript
+// Capture state (JSON-serializable)
+const state = viewer.getState();
+localStorage.setItem("viewer", JSON.stringify(state));
+
+// Restore state (reloads model, applies all settings, camera, animation, extras)
+const saved = JSON.parse(localStorage.getItem("viewer"));
+viewer.setState(saved);
+```
+
+The state includes the raw model source string, all rendering settings, camera position, animation state, and extras configuration.
+
+## Image Export
+
+```typescript
+// Export current frame as a Blob (async)
+const blob = await viewer.toBlob("image/png");
+
+// Export as data URL (sync)
+const dataUrl = viewer.toDataURL("image/jpeg", 0.9);
 ```
 
 ## Post-Processing Effects
@@ -415,7 +495,7 @@ When sharing a context, `stats` reflects the most recent `draw()` call on any vi
 ## Cleanup
 
 ```typescript
-// Dispose a single viewer (frees its pipeline and effect resources)
+// Dispose a single viewer (frees pipeline, effects, stops render loop, resize observer)
 viewer.dispose();
 
 // Dispose the shared context (frees the WebGL context and renderer)

@@ -122,6 +122,9 @@ export class PicoCAD2Viewer {
 	cameraMode: CameraMode = "fixed";
 	cameraModeSpeed = 5;
 	cameraModeDirection: "left" | "right" = "left";
+	onLoad: ((info: ModelInfo) => void) | null = null;
+	onFrame: ((dt: number) => void) | null = null;
+	onDispose: (() => void) | null = null;
 
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
@@ -204,6 +207,10 @@ export class PicoCAD2Viewer {
 			this.applyExtrasOptions(options.extras);
 		}
 
+		if (options?.onLoad !== undefined) this.onLoad = options.onLoad;
+		if (options?.onFrame !== undefined) this.onFrame = options.onFrame;
+		if (options?.onDispose !== undefined) this.onDispose = options.onDispose;
+
 		this.boundHandlers = {
 			onPointerDown: this.onPointerDown.bind(this),
 			onPointerMove: this.onPointerMove.bind(this),
@@ -282,6 +289,7 @@ export class PicoCAD2Viewer {
 		}
 
 		storeStaticTransforms(this.model.root);
+		this.onLoad?.(this._modelInfo);
 	}
 
 	/**
@@ -392,6 +400,7 @@ export class PicoCAD2Viewer {
 			this.animation.advance(dt);
 			this.cameraModeTime += dt;
 			this.draw();
+			this.onFrame?.(dt);
 
 			this.animationFrameId = requestAnimationFrame(loop);
 		};
@@ -585,6 +594,7 @@ export class PicoCAD2Viewer {
 	 * Frees all resources held by the viewer.
 	 */
 	dispose(): void {
+		this.onDispose?.();
 		this.stopRenderLoop();
 		this.disableCameraControls();
 

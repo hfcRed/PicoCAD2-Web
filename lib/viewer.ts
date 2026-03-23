@@ -502,6 +502,40 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Returns the last rendered frame as a Blob.
+	 *
+	 * @param type - The image MIME type (default: "image/png").
+	 * @param quality - The image quality for lossy formats (0–1).
+	 * @returns A promise that resolves to the image Blob.
+	 */
+	toBlob(type = "image/png", quality?: number): Promise<Blob> {
+		return new Promise((resolve, reject) => {
+			this.canvas.toBlob(
+				(blob) => {
+					if (blob) {
+						resolve(blob);
+					} else {
+						reject(new Error("Failed to create image blob"));
+					}
+				},
+				type,
+				quality,
+			);
+		});
+	}
+
+	/**
+	 * Returns the last rendered frame as a data URL string.
+	 *
+	 * @param type - The image MIME type (default: "image/png").
+	 * @param quality - The image quality for lossy formats (0–1).
+	 * @returns The data URL.
+	 */
+	toDataURL(type = "image/png", quality?: number): string {
+		return this.canvas.toDataURL(type, quality);
+	}
+
+	/**
 	 * Frees all resources held by the viewer.
 	 */
 	dispose(): void {

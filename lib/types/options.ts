@@ -161,4 +161,7 @@ export interface PicoCAD2ViewerOptions {
 		scale?: number;
 	};
 	extras?: ExtrasOptions;
+	onLoad?: ((info: ModelInfo) => void) | null;
+	onFrame?: ((dt: number) => void) | null;
+	onDispose?: (() => void) | null;
 }

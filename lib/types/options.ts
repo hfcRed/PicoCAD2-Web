@@ -100,6 +100,13 @@ export interface ExtrasOptions {
 	chromaticAberration?: ChromaticAberrationOptions;
 }
 
+export interface ModelInfo {
+	nodeCount: number;
+	polyCount: number;
+	animationDuration: number;
+	hasAnimation: boolean;
+}
+
 export interface CameraSettings {
 	omega: number;
 	theta: number;

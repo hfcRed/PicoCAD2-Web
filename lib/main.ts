@@ -32,6 +32,7 @@ export type {
 	ExtrasOptions,
 	GradientOutlineOptions,
 	LensDistortionOptions,
+	ModelInfo,
 	NoiseOptions,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,

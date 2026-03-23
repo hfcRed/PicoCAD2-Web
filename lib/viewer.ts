@@ -7,9 +7,11 @@ import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import {
 	restoreStaticTransforms,
 	storeStaticTransforms,
+	traverseNode,
 } from "./scene/scene-graph.ts";
 import type {
 	ExtrasOptions,
+	ModelInfo,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
 } from "./types/options.ts";
@@ -144,6 +146,7 @@ export class PicoCAD2Viewer {
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private cameraModeTime = 0;
+	private _modelInfo: ModelInfo | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private resizeScale = 1;
 	private inertiaActive = false;
@@ -242,6 +245,13 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Information about the currently loaded model, or null if no model is loaded.
+	 */
+	get modelInfo(): ModelInfo | null {
+		return this._modelInfo;
+	}
+
+	/**
 	 * Loads a PicoCAD 2 model from a JSON string.
 	 *
 	 * @param source - The raw JSON string content of the model file.
@@ -291,6 +301,8 @@ export class PicoCAD2Viewer {
 		}
 
 		storeStaticTransforms(this.model.root);
+
+		this._modelInfo = this.computeModelInfo(this.model);
 		this.onLoad?.(this._modelInfo);
 	}
 
@@ -614,6 +626,7 @@ export class PicoCAD2Viewer {
 
 		this.source = null;
 		this.model = null;
+		this._modelInfo = null;
 	}
 
 	/**
@@ -813,6 +826,26 @@ export class PicoCAD2Viewer {
 		assign(this.extras.lensDistortion, extras.lensDistortion);
 		assign(this.extras.noise, extras.noise);
 		assign(this.extras.chromaticAberration, extras.chromaticAberration);
+	}
+
+	/**
+	 * Computes model metadata from a parsed model.
+	 */
+	private computeModelInfo(model: PicoCAD2Model): ModelInfo {
+		let nodeCount = 0;
+		let polyCount = 0;
+		traverseNode(model.root, (node) => {
+			nodeCount++;
+			if (node.mesh) {
+				polyCount += node.mesh.faces.length;
+			}
+		});
+		return {
+			nodeCount,
+			polyCount,
+			animationDuration: model.motionDuration,
+			hasAnimation: model.motionDuration > 0,
+		};
 	}
 
 	/**

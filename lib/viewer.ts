@@ -144,6 +144,8 @@ export class PicoCAD2Viewer {
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private cameraModeTime = 0;
+	private resizeObserver: ResizeObserver | null = null;
+	private resizeScale = 1;
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;

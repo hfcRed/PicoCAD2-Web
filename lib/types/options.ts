@@ -100,6 +100,40 @@ export interface ExtrasOptions {
 	chromaticAberration?: ChromaticAberrationOptions;
 }
 
+export interface CameraSettings {
+	omega: number;
+	theta: number;
+	distanceToTarget: number;
+	target: [number, number, number];
+	zoom: number;
+}
+
+export interface ViewerSettings {
+	shading: boolean;
+	renderMode: RenderMode;
+	projectionMode: ProjectionMode;
+	outlineSize: number;
+	outlineColor: Color3;
+	scanlines: boolean;
+	scanlineColor: Color3;
+	cameraMode: CameraMode;
+	cameraModeSpeed: number;
+	cameraModeDirection: "left" | "right";
+	leftTag: { text: string; color?: Color3 } | null;
+	rightTag: { text: string; color?: Color3 } | null;
+	animationSpeed: number;
+	animationTime: number;
+	animationPlaying: boolean;
+	animationLoop: boolean;
+	camera: CameraSettings;
+}
+
+export interface PicoCAD2ViewerState {
+	source: string | null;
+	settings: ViewerSettings;
+	extras: Required<ExtrasOptions>;
+}
+
 export interface PicoCAD2ViewerOptions {
 	canvas?: HTMLCanvasElement;
 	context?: PicoCAD2Context;

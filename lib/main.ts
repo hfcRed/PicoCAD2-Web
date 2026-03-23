@@ -24,6 +24,7 @@ export { BitmapFont } from "./rendering/font.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type {
 	BloomOptions,
+	CameraSettings,
 	ChromaticAberrationOptions,
 	ColorGradingOptions,
 	CRTOptions,
@@ -33,8 +34,10 @@ export type {
 	LensDistortionOptions,
 	NoiseOptions,
 	PicoCAD2ViewerOptions,
+	PicoCAD2ViewerState,
 	PixelationOptions,
 	PosterizationOptions,
+	ViewerSettings,
 	WireframeOptions,
 } from "./types/options.ts";
 export type {

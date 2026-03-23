@@ -8,7 +8,11 @@ import {
 	restoreStaticTransforms,
 	storeStaticTransforms,
 } from "./scene/scene-graph.ts";
-import type { ExtrasOptions, PicoCAD2ViewerOptions } from "./types/options.ts";
+import type {
+	ExtrasOptions,
+	PicoCAD2ViewerOptions,
+	PicoCAD2ViewerState,
+} from "./types/options.ts";
 import type {
 	CameraMode,
 	Color3,
@@ -122,6 +126,7 @@ export class PicoCAD2Viewer {
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
 	private ctx2d: CanvasRenderingContext2D;
+	private source: string | null = null;
 	private model: PicoCAD2Model | null = null;
 	private resources: ModelResources | null = null;
 	private renderWidth = 128;
@@ -238,6 +243,7 @@ export class PicoCAD2Viewer {
 			this.resources = null;
 		}
 
+		this.source = source;
 		this.model = parseModel(source);
 		this.resources = this.context.createModelResources(this.model);
 		this.shading = this.model.shadingEnabled;
@@ -513,7 +519,181 @@ export class PicoCAD2Viewer {
 			this.context.dispose();
 		}
 
+		this.source = null;
 		this.model = null;
+	}
+
+	/**
+	 * Returns a JSON-serializable snapshot of the viewer's complete state,
+	 * including the raw model source, all settings, and extras.
+	 */
+	getState(): PicoCAD2ViewerState {
+		return {
+			source: this.source,
+			settings: {
+				shading: this.shading,
+				renderMode: this.renderMode,
+				projectionMode: this.projectionMode,
+				outlineSize: this.outlineSize,
+				outlineColor: [...this.outlineColor],
+				scanlines: this.scanlines,
+				scanlineColor: [...this.scanlineColor],
+				cameraMode: this.cameraMode,
+				cameraModeSpeed: this.cameraModeSpeed,
+				cameraModeDirection: this.cameraModeDirection,
+				leftTag: this.leftTag
+					? { text: this.leftTag.text, color: this.leftTag.color ?? [1, 1, 1] }
+					: null,
+				rightTag: this.rightTag
+					? {
+							text: this.rightTag.text,
+							color: this.rightTag.color ?? [1, 1, 1],
+						}
+					: null,
+				animationSpeed: this.animation.speed,
+				animationTime: this.animation.time,
+				animationPlaying: this.animation.playing,
+				animationLoop: this.animation.loop,
+				camera: {
+					omega: this.camera.omega,
+					theta: this.camera.theta,
+					distanceToTarget: this.camera.distanceToTarget,
+					target: [
+						this.camera.target[0],
+						this.camera.target[1],
+						this.camera.target[2],
+					],
+					zoom: this.camera.zoom,
+				},
+			},
+			extras: this.getExtrasState(),
+		};
+	}
+
+	/**
+	 * Restores the viewer from a previously captured state.
+	 * If the state includes a model source, it will be loaded.
+	 *
+	 * @param state - The state to restore.
+	 */
+	setState(state: PicoCAD2ViewerState): void {
+		if (state.source !== null) {
+			this.load(state.source);
+		}
+
+		const s = state.settings;
+		this.shading = s.shading;
+		this.renderMode = s.renderMode;
+		this.projectionMode = s.projectionMode;
+		this.outlineSize = s.outlineSize;
+		this.outlineColor = [...s.outlineColor];
+		this.scanlines = s.scanlines;
+		this.scanlineColor = [...s.scanlineColor];
+		this.cameraMode = s.cameraMode;
+		this.cameraModeSpeed = s.cameraModeSpeed;
+		this.cameraModeDirection = s.cameraModeDirection;
+		this.leftTag = s.leftTag
+			? { text: s.leftTag.text, color: s.leftTag.color ?? [1, 1, 1] }
+			: null;
+		this.rightTag = s.rightTag
+			? { text: s.rightTag.text, color: s.rightTag.color ?? [1, 1, 1] }
+			: null;
+
+		this.animation.speed = s.animationSpeed;
+		this.animation.time = s.animationTime;
+		if (s.animationPlaying) {
+			this.animation.play();
+		} else {
+			this.animation.pause();
+		}
+		this.animation.loop = s.animationLoop;
+
+		this.camera.omega = s.camera.omega;
+		this.camera.theta = s.camera.theta;
+		this.camera.distanceToTarget = s.camera.distanceToTarget;
+		this.camera.target[0] = s.camera.target[0];
+		this.camera.target[1] = s.camera.target[1];
+		this.camera.target[2] = s.camera.target[2];
+		this.camera.zoom = s.camera.zoom;
+
+		this.applyExtrasOptions(state.extras);
+	}
+
+	/**
+	 * Reads current extras effect properties into a plain object.
+	 */
+	private getExtrasState(): Required<ExtrasOptions> {
+		const e = this.extras;
+		return {
+			wireframe: {
+				enabled: e.wireframe.enabled,
+				color: [...e.wireframe.color],
+			},
+			gradientOutline: {
+				enabled: e.gradientOutline.enabled,
+				size: e.gradientOutline.size,
+				colorFrom: [...e.gradientOutline.colorFrom],
+				colorTo: [...e.gradientOutline.colorTo],
+				gradient: e.gradientOutline.gradient,
+				gradientDirection: e.gradientOutline.gradientDirection,
+			},
+			colorGrading: {
+				enabled: e.colorGrading.enabled,
+				brightness: e.colorGrading.brightness,
+				contrast: e.colorGrading.contrast,
+				saturation: e.colorGrading.saturation,
+				hue: e.colorGrading.hue,
+			},
+			posterization: {
+				enabled: e.posterization.enabled,
+				levels: e.posterization.levels,
+				channelLevels: [...e.posterization.channelLevels],
+				gamma: e.posterization.gamma,
+				colorBanding: e.posterization.colorBanding,
+			},
+			bloom: {
+				enabled: e.bloom.enabled,
+				threshold: e.bloom.threshold,
+				intensity: e.bloom.intensity,
+				blur: e.bloom.blur,
+			},
+			dithering: {
+				enabled: e.dithering.enabled,
+				amount: e.dithering.amount,
+				blend: e.dithering.blend,
+				channelAmount: [...e.dithering.channelAmount],
+			},
+			crt: {
+				enabled: e.crt.enabled,
+				curvature: e.crt.curvature,
+				scanlineIntensity: e.crt.scanlineIntensity,
+			},
+			pixelation: {
+				enabled: e.pixelation.enabled,
+				pixelSize: e.pixelation.pixelSize,
+				shape: e.pixelation.shape,
+				blend: e.pixelation.blend,
+			},
+			lensDistortion: {
+				enabled: e.lensDistortion.enabled,
+				strength: e.lensDistortion.strength,
+				zoom: e.lensDistortion.zoom,
+			},
+			noise: {
+				enabled: e.noise.enabled,
+				amount: e.noise.amount,
+			},
+			chromaticAberration: {
+				enabled: e.chromaticAberration.enabled,
+				strength: e.chromaticAberration.strength,
+				redOffset: e.chromaticAberration.redOffset,
+				greenOffset: e.chromaticAberration.greenOffset,
+				blueOffset: e.chromaticAberration.blueOffset,
+				radialFalloff: e.chromaticAberration.radialFalloff,
+				centerX: e.chromaticAberration.centerX,
+				centerY: e.chromaticAberration.centerY,
+			},
+		};
 	}
 
 	/**

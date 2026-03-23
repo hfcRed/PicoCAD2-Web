@@ -8,7 +8,7 @@ import {
 	restoreStaticTransforms,
 	storeStaticTransforms,
 } from "./scene/scene-graph.ts";
-import type { PicoCAD2ViewerOptions } from "./types/options.ts";
+import type { ExtrasOptions, PicoCAD2ViewerOptions } from "./types/options.ts";
 import type {
 	CameraMode,
 	Color3,
@@ -193,6 +193,10 @@ export class PicoCAD2Viewer {
 		}
 		if (options?.cameraModeDirection) {
 			this.cameraModeDirection = options.cameraModeDirection;
+		}
+
+		if (options?.extras) {
+			this.applyExtrasOptions(options.extras);
 		}
 
 		this.boundHandlers = {
@@ -510,6 +514,32 @@ export class PicoCAD2Viewer {
 		}
 
 		this.model = null;
+	}
+
+	/**
+	 * Applies extras configuration from options to the viewer's effects.
+	 */
+	private applyExtrasOptions(extras: ExtrasOptions): void {
+		const assign = <T>(target: T, source: Partial<T> | undefined) => {
+			if (!source) return;
+			for (const key of Object.keys(source) as (keyof T)[]) {
+				if (source[key] !== undefined) {
+					target[key] = source[key] as T[keyof T];
+				}
+			}
+		};
+
+		assign(this.extras.wireframe, extras.wireframe);
+		assign(this.extras.gradientOutline, extras.gradientOutline);
+		assign(this.extras.colorGrading, extras.colorGrading);
+		assign(this.extras.posterization, extras.posterization);
+		assign(this.extras.bloom, extras.bloom);
+		assign(this.extras.dithering, extras.dithering);
+		assign(this.extras.crt, extras.crt);
+		assign(this.extras.pixelation, extras.pixelation);
+		assign(this.extras.lensDistortion, extras.lensDistortion);
+		assign(this.extras.noise, extras.noise);
+		assign(this.extras.chromaticAberration, extras.chromaticAberration);
 	}
 
 	/**

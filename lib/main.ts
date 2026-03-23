@@ -22,7 +22,21 @@ export type {
 export { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 export { BitmapFont } from "./rendering/font.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
-export type { PicoCAD2ViewerOptions } from "./types/options.ts";
+export type {
+	BloomOptions,
+	ChromaticAberrationOptions,
+	ColorGradingOptions,
+	CRTOptions,
+	DitheringOptions,
+	ExtrasOptions,
+	GradientOutlineOptions,
+	LensDistortionOptions,
+	NoiseOptions,
+	PicoCAD2ViewerOptions,
+	PixelationOptions,
+	PosterizationOptions,
+	WireframeOptions,
+} from "./types/options.ts";
 export type {
 	CameraMode,
 	CameraState,

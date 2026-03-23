@@ -536,6 +536,52 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Starts observing the canvas's parent element for size changes and
+	 * automatically updates the render resolution to match.
+	 *
+	 * @param scale - The pixel scale factor applied to the container size (default: 1).
+	 */
+	watchResize(scale = 1): void {
+		this.unwatchResize();
+		const parent = this.canvas.parentElement;
+		if (!parent) return;
+
+		this.resizeScale = scale;
+		this.resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				const { width, height } = entry.contentRect;
+				if (width > 0 && height > 0) {
+					this.setResolution(
+						Math.round(width / this.resizeScale),
+						Math.round(height / this.resizeScale),
+						this.resizeScale,
+					);
+				}
+			}
+		});
+		this.resizeObserver.observe(parent);
+
+		const { clientWidth, clientHeight } = parent;
+		if (clientWidth > 0 && clientHeight > 0) {
+			this.setResolution(
+				Math.round(clientWidth / scale),
+				Math.round(clientHeight / scale),
+				scale,
+			);
+		}
+	}
+
+	/**
+	 * Stops observing the canvas's parent element for size changes.
+	 */
+	unwatchResize(): void {
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect();
+			this.resizeObserver = null;
+		}
+	}
+
+	/**
 	 * Frees all resources held by the viewer.
 	 */
 	dispose(): void {

@@ -119,6 +119,7 @@ export interface ViewerSettings {
 	shading: boolean;
 	renderMode: RenderMode;
 	projectionMode: ProjectionMode;
+	backgroundColor: Color3 | null;
 	outlineSize: number;
 	outlineColor: Color3;
 	scanlines: boolean;
@@ -147,6 +148,7 @@ export interface PicoCAD2ViewerOptions {
 	shading?: boolean;
 	renderMode?: RenderMode;
 	projectionMode?: ProjectionMode;
+	backgroundColor?: Color3 | null;
 	outlineSize?: number;
 	outlineColor?: Color3;
 	scanlines?: boolean;

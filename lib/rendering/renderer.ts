@@ -14,6 +14,7 @@ export interface RenderSettings {
 	renderMode: number;
 	outlineSize: number;
 	outlineColor: Color3;
+	backgroundColor: Color3 | null;
 }
 
 /**
@@ -129,11 +130,18 @@ export class Renderer {
 			(node) => node.visible,
 		);
 
-		const bgIdx = model.texture.backgroundColor;
-		const colors = model.texture.colors;
-		const bgR = colors[bgIdx * 3] ?? 0;
-		const bgG = colors[bgIdx * 3 + 1] ?? 0;
-		const bgB = colors[bgIdx * 3 + 2] ?? 0;
+		let bgR: number;
+		let bgG: number;
+		let bgB: number;
+		if (settings.backgroundColor) {
+			[bgR, bgG, bgB] = settings.backgroundColor;
+		} else {
+			const bgIdx = model.texture.backgroundColor;
+			const colors = model.texture.colors;
+			bgR = colors[bgIdx * 3] ?? 0;
+			bgG = colors[bgIdx * 3 + 1] ?? 0;
+			bgB = colors[bgIdx * 3 + 2] ?? 0;
+		}
 
 		if (useGradientOutline) {
 			(gradOutline as GradientOutlineEffect).backgroundColor = [bgR, bgG, bgB];

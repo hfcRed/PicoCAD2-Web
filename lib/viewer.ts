@@ -115,6 +115,7 @@ export class PicoCAD2Viewer {
 	shading = true;
 	renderMode: RenderMode = "texture";
 	projectionMode: ProjectionMode = "perspective";
+	backgroundColor: Color3 | null = null;
 	outlineSize = 0;
 	outlineColor: Color3 = [0, 0, 0];
 	scanlines = false;
@@ -192,6 +193,8 @@ export class PicoCAD2Viewer {
 		if (options?.shading !== undefined) this.shading = options.shading;
 		if (options?.renderMode) this.renderMode = options.renderMode;
 		if (options?.projectionMode) this.projectionMode = options.projectionMode;
+		if (options?.backgroundColor !== undefined)
+			this.backgroundColor = options.backgroundColor;
 		if (options?.outlineSize !== undefined)
 			this.outlineSize = options.outlineSize;
 		if (options?.outlineColor) this.outlineColor = options.outlineColor;
@@ -334,6 +337,7 @@ export class PicoCAD2Viewer {
 			shading: this.shading,
 			renderMode:
 				this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2,
+			backgroundColor: this.backgroundColor,
 			outlineSize: this.outlineSize,
 			outlineColor: this.outlineColor,
 		};
@@ -640,6 +644,9 @@ export class PicoCAD2Viewer {
 				shading: this.shading,
 				renderMode: this.renderMode,
 				projectionMode: this.projectionMode,
+				backgroundColor: this.backgroundColor
+					? [...this.backgroundColor]
+					: null,
 				outlineSize: this.outlineSize,
 				outlineColor: [...this.outlineColor],
 				scanlines: this.scanlines,
@@ -691,6 +698,7 @@ export class PicoCAD2Viewer {
 		this.shading = s.shading;
 		this.renderMode = s.renderMode;
 		this.projectionMode = s.projectionMode;
+		this.backgroundColor = s.backgroundColor ? [...s.backgroundColor] : null;
 		this.outlineSize = s.outlineSize;
 		this.outlineColor = [...s.outlineColor];
 		this.scanlines = s.scanlines;

@@ -1,6 +1,6 @@
 # picocad2-web
 
-A JavaScript library for viewing [PicoCAD 2](https://picocad.itch.io/) models in the browser using WebGL 2.
+A JavaScript library for viewing [PicoCAD 2](https://picocad.net/) models in the browser using WebGL 2.
 
 ## Installation
 

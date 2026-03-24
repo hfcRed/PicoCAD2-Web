@@ -23,6 +23,7 @@ export { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 export { BitmapFont } from "./rendering/font.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type {
+	AnimationSettings,
 	BloomOptions,
 	CameraSettings,
 	ChromaticAberrationOptions,

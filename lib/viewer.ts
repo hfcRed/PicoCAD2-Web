@@ -663,10 +663,12 @@ export class PicoCAD2Viewer {
 							color: this.rightTag.color ?? [1, 1, 1],
 						}
 					: null,
-				animationSpeed: this.animation.speed,
-				animationTime: this.animation.time,
-				animationPlaying: this.animation.playing,
-				animationLoop: this.animation.loop,
+				animation: {
+					speed: this.animation.speed,
+					time: this.animation.time,
+					playing: this.animation.playing,
+					loop: this.animation.loop,
+				},
 				camera: {
 					omega: this.camera.omega,
 					theta: this.camera.theta,
@@ -713,14 +715,14 @@ export class PicoCAD2Viewer {
 			? { text: s.rightTag.text, color: s.rightTag.color ?? [1, 1, 1] }
 			: null;
 
-		this.animation.speed = s.animationSpeed;
-		this.animation.time = s.animationTime;
-		if (s.animationPlaying) {
+		this.animation.speed = s.animation.speed;
+		this.animation.time = s.animation.time;
+		if (s.animation.playing) {
 			this.animation.play();
 		} else {
 			this.animation.pause();
 		}
-		this.animation.loop = s.animationLoop;
+		this.animation.loop = s.animation.loop;
 
 		this.camera.omega = s.camera.omega;
 		this.camera.theta = s.camera.theta;

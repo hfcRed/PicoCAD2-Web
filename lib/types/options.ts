@@ -107,6 +107,13 @@ export interface ModelInfo {
 	hasAnimation: boolean;
 }
 
+export interface AnimationSettings {
+	speed: number;
+	time: number;
+	playing: boolean;
+	loop: boolean;
+}
+
 export interface CameraSettings {
 	omega: number;
 	theta: number;
@@ -129,10 +136,7 @@ export interface ViewerSettings {
 	cameraModeDirection: "left" | "right";
 	leftTag: { text: string; color?: Color3 } | null;
 	rightTag: { text: string; color?: Color3 } | null;
-	animationSpeed: number;
-	animationTime: number;
-	animationPlaying: boolean;
-	animationLoop: boolean;
+	animation: AnimationSettings;
 	camera: CameraSettings;
 }
 

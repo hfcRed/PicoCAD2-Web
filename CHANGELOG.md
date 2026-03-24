@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+### Changed
+
+- **Animation settings** — Animation properties in `ViewerSettings` are now nested in an `animation` object instead of being flattened as `animationSpeed`, `animationTime`, `animationPlaying`, and `animationLoop` to match the structure of the `CameraSettings` and `AnimationController` interface.
+
+### Added
+
+- **`AnimationSettings` type** — New exported type for animation state (`speed`, `time`, `playing`, `loop`).
+
 ## 1.1.0
 
 ### Added

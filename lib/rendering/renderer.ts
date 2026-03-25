@@ -169,7 +169,13 @@ export class Renderer {
 		}
 
 		if (pipeline.hasActiveSceneEffects()) {
-			const ctx = { gl, width: w, height: h, time };
+			const ctx = {
+				gl,
+				width: w,
+				height: h,
+				time,
+				depthTexture: pipeline.pool.getDepthTexture(),
+			};
 			for (const effect of pipeline.sceneEffects) {
 				if (!effect.enabled) continue;
 				if (!effect.initialized) {
@@ -188,7 +194,14 @@ export class Renderer {
 		}
 
 		if (pipeline.hasActivePostEffects()) {
-			const ctx = { gl, width: w, height: h, time };
+			pipeline.pool.detachDepth(gl);
+			const ctx = {
+				gl,
+				width: w,
+				height: h,
+				time,
+				depthTexture: pipeline.pool.getDepthTexture(),
+			};
 			pipeline.execute(ctx, [bgR, bgG, bgB]);
 		} else {
 			pipeline.blit(gl, w, h, [bgR, bgG, bgB]);

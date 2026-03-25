@@ -16,6 +16,7 @@ import type {
 	PicoCAD2ViewerState,
 } from "./types/options.ts";
 import type {
+	CameraBookmark,
 	CameraMode,
 	Color3,
 	PicoCAD2Model,
@@ -321,6 +322,27 @@ export class PicoCAD2Viewer {
 	async loadFromFile(file: File, useBookmark = false): Promise<void> {
 		const text = await file.text();
 		this.load(text, useBookmark);
+	}
+
+	/**
+	 * Resets the camera to the bookmarked state, if a bookmark exists.
+	 *
+	 * @returns True if the bookmark was applied, false if no bookmark exists.
+	 */
+	useBookmark(): boolean {
+		if (!this.model?.bookmark) return false;
+		this.camera.initFromState(this.model.bookmark);
+		return true;
+	}
+
+	/**
+	 * Updates the bookmark with the given camera state.
+	 *
+	 * @param bookmark - The camera state to store as the bookmark.
+	 */
+	setBookmark(bookmark: CameraBookmark): void {
+		if (!this.model) return;
+		this.model.bookmark = bookmark;
 	}
 
 	/**

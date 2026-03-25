@@ -14,6 +14,7 @@ export class WireframeEffect implements SceneEffect {
 	readonly id = "wireframe";
 	enabled = false;
 	initialized = false;
+	modelOnly = true;
 	color: Color3 = [1, 1, 1];
 
 	private program: twgl.ProgramInfo | null = null;

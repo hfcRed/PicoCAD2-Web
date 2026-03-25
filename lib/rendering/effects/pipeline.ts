@@ -1,18 +1,21 @@
 import * as twgl from "twgl.js";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import type { Color3 } from "../../types/scene.ts";
 import { FramebufferPool } from "./framebuffer-pool.ts";
 import type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
 
-/** Simple passthrough fragment shader for the final blit. */
+/** Composite fragment shader that blends the FBO over the background color using alpha. */
 const BLIT_FRAG = `#version 300 es
 precision highp float;
 
 in vec2 v_texCoord;
 uniform sampler2D u_texture;
+uniform vec3 u_backgroundColor;
 out vec4 fragColor;
 
 void main() {
-    fragColor = texture(u_texture, v_texCoord);
+    vec4 col = texture(u_texture, v_texCoord);
+    fragColor = vec4(mix(u_backgroundColor, col.rgb, col.a), 1.0);
 }
 `;
 
@@ -117,11 +120,12 @@ export class PostProcessPipeline {
 
 	/**
 	 * Runs all enabled post-process effects in order via ping-pong,
-	 * then blits the final result to the default framebuffer.
+	 * then composites the final result to the default framebuffer.
 	 *
 	 * @param ctx - The rendering context info.
+	 * @param backgroundColor - The background color for the final composite.
 	 */
-	execute(ctx: EffectContext): void {
+	execute(ctx: EffectContext, backgroundColor: Color3): void {
 		const gl = ctx.gl;
 
 		for (const effect of this.postEffects) {
@@ -137,17 +141,24 @@ export class PostProcessPipeline {
 			effect.apply(ctx, inputTexture);
 		}
 
-		this.blit(gl, ctx.width, ctx.height);
+		this.blit(gl, ctx.width, ctx.height, backgroundColor);
 	}
 
 	/**
-	 * Blits the current pool texture to the default framebuffer.
+	 * Composites the current pool texture to the default framebuffer,
+	 * blending the scene over the background color using alpha.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 * @param w - The render width.
 	 * @param h - The render height.
+	 * @param backgroundColor - The background color for compositing.
 	 */
-	blit(gl: WebGL2RenderingContext, w: number, h: number): void {
+	blit(
+		gl: WebGL2RenderingContext,
+		w: number,
+		h: number,
+		backgroundColor: Color3,
+	): void {
 		if (!this.blitProgram) {
 			this.blitProgram = twgl.createProgramInfo(gl, [
 				fullscreenVert,
@@ -163,6 +174,7 @@ export class PostProcessPipeline {
 		gl.useProgram(this.blitProgram.program);
 		twgl.setUniforms(this.blitProgram, {
 			u_texture: this.pool.getCurrentTexture(),
+			u_backgroundColor: backgroundColor,
 		});
 
 		gl.bindVertexArray(this.emptyVao);

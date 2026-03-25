@@ -8,6 +8,7 @@ uniform float u_levels;
 uniform vec3 u_channelLevels;
 uniform float u_gamma;
 uniform bool u_colorBanding;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -27,5 +28,5 @@ void main() {
 
     col.rgb = pow(col.rgb, vec3(1.0 / u_gamma));
 
-    fragColor = col;
+    fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);
 }

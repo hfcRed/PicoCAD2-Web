@@ -11,6 +11,7 @@ uniform float u_gradient;
 uniform float u_gradientDirection;
 uniform vec2 u_texelSize;
 uniform vec3 u_backgroundColor;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -36,5 +37,5 @@ void main() {
         }
     }
 
-    fragColor = vec4(u_backgroundColor, 1.0);
+    fragColor = vec4(u_backgroundColor, 0.0);
 }

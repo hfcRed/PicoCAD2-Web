@@ -13,6 +13,7 @@ export class BloomEffect implements PostProcessEffect {
 	readonly id = "bloom";
 	enabled = false;
 	initialized = false;
+	modelOnly = true;
 	threshold = 0.8;
 	intensity = 1.0;
 	blur = 4.0;
@@ -86,6 +87,7 @@ export class BloomEffect implements PostProcessEffect {
 		twgl.setUniforms(this.thresholdProgram!, {
 			u_texture: inputTexture,
 			u_threshold: this.threshold,
+			u_modelOnly: this.modelOnly,
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 
@@ -119,6 +121,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_texture: inputTexture,
 			u_bloomTexture: this.texA,
 			u_intensity: this.intensity,
+			u_modelOnly: this.modelOnly,
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 

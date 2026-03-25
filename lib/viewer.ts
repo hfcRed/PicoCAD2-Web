@@ -769,10 +769,12 @@ export class PicoCAD2Viewer {
 		return {
 			wireframe: {
 				enabled: e.wireframe.enabled,
+				modelOnly: e.wireframe.modelOnly,
 				color: [...e.wireframe.color],
 			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,
+				modelOnly: e.gradientOutline.modelOnly,
 				size: e.gradientOutline.size,
 				colorFrom: [...e.gradientOutline.colorFrom],
 				colorTo: [...e.gradientOutline.colorTo],
@@ -781,6 +783,7 @@ export class PicoCAD2Viewer {
 			},
 			colorGrading: {
 				enabled: e.colorGrading.enabled,
+				modelOnly: e.colorGrading.modelOnly,
 				brightness: e.colorGrading.brightness,
 				contrast: e.colorGrading.contrast,
 				saturation: e.colorGrading.saturation,
@@ -788,6 +791,7 @@ export class PicoCAD2Viewer {
 			},
 			posterization: {
 				enabled: e.posterization.enabled,
+				modelOnly: e.posterization.modelOnly,
 				levels: e.posterization.levels,
 				channelLevels: [...e.posterization.channelLevels],
 				gamma: e.posterization.gamma,
@@ -795,38 +799,45 @@ export class PicoCAD2Viewer {
 			},
 			bloom: {
 				enabled: e.bloom.enabled,
+				modelOnly: e.bloom.modelOnly,
 				threshold: e.bloom.threshold,
 				intensity: e.bloom.intensity,
 				blur: e.bloom.blur,
 			},
 			dithering: {
 				enabled: e.dithering.enabled,
+				modelOnly: e.dithering.modelOnly,
 				amount: e.dithering.amount,
 				blend: e.dithering.blend,
 				channelAmount: [...e.dithering.channelAmount],
 			},
 			crt: {
 				enabled: e.crt.enabled,
+				modelOnly: e.crt.modelOnly,
 				curvature: e.crt.curvature,
 				scanlineIntensity: e.crt.scanlineIntensity,
 			},
 			pixelation: {
 				enabled: e.pixelation.enabled,
+				modelOnly: e.pixelation.modelOnly,
 				pixelSize: e.pixelation.pixelSize,
 				shape: e.pixelation.shape,
 				blend: e.pixelation.blend,
 			},
 			lensDistortion: {
 				enabled: e.lensDistortion.enabled,
+				modelOnly: e.lensDistortion.modelOnly,
 				strength: e.lensDistortion.strength,
 				zoom: e.lensDistortion.zoom,
 			},
 			noise: {
 				enabled: e.noise.enabled,
+				modelOnly: e.noise.modelOnly,
 				amount: e.noise.amount,
 			},
 			chromaticAberration: {
 				enabled: e.chromaticAberration.enabled,
+				modelOnly: e.chromaticAberration.modelOnly,
 				strength: e.chromaticAberration.strength,
 				redOffset: e.chromaticAberration.redOffset,
 				greenOffset: e.chromaticAberration.greenOffset,

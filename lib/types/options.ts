@@ -9,11 +9,13 @@ import type {
 
 export interface WireframeOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	color?: Color3;
 }
 
 export interface GradientOutlineOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	size?: number;
 	colorFrom?: Color3;
 	colorTo?: Color3;
@@ -23,6 +25,7 @@ export interface GradientOutlineOptions {
 
 export interface ColorGradingOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	brightness?: number;
 	contrast?: number;
 	saturation?: number;
@@ -31,6 +34,7 @@ export interface ColorGradingOptions {
 
 export interface PosterizationOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	levels?: number;
 	channelLevels?: Color3;
 	gamma?: number;
@@ -39,6 +43,7 @@ export interface PosterizationOptions {
 
 export interface BloomOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	threshold?: number;
 	intensity?: number;
 	blur?: number;
@@ -46,6 +51,7 @@ export interface BloomOptions {
 
 export interface DitheringOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	amount?: number;
 	blend?: number;
 	channelAmount?: Color3;
@@ -53,12 +59,14 @@ export interface DitheringOptions {
 
 export interface CRTOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	curvature?: number;
 	scanlineIntensity?: number;
 }
 
 export interface PixelationOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	pixelSize?: number;
 	shape?: PixelShape;
 	blend?: number;
@@ -66,17 +74,20 @@ export interface PixelationOptions {
 
 export interface LensDistortionOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	strength?: number;
 	zoom?: number;
 }
 
 export interface NoiseOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	amount?: number;
 }
 
 export interface ChromaticAberrationOptions {
 	enabled?: boolean;
+	modelOnly?: boolean;
 	strength?: number;
 	redOffset?: number;
 	greenOffset?: number;

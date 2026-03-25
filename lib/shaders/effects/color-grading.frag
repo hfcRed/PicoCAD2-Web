@@ -8,6 +8,7 @@ uniform float u_brightness;
 uniform float u_contrast;
 uniform float u_saturation;
 uniform float u_hue;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -56,5 +57,5 @@ void main() {
     hsv.x = mod(hsv.x + u_hue, 1.0);
 
     col.rgb = hsv2rgb(hsv);
-    fragColor = col;
+    fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);
 }

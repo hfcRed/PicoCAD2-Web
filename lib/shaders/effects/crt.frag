@@ -7,6 +7,7 @@ uniform sampler2D u_texture;
 uniform float u_curvature;
 uniform float u_scanlineIntensity;
 uniform vec2 u_resolution;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -22,5 +23,5 @@ void main() {
     float scan = sin(uv.y * u_resolution.y * 3.14159) * 0.5 + 0.5;
 
     col.rgb *= mix(1.0, scan, u_scanlineIntensity);
-    fragColor = col;
+    fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);
 }

@@ -154,7 +154,7 @@ export class Renderer {
 			if (useOutline || useGradientOutline) {
 				gl.clearColor(0, 0, 0, 0);
 			} else {
-				gl.clearColor(bgR, bgG, bgB, 1);
+				gl.clearColor(bgR, bgG, bgB, 0);
 			}
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -189,9 +189,9 @@ export class Renderer {
 
 		if (pipeline.hasActivePostEffects()) {
 			const ctx = { gl, width: w, height: h, time };
-			pipeline.execute(ctx);
+			pipeline.execute(ctx, [bgR, bgG, bgB]);
 		} else {
-			pipeline.blit(gl, w, h);
+			pipeline.blit(gl, w, h, [bgR, bgG, bgB]);
 		}
 	}
 

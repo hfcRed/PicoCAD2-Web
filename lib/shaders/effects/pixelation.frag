@@ -8,6 +8,7 @@ uniform float u_pixelSize;
 uniform vec2 u_resolution;
 uniform float u_blend;
 uniform int u_shape;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -128,5 +129,5 @@ void main() {
 
     vec4 col = texture(u_texture, sampleUV);
     vec4 orig = texture(u_texture, uv);
-    fragColor = vec4(mix(orig, col, clamp(u_blend, 0.0, 1.0)).rgb, 1.0);
+    fragColor = vec4(mix(orig, col, clamp(u_blend, 0.0, 1.0)).rgb, u_modelOnly ? orig.a : 1.0);
 }

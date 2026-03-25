@@ -30,5 +30,5 @@ void main() {
         }
     }
 
-    fragColor = vec4(u_backgroundColor, 1.0);
+    fragColor = vec4(u_backgroundColor, 0.0);
 }

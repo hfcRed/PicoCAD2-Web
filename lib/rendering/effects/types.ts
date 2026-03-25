@@ -12,6 +12,7 @@ export interface PostProcessEffect {
 	readonly id: string;
 	readonly initialized: boolean;
 	enabled: boolean;
+	modelOnly: boolean;
 	init(gl: WebGL2RenderingContext): void;
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void;
 	dispose(): void;
@@ -21,6 +22,7 @@ export interface SceneEffect {
 	readonly id: string;
 	readonly initialized: boolean;
 	enabled: boolean;
+	modelOnly: boolean;
 	init(gl: WebGL2RenderingContext): void;
 	render(ctx: EffectContext, vpMatrix: mat4, resources: ModelResources): void;
 	dispose(): void;

@@ -5,11 +5,18 @@ in vec2 v_texCoord;
 
 uniform sampler2D u_texture;
 uniform float u_threshold;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (u_modelOnly && col.a < 0.5) {
+        fragColor = vec4(0.0);
+        return;
+    }
+
     float maxc = max(max(col.r, col.g), col.b);
 
     if (maxc > u_threshold) {

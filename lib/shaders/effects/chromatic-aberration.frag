@@ -11,6 +11,7 @@ uniform float u_greenOffset;
 uniform float u_blueOffset;
 uniform float u_radialFalloff;
 uniform vec2 u_center;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -27,6 +28,6 @@ void main() {
     vec4 g = texture(u_texture, uv - dir * factor * u_greenOffset);
     vec4 b = texture(u_texture, uv - dir * factor * u_blueOffset);
 
-    float alpha = (r.a + g.a + b.a) / 3.0;
-    fragColor = vec4(r.r * alpha, g.g * alpha, b.b * alpha, 1.0);
+    float blendAlpha = (r.a + g.a + b.a) / 3.0;
+    fragColor = vec4(r.r, g.g, b.b, u_modelOnly ? blendAlpha : 1.0);
 }

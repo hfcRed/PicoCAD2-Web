@@ -19,6 +19,7 @@ export class FullscreenEffect implements PostProcessEffect {
 	readonly id: string;
 	enabled = false;
 	initialized = false;
+	modelOnly = true;
 
 	/**
 	 * Creates a new fullscreen effect.
@@ -65,6 +66,7 @@ export class FullscreenEffect implements PostProcessEffect {
 		gl.useProgram(this.program!.program);
 		twgl.setUniforms(this.program!, {
 			u_texture: inputTexture,
+			u_modelOnly: this.modelOnly,
 			...this.getUniformsFn(ctx),
 		});
 

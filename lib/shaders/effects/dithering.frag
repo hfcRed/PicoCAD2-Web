@@ -8,6 +8,7 @@ uniform float u_amount;
 uniform vec2 u_resolution;
 uniform float u_blend;
 uniform vec3 u_channelAmount;
+uniform bool u_modelOnly;
 
 out vec4 fragColor;
 
@@ -45,5 +46,5 @@ void main() {
     col.g = floor(col.g + baseThreshold * u_channelAmount.g);
     col.b = floor(col.b + baseThreshold * u_channelAmount.b);
 
-    fragColor = vec4(mix(orig.rgb, col.rgb, clamp(u_blend, 0.0, 1.0)), orig.a);
+    fragColor = vec4(mix(orig.rgb, col.rgb, clamp(u_blend, 0.0, 1.0)), u_modelOnly ? orig.a : 1.0);
 }

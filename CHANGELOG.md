@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2
+
+### Added
+
+- **Camera bookmark** — The bookmark is now available on the parsed model as `bookmark: CameraBookmark | null`.
+- **`useBookmark` load parameter** — `load()` and `loadFromFile()` accept an optional `useBookmark` boolean to initialize the camera from the bookmark instead of the default camera state.
+- **`useBookmark()` method** — Resets the camera to the bookmarked state. Returns `true` if applied, `false` if no bookmark exists.
+- **`setBookmark()` method** — Updates the model's bookmark with a new `CameraBookmark` value.
+- **`CameraBookmark` type** — New exported type for bookmark camera state (`target`, `distanceToTarget`, `theta`, `omega`).
+
 ## 1.1.1
 
 ### Changed

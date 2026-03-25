@@ -43,6 +43,7 @@ export type {
 	WireframeOptions,
 } from "./types/options.ts";
 export type {
+	CameraBookmark,
 	CameraMode,
 	CameraState,
 	Color3,

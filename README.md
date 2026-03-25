@@ -95,6 +95,9 @@ viewer.load(modelString);
 
 // From a File object
 await viewer.loadFromFile(file);
+
+// Load using the model's bookmarked camera position
+viewer.load(modelString, true);
 ```
 
 Loading a model applies its export settings (camera position, outline, scanlines, etc.) to the viewer.
@@ -153,6 +156,17 @@ viewer.disableCameraControls();
 viewer.camera.theta = Math.PI / 4;
 viewer.camera.omega = Math.PI / 6;
 viewer.camera.distanceToTarget = 5;
+
+// Reset camera to the model's bookmarked position
+viewer.useBookmark();
+
+// Save a new bookmark
+viewer.setBookmark({
+  target: new Float32Array([0, 2, 0]),
+  distanceToTarget: 10,
+  theta: 0.3,
+  omega: 0.8,
+});
 ```
 
 ## Animation

@@ -258,8 +258,9 @@ export class PicoCAD2Viewer {
 	 * Loads a PicoCAD 2 model from a JSON string.
 	 *
 	 * @param source - The raw JSON string content of the model file.
+	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
-	load(source: string): void {
+	load(source: string, useBookmark = false): void {
 		if (this.resources) {
 			this.context.disposeModelResources(this.resources);
 			this.resources = null;
@@ -299,7 +300,9 @@ export class PicoCAD2Viewer {
 			this.leftTag = null;
 		}
 
-		if (this.model.camera) {
+		if (useBookmark && this.model.bookmark) {
+			this.camera.initFromState(this.model.bookmark);
+		} else if (this.model.camera) {
 			this.camera.initFromState(this.model.camera);
 		}
 
@@ -313,10 +316,11 @@ export class PicoCAD2Viewer {
 	 * Loads a PicoCAD 2 model from a File object.
 	 *
 	 * @param file - The file to read.
+	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
-	async loadFromFile(file: File): Promise<void> {
+	async loadFromFile(file: File, useBookmark = false): Promise<void> {
 		const text = await file.text();
-		this.load(text);
+		this.load(text, useBookmark);
 	}
 
 	/**

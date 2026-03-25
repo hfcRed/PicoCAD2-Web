@@ -91,11 +91,19 @@ export interface PicoCAD2Model {
 	motionDuration: number;
 	shadingEnabled: boolean;
 	camera: CameraState | null;
+	bookmark: CameraBookmark | null;
 	projectionMode: ProjectionMode;
 	exportSettings: ExportSettings;
 }
 
 export interface CameraState {
+	target: Float32Array;
+	distanceToTarget: number;
+	theta: number;
+	omega: number;
+}
+
+export interface CameraBookmark {
 	target: Float32Array;
 	distanceToTarget: number;
 	theta: number;

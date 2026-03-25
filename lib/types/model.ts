@@ -57,6 +57,14 @@ export interface RawGraphNode {
 	folder?: boolean;
 }
 
+export interface RawCameraBookmark {
+	pos: RawVec3;
+	target: RawVec3;
+	distance_to_target: number;
+	theta: number;
+	omega: number;
+}
+
 export interface RawCameraState {
 	pos: RawVec3;
 	rot: RawVec3;
@@ -65,6 +73,7 @@ export interface RawCameraState {
 	distance_to_target: number;
 	theta: number;
 	omega: number;
+	bookmark?: RawCameraBookmark;
 }
 
 export interface RawTexture {

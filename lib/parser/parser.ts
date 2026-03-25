@@ -1,5 +1,6 @@
 import type { RawExportSettings, RawPicoCAD2File } from "../types/model.ts";
 import type {
+	CameraBookmark,
 	CameraMode,
 	CameraState,
 	Color3,
@@ -27,6 +28,18 @@ function parseCameraState(raw: RawPicoCAD2File): CameraState | null {
 		distanceToTarget: cam.distance_to_target,
 		theta: cam.theta,
 		omega: cam.omega,
+	};
+}
+
+function parseCameraBookmark(raw: RawPicoCAD2File): CameraBookmark | null {
+	const bm = raw.metadata.camera?.bookmark;
+	if (!bm) return null;
+
+	return {
+		target: new Float32Array([bm.target.x, bm.target.y, bm.target.z]),
+		distanceToTarget: bm.distance_to_target,
+		theta: bm.theta,
+		omega: bm.omega,
 	};
 }
 
@@ -101,6 +114,7 @@ export function parseModel(source: string): PicoCAD2Model {
 		motionDuration: raw.metadata.motion_duration,
 		shadingEnabled: raw.metadata.shading_mode !== 0,
 		camera: parseCameraState(raw),
+		bookmark: parseCameraBookmark(raw),
 		projectionMode: raw.metadata.export_settings?.fov_type ?? "perspective",
 		exportSettings: parseExportSettings(
 			raw.metadata.export_settings,

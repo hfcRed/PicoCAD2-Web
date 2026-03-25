@@ -23,10 +23,10 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  * All effects are pre-instantiated but disabled by default.
  *
  * Post-process effects are applied in this default order:
- * gradient outline -> color grading -> posterization -> bloom -> dithering ->
- * CRT -> pixelation -> lens distortion -> noise -> chromatic aberration ->
- * depth fog -> halftone -> edge detection -> color tint -> sharpen ->
- * glitch -> vignette.
+ * gradient outline -> depth fog -> edge detection -> color grading ->
+ * color tint -> posterization -> sharpen -> bloom -> dithering ->
+ * halftone -> CRT -> pixelation -> lens distortion -> chromatic aberration ->
+ * noise -> glitch -> vignette.
  */
 export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
@@ -58,50 +58,57 @@ export class ViewerExtras {
 		this.wireframe = new WireframeEffect();
 		pipeline.addSceneEffect(this.wireframe);
 
+		// Scene reconstruction
 		this.gradientOutline = new GradientOutlineEffect();
 		pipeline.addPostEffect(this.gradientOutline);
 
+		this.depthFog = new DepthFogEffect();
+		pipeline.addPostEffect(this.depthFog);
+
+		this.edgeDetection = new EdgeDetectionEffect();
+		pipeline.addPostEffect(this.edgeDetection);
+
+		// Color correction
 		this.colorGrading = new ColorGradingEffect();
 		pipeline.addPostEffect(this.colorGrading);
+
+		this.colorTint = new ColorTintEffect();
+		pipeline.addPostEffect(this.colorTint);
 
 		this.posterization = new PosterizationEffect();
 		pipeline.addPostEffect(this.posterization);
 
+		// Enhancement
+		this.sharpen = new SharpenEffect();
+		pipeline.addPostEffect(this.sharpen);
+
 		this.bloom = new BloomEffect();
 		pipeline.addPostEffect(this.bloom);
 
+		// Stylization
 		this.dithering = new DitheringEffect();
 		pipeline.addPostEffect(this.dithering);
 
+		this.halftone = new HalftoneEffect();
+		pipeline.addPostEffect(this.halftone);
+
+		// Display simulation
 		this.crt = new CRTEffect();
 		pipeline.addPostEffect(this.crt);
 
 		this.pixelation = new PixelationEffect();
 		pipeline.addPostEffect(this.pixelation);
 
+		// Distortion
 		this.lensDistortion = new LensDistortionEffect();
 		pipeline.addPostEffect(this.lensDistortion);
-
-		this.noise = new NoiseEffect();
-		pipeline.addPostEffect(this.noise);
 
 		this.chromaticAberration = new ChromaticAberrationEffect();
 		pipeline.addPostEffect(this.chromaticAberration);
 
-		this.depthFog = new DepthFogEffect();
-		pipeline.addPostEffect(this.depthFog);
-
-		this.halftone = new HalftoneEffect();
-		pipeline.addPostEffect(this.halftone);
-
-		this.edgeDetection = new EdgeDetectionEffect();
-		pipeline.addPostEffect(this.edgeDetection);
-
-		this.colorTint = new ColorTintEffect();
-		pipeline.addPostEffect(this.colorTint);
-
-		this.sharpen = new SharpenEffect();
-		pipeline.addPostEffect(this.sharpen);
+		// Overlay
+		this.noise = new NoiseEffect();
+		pipeline.addPostEffect(this.noise);
 
 		this.glitch = new GlitchEffect();
 		pipeline.addPostEffect(this.glitch);

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+
+- **Vignette effect** — Darkens the edges of the viewport with configurable intensity, smoothness, roundness, and color.
+- **Depth Fog effect** — Adds atmospheric fog based on scene depth. Supports linear, exponential, and exponential squared falloff modes.
+- **Halftone effect** — Converts the scene to a halftone pattern with dots, lines, or crosshatch modes. Configurable dot size, angle, and blend.
+- **Glitch effect** — Animated digital distortion with RGB channel splitting, horizontal line displacement, and block corruption.
+- **Color Tint effect** — Applies a color tint or duotone mapping. Tint mode multiplies a color, duotone maps luminance between two colors.
+- **Sharpen effect** — Sharpens the image using a Laplacian convolution kernel with configurable strength and threshold.
+- **Edge Detection effect** — Full-screen Sobel edge detection for a sketch or technical drawing look. Configurable threshold, line color, and background color.
+- **`modelOnly` property on all effects** — When `true` (default), effects only apply to model pixels and preserve transparency. When `false`, effects apply to the entire viewport.
+
+### Changed
+
+- **Depth buffer** — The scene framebuffer now uses a depth texture instead of a renderbuffer, enabling depth-based effects like Depth Fog to sample scene depth.
+
 ## 1.1.2
 
 ### Added

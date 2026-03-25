@@ -385,6 +385,98 @@ viewer.extras.gradientOutline.gradient = 1.0;                // Gradient intensi
 viewer.extras.gradientOutline.gradientDirection = Math.PI;   // Direction angle in radians (default: 0)
 ```
 
+### Vignette
+
+Darkens the edges of the viewport.
+
+```typescript
+viewer.extras.vignette.enabled = true;
+viewer.extras.vignette.intensity = 1.0;      // Vignette strength (default: 1.0)
+viewer.extras.vignette.smoothness = 0.5;     // Falloff gradient width (default: 0.5)
+viewer.extras.vignette.roundness = 1.0;      // Circular vs rectangular (default: 1.0)
+viewer.extras.vignette.color = [0, 0, 0];    // Tint color (default: [0, 0, 0])
+```
+
+### Depth Fog
+
+Adds atmospheric fog based on scene depth.
+
+```typescript
+viewer.extras.depthFog.enabled = true;
+viewer.extras.depthFog.color = [0.8, 0.85, 0.9];   // Fog color (default: [0.8, 0.85, 0.9])
+viewer.extras.depthFog.near = 0.1;                   // Fog start distance (default: 0.1)
+viewer.extras.depthFog.far = 50.0;                   // Fog end distance (default: 50.0)
+viewer.extras.depthFog.density = 0.05;               // Fog density for exponential modes (default: 0.05)
+viewer.extras.depthFog.mode = "linear";              // Falloff mode (default: "linear")
+// Available modes: "linear" | "exponential" | "exponentialSquared"
+```
+
+### Halftone
+
+Converts the scene to a halftone dot or line pattern.
+
+```typescript
+viewer.extras.halftone.enabled = true;
+viewer.extras.halftone.dotSize = 6.0;       // Size of halftone elements (default: 6.0)
+viewer.extras.halftone.angle = 0.4;         // Grid rotation in radians (default: 0.4)
+viewer.extras.halftone.blend = 1.0;         // Blend with original (default: 1.0)
+viewer.extras.halftone.mode = "dots";       // Pattern mode (default: "dots")
+// Available modes: "dots" | "lines" | "crosshatch"
+```
+
+### Glitch
+
+Animated digital distortion with RGB splitting and block corruption.
+
+```typescript
+viewer.extras.glitch.enabled = true;
+viewer.extras.glitch.intensity = 0.5;       // Overall glitch strength (default: 0.5)
+viewer.extras.glitch.speed = 1.0;           // Animation speed (default: 1.0)
+viewer.extras.glitch.blockSize = 30.0;      // Size of glitch blocks (default: 30.0)
+viewer.extras.glitch.rgbSplit = true;       // Enable RGB channel separation (default: true)
+viewer.extras.glitch.lineShift = true;      // Enable horizontal line displacement (default: true)
+```
+
+### Color Tint
+
+Applies a color tint or duotone mapping.
+
+```typescript
+viewer.extras.colorTint.enabled = true;
+viewer.extras.colorTint.mode = "tint";                         // "tint" or "duotone" (default: "tint")
+viewer.extras.colorTint.blend = 1.0;                           // Blend with original (default: 1.0)
+
+// Tint mode
+viewer.extras.colorTint.color = [1.0, 0.9, 0.7];              // Tint color (default: [1.0, 0.9, 0.7])
+viewer.extras.colorTint.intensity = 1.0;                       // Tint intensity (default: 1.0)
+
+// Duotone mode
+viewer.extras.colorTint.shadowColor = [0.0, 0.0, 0.2];        // Shadow color (default: [0.0, 0.0, 0.2])
+viewer.extras.colorTint.highlightColor = [1.0, 1.0, 0.8];     // Highlight color (default: [1.0, 1.0, 0.8])
+```
+
+### Sharpen
+
+Sharpens the image using a Laplacian convolution kernel.
+
+```typescript
+viewer.extras.sharpen.enabled = true;
+viewer.extras.sharpen.strength = 1.0;      // Sharpening intensity (default: 1.0)
+viewer.extras.sharpen.threshold = 0.0;     // Minimum difference to sharpen (default: 0.0)
+```
+
+### Edge Detection
+
+Full-screen Sobel edge detection for a sketch or technical drawing look.
+
+```typescript
+viewer.extras.edgeDetection.enabled = true;
+viewer.extras.edgeDetection.threshold = 0.1;                  // Edge sensitivity (default: 0.1)
+viewer.extras.edgeDetection.lineColor = [0, 0, 0];            // Edge color (default: [0, 0, 0])
+viewer.extras.edgeDetection.backgroundColor = [1, 1, 1];      // Fill color (default: [1, 1, 1])
+viewer.extras.edgeDetection.blend = 1.0;                      // Blend with original (default: 1.0)
+```
+
 ### Wireframe
 
 Renders wireframe edges over the model. This is a scene effect (renders geometry) rather than a post-process effect.
@@ -394,20 +486,35 @@ viewer.extras.wireframe.enabled = true;
 viewer.extras.wireframe.color = [0, 1, 0];    // Wireframe color (default: [1, 1, 1])
 ```
 
+### Model Only
+
+All effects have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels and preserves transparency. Set to `false` to apply the effect to the entire viewport including the background.
+
+```typescript
+viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport
+```
+
 ### Effect Chain Order
 
 When multiple effects are active, they are applied in this fixed order:
 
 1. Gradient Outline
-2. Color Grading
-3. Posterization
-4. Bloom
-5. Dithering
-6. CRT
-7. Pixelation
-8. Lens Distortion
-9. Noise
-10. Chromatic Aberration
+2. Depth Fog
+3. Edge Detection
+4. Color Grading
+5. Color Tint
+6. Posterization
+7. Sharpen
+8. Bloom
+9. Dithering
+10. Halftone
+11. CRT
+12. Pixelation
+13. Lens Distortion
+14. Chromatic Aberration
+15. Noise
+16. Glitch
+17. Vignette
 
 Wireframe is a scene effect and renders into the scene before any post-processing.
 

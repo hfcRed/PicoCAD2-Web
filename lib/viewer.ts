@@ -846,6 +846,64 @@ export class PicoCAD2Viewer {
 				centerX: e.chromaticAberration.centerX,
 				centerY: e.chromaticAberration.centerY,
 			},
+			vignette: {
+				enabled: e.vignette.enabled,
+				modelOnly: e.vignette.modelOnly,
+				intensity: e.vignette.intensity,
+				smoothness: e.vignette.smoothness,
+				roundness: e.vignette.roundness,
+				color: [...e.vignette.color],
+			},
+			depthFog: {
+				enabled: e.depthFog.enabled,
+				modelOnly: e.depthFog.modelOnly,
+				color: [...e.depthFog.color],
+				near: e.depthFog.near,
+				far: e.depthFog.far,
+				density: e.depthFog.density,
+				mode: e.depthFog.mode,
+			},
+			halftone: {
+				enabled: e.halftone.enabled,
+				modelOnly: e.halftone.modelOnly,
+				dotSize: e.halftone.dotSize,
+				angle: e.halftone.angle,
+				blend: e.halftone.blend,
+				mode: e.halftone.mode,
+			},
+			glitch: {
+				enabled: e.glitch.enabled,
+				modelOnly: e.glitch.modelOnly,
+				intensity: e.glitch.intensity,
+				speed: e.glitch.speed,
+				blockSize: e.glitch.blockSize,
+				rgbSplit: e.glitch.rgbSplit,
+				lineShift: e.glitch.lineShift,
+			},
+			colorTint: {
+				enabled: e.colorTint.enabled,
+				modelOnly: e.colorTint.modelOnly,
+				mode: e.colorTint.mode,
+				color: [...e.colorTint.color],
+				intensity: e.colorTint.intensity,
+				shadowColor: [...e.colorTint.shadowColor],
+				highlightColor: [...e.colorTint.highlightColor],
+				blend: e.colorTint.blend,
+			},
+			sharpen: {
+				enabled: e.sharpen.enabled,
+				modelOnly: e.sharpen.modelOnly,
+				strength: e.sharpen.strength,
+				threshold: e.sharpen.threshold,
+			},
+			edgeDetection: {
+				enabled: e.edgeDetection.enabled,
+				modelOnly: e.edgeDetection.modelOnly,
+				threshold: e.edgeDetection.threshold,
+				lineColor: [...e.edgeDetection.lineColor],
+				backgroundColor: [...e.edgeDetection.backgroundColor],
+				blend: e.edgeDetection.blend,
+			},
 		};
 	}
 
@@ -873,6 +931,13 @@ export class PicoCAD2Viewer {
 		assign(this.extras.lensDistortion, extras.lensDistortion);
 		assign(this.extras.noise, extras.noise);
 		assign(this.extras.chromaticAberration, extras.chromaticAberration);
+		assign(this.extras.vignette, extras.vignette);
+		assign(this.extras.depthFog, extras.depthFog);
+		assign(this.extras.halftone, extras.halftone);
+		assign(this.extras.glitch, extras.glitch);
+		assign(this.extras.colorTint, extras.colorTint);
+		assign(this.extras.sharpen, extras.sharpen);
+		assign(this.extras.edgeDetection, extras.edgeDetection);
 	}
 
 	/**

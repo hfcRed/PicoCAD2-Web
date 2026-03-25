@@ -1,14 +1,21 @@
 import { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 import { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
 import { ColorGradingEffect } from "./rendering/effects/color-grading-effect.ts";
+import { ColorTintEffect } from "./rendering/effects/color-tint-effect.ts";
 import { CRTEffect } from "./rendering/effects/crt-effect.ts";
+import { DepthFogEffect } from "./rendering/effects/depth-fog-effect.ts";
 import { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
+import { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
+import { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
 import { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effect.ts";
+import { HalftoneEffect } from "./rendering/effects/halftone-effect.ts";
 import { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
 import { NoiseEffect } from "./rendering/effects/noise-effect.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import { PixelationEffect } from "./rendering/effects/pixelation-effect.ts";
 import { PosterizationEffect } from "./rendering/effects/posterization-effect.ts";
+import { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
+import { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
 import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 
 /**
@@ -17,7 +24,9 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  *
  * Post-process effects are applied in this default order:
  * gradient outline -> color grading -> posterization -> bloom -> dithering ->
- * CRT -> pixelation -> lens distortion -> noise -> chromatic aberration.
+ * CRT -> pixelation -> lens distortion -> noise -> chromatic aberration ->
+ * depth fog -> halftone -> edge detection -> color tint -> sharpen ->
+ * glitch -> vignette.
  */
 export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
@@ -31,6 +40,13 @@ export class ViewerExtras {
 	readonly lensDistortion: LensDistortionEffect;
 	readonly noise: NoiseEffect;
 	readonly chromaticAberration: ChromaticAberrationEffect;
+	readonly depthFog: DepthFogEffect;
+	readonly halftone: HalftoneEffect;
+	readonly edgeDetection: EdgeDetectionEffect;
+	readonly colorTint: ColorTintEffect;
+	readonly sharpen: SharpenEffect;
+	readonly glitch: GlitchEffect;
+	readonly vignette: VignetteEffect;
 
 	/**
 	 * Creates a new ViewerExtras and registers all effects with the pipeline.
@@ -71,5 +87,26 @@ export class ViewerExtras {
 
 		this.chromaticAberration = new ChromaticAberrationEffect();
 		pipeline.addPostEffect(this.chromaticAberration);
+
+		this.depthFog = new DepthFogEffect();
+		pipeline.addPostEffect(this.depthFog);
+
+		this.halftone = new HalftoneEffect();
+		pipeline.addPostEffect(this.halftone);
+
+		this.edgeDetection = new EdgeDetectionEffect();
+		pipeline.addPostEffect(this.edgeDetection);
+
+		this.colorTint = new ColorTintEffect();
+		pipeline.addPostEffect(this.colorTint);
+
+		this.sharpen = new SharpenEffect();
+		pipeline.addPostEffect(this.sharpen);
+
+		this.glitch = new GlitchEffect();
+		pipeline.addPostEffect(this.glitch);
+
+		this.vignette = new VignetteEffect();
+		pipeline.addPostEffect(this.vignette);
 	}
 }

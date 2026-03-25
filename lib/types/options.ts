@@ -1,4 +1,7 @@
 import type { PicoCAD2Context } from "../context.ts";
+import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
+import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
+import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
 import type {
 	CameraMode,
@@ -97,6 +100,71 @@ export interface ChromaticAberrationOptions {
 	centerY?: number;
 }
 
+export interface VignetteOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	intensity?: number;
+	smoothness?: number;
+	roundness?: number;
+	color?: Color3;
+}
+
+export interface DepthFogOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	color?: Color3;
+	near?: number;
+	far?: number;
+	density?: number;
+	mode?: FogMode;
+}
+
+export interface HalftoneOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	dotSize?: number;
+	angle?: number;
+	blend?: number;
+	mode?: HalftoneMode;
+}
+
+export interface GlitchOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	intensity?: number;
+	speed?: number;
+	blockSize?: number;
+	rgbSplit?: boolean;
+	lineShift?: boolean;
+}
+
+export interface ColorTintOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	mode?: ColorTintMode;
+	color?: Color3;
+	intensity?: number;
+	shadowColor?: Color3;
+	highlightColor?: Color3;
+	blend?: number;
+}
+
+export interface SharpenOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	strength?: number;
+	threshold?: number;
+}
+
+export interface EdgeDetectionOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	threshold?: number;
+	lineColor?: Color3;
+	backgroundColor?: Color3;
+	blend?: number;
+}
+
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
 	gradientOutline?: GradientOutlineOptions;
@@ -109,6 +177,13 @@ export interface ExtrasOptions {
 	lensDistortion?: LensDistortionOptions;
 	noise?: NoiseOptions;
 	chromaticAberration?: ChromaticAberrationOptions;
+	vignette?: VignetteOptions;
+	depthFog?: DepthFogOptions;
+	halftone?: HalftoneOptions;
+	glitch?: GlitchOptions;
+	colorTint?: ColorTintOptions;
+	sharpen?: SharpenOptions;
+	edgeDetection?: EdgeDetectionOptions;
 }
 
 export interface ModelInfo {

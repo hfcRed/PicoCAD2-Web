@@ -183,6 +183,20 @@ export class PostProcessPipeline {
 	}
 
 	/**
+	 * Disposes and removes all effects without destroying pipeline resources.
+	 */
+	clearEffects(): void {
+		for (const effect of this.postEffects) {
+			effect.dispose();
+		}
+		for (const effect of this.sceneEffectsList) {
+			effect.dispose();
+		}
+		this.postEffects.length = 0;
+		this.sceneEffectsList.length = 0;
+	}
+
+	/**
 	 * Frees all GPU resources held by this pipeline.
 	 *
 	 * @param gl - The WebGL 2 rendering context.

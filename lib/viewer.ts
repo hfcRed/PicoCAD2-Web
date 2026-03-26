@@ -110,7 +110,7 @@ export class PicoCAD2Viewer {
 	readonly canvas: HTMLCanvasElement;
 	readonly camera: OrbitCamera = new OrbitCamera();
 	readonly animation: AnimationController = new AnimationController();
-	readonly extras: ViewerExtras;
+	private _extras!: ViewerExtras;
 	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
 
 	shading = true;
@@ -184,7 +184,7 @@ export class PicoCAD2Viewer {
 		ctx2d.imageSmoothingEnabled = false;
 		this.ctx2d = ctx2d;
 
-		this.extras = new ViewerExtras(this.pipeline);
+		this._extras = new ViewerExtras(this.pipeline);
 
 		const resolution = options?.resolution;
 		if (resolution) {
@@ -240,6 +240,13 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * The viewer's extras (post-process effects).
+	 */
+	get extras(): ViewerExtras {
+		return this._extras;
+	}
+
+	/**
 	 * Whether a model is currently loaded.
 	 *
 	 * @returns True if a model is loaded.
@@ -266,6 +273,9 @@ export class PicoCAD2Viewer {
 			this.context.disposeModelResources(this.resources);
 			this.resources = null;
 		}
+
+		this.pipeline.clearEffects();
+		this._extras = new ViewerExtras(this.pipeline);
 
 		this.source = source;
 		this.model = parseModel(source);

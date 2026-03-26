@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+### Changed
+
+- **`load()`** - When loading a model, all extra effects will be cleared now.
+
 ## 1.2.0
 
 ### Added

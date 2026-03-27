@@ -10,6 +10,7 @@ import {
 	traverseNode,
 } from "./scene/scene-graph.ts";
 import type {
+	CameraControlOptions,
 	ExtrasOptions,
 	ModelInfo,
 	PicoCAD2ViewerOptions,
@@ -143,6 +144,9 @@ export class PicoCAD2Viewer {
 	private lastFrameTime = 0;
 	private elapsedTime = 0;
 	private cameraControlsEnabled = false;
+	private cameraControlZoom = true;
+	private cameraControlPan = true;
+	private cameraControlRotate = true;
 	private dragButton = 0;
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
 	private pinchStartDist = 0;
@@ -489,8 +493,14 @@ export class PicoCAD2Viewer {
 
 	/**
 	 * Enables mouse/touch camera controls on the canvas.
+	 *
+	 * @param options - Optional object to enable specific controls. All default to true.
 	 */
-	enableCameraControls(): void {
+	enableCameraControls(options?: CameraControlOptions): void {
+		this.cameraControlZoom = options?.zoom ?? true;
+		this.cameraControlPan = options?.pan ?? true;
+		this.cameraControlRotate = options?.rotate ?? true;
+
 		if (this.cameraControlsEnabled) return;
 		this.cameraControlsEnabled = true;
 
@@ -1138,21 +1148,27 @@ export class PicoCAD2Viewer {
 		this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
 		if (this.activePointers.size === 2) {
-			const newDist = this.getPointerDistance();
-			if (this.pinchStartDist > 0) {
-				const delta = this.pinchStartDist - newDist;
-				this.camera.zoomBy(delta * 0.1);
+			if (this.cameraControlZoom) {
+				const newDist = this.getPointerDistance();
+				if (this.pinchStartDist > 0) {
+					const delta = this.pinchStartDist - newDist;
+					this.camera.zoomBy(delta * 0.1);
+				}
+				this.pinchStartDist = newDist;
 			}
-			this.pinchStartDist = newDist;
 
-			const newMid = this.getPointerMidpoint();
-			const mdx = newMid.x - this.pinchMidpoint.x;
-			const mdy = newMid.y - this.pinchMidpoint.y;
-			const panScale = this.camera.distanceToTarget * 0.002;
+			if (this.cameraControlPan) {
+				const newMid = this.getPointerMidpoint();
+				const mdx = newMid.x - this.pinchMidpoint.x;
+				const mdy = newMid.y - this.pinchMidpoint.y;
+				const panScale = this.camera.distanceToTarget * 0.002;
 
-			this.camera.pan(mdx * panScale, mdy * panScale);
-			this.pinchMidpoint = newMid;
+				this.camera.pan(mdx * panScale, mdy * panScale);
+				this.pinchMidpoint = newMid;
+			}
 		} else if (this.activePointers.size === 1) {
+			if (!this.cameraControlRotate) return;
+
 			if (e.pointerType === "touch" || this.dragButton === 0) {
 				this.camera.rotate(-dx * 0.01, dy * 0.01);
 				this.inertiaX = -dx * 0.01;
@@ -1186,7 +1202,9 @@ export class PicoCAD2Viewer {
 			const speed = Math.sqrt(
 				this.inertiaX * this.inertiaX + this.inertiaY * this.inertiaY,
 			);
-			this.inertiaActive = isRotate && speed > 0.001;
+
+			this.inertiaActive =
+				isRotate && this.cameraControlRotate && speed > 0.001;
 		}
 	}
 
@@ -1196,6 +1214,8 @@ export class PicoCAD2Viewer {
 	 * @param e - The wheel event.
 	 */
 	private onWheel(e: WheelEvent): void {
+		if (!this.cameraControlZoom) return;
+
 		e.preventDefault();
 		this.camera.zoomBy(e.deltaY * 0.025);
 	}

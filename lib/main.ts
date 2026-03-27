@@ -54,6 +54,7 @@ export type {
 	GradientOutlineOptions,
 	HalftoneOptions,
 	LensDistortionOptions,
+	CameraControlOptions,
 	ModelInfo,
 	NoiseOptions,
 	PicoCAD2ViewerOptions,

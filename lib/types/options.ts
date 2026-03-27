@@ -195,6 +195,12 @@ export interface ModelInfo {
 	transparentColor: Color3;
 }
 
+export interface CameraControlOptions {
+	zoom?: boolean;
+	pan?: boolean;
+	rotate?: boolean;
+}
+
 export interface AnimationSettings {
 	speed: number;
 	time: number;

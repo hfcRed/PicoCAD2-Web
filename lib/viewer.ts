@@ -599,6 +599,22 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Returns the raw pixel data of the last rendered frame as a `Uint8Array`.
+	 *
+	 * Each pixel is represented as four consecutive bytes (R, G, B, A).
+	 * The total length of the array is `width * height * 4`.
+	 *
+	 * @returns The raw RGBA pixel data.
+	 */
+	toPixelData(): Uint8Array {
+		const width = this.canvas.width;
+		const height = this.canvas.height;
+		const imageData = this.ctx2d.getImageData(0, 0, width, height);
+
+		return new Uint8Array(imageData.data.buffer);
+	}
+
+	/**
 	 * Starts observing the canvas's parent element for size changes and
 	 * automatically updates the render resolution to match.
 	 *

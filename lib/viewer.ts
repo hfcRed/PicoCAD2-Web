@@ -1197,6 +1197,6 @@ export class PicoCAD2Viewer {
 	 */
 	private onWheel(e: WheelEvent): void {
 		e.preventDefault();
-		this.camera.zoomBy(e.deltaY * 0.05);
+		this.camera.zoomBy(e.deltaY * 0.025);
 	}
 }

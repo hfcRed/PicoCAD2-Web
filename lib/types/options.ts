@@ -191,6 +191,8 @@ export interface ModelInfo {
 	polyCount: number;
 	animationDuration: number;
 	hasAnimation: boolean;
+	backgroundColor: Color3;
+	transparentColor: Color3;
 }
 
 export interface AnimationSettings {

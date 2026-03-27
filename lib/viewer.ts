@@ -259,7 +259,22 @@ export class PicoCAD2Viewer {
 	 * Information about the currently loaded model, or null if no model is loaded.
 	 */
 	get modelInfo(): ModelInfo | null {
-		return this._modelInfo;
+		if (!this._modelInfo || !this.model) return this._modelInfo;
+
+		const texture = this.model.texture;
+		const bgIdx = texture.backgroundColor;
+		const colors = texture.colors;
+
+		return {
+			...this._modelInfo,
+			backgroundColor: this.backgroundColor
+				? [...this.backgroundColor]
+				: [
+						colors[bgIdx * 3] ?? 0,
+						colors[bgIdx * 3 + 1] ?? 0,
+						colors[bgIdx * 3 + 2] ?? 0,
+					],
+		};
 	}
 
 	/**
@@ -978,11 +993,26 @@ export class PicoCAD2Viewer {
 				polyCount += node.mesh.faces.length;
 			}
 		});
+
+		const texture = model.texture;
+		const bgIdx = texture.backgroundColor;
+		const colors = texture.colors;
+
 		return {
 			nodeCount,
 			polyCount,
 			animationDuration: model.motionDuration,
 			hasAnimation: model.motionDuration > 0,
+			backgroundColor: [
+				colors[bgIdx * 3] ?? 0,
+				colors[bgIdx * 3 + 1] ?? 0,
+				colors[bgIdx * 3 + 2] ?? 0,
+			],
+			transparentColor: [
+				colors[texture.transparentColor * 3] ?? 0,
+				colors[texture.transparentColor * 3 + 1] ?? 0,
+				colors[texture.transparentColor * 3 + 2] ?? 0,
+			],
 		};
 	}
 

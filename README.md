@@ -152,6 +152,9 @@ viewer.draw();
 viewer.enableCameraControls();
 viewer.disableCameraControls();
 
+// Enable only specific controls (all default to true)
+viewer.enableCameraControls({ zoom: true, pan: false, rotate: true });
+
 // Access the camera directly
 viewer.camera.theta = Math.PI / 4;
 viewer.camera.omega = Math.PI / 6;
@@ -208,6 +211,8 @@ const info = viewer.modelInfo;
 // info.polyCount         - Total polygon faces
 // info.animationDuration - Animation length in seconds
 // info.hasAnimation      - Whether the model has animation data
+// info.backgroundColor   - Rendered background color as [r, g, b] (0-1 range)
+// info.transparentColor  - Transparent color as [r, g, b] (0-1 range)
 ```
 
 ## Callbacks
@@ -255,6 +260,9 @@ const blob = await viewer.toBlob("image/png");
 
 // Export as data URL (sync)
 const dataUrl = viewer.toDataURL("image/jpeg", 0.9);
+
+// Export raw RGBA pixel data (Uint8Array, length = width * height * 4)
+const pixels = viewer.toPixelData();
 ```
 
 ## Post-Processing Effects

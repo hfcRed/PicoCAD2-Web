@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.2
+
+### Added
+
+- **`toPixelData()` method** — Returns the raw rendered pixel data as a `Uint8Array` (RGBA, 4 bytes per pixel).
+- **`modelInfo.backgroundColor`** — The rendered background color as a `Color3`. Returns the viewer's override if set, otherwise the color parsed from the model.
+- **`modelInfo.transparentColor`** — The model's transparent color as a `Color3`.
+- **`enableCameraControls(options?)` parameter** — Accepts an optional `CameraControlOptions` object with `zoom`, `pan`, and `rotate` booleans. All default to `true`.
+
+### Changed
+
+- **Scroll wheel zoom** — Reduced zoom sensitivity for finer control.
+
 ## 1.2.1
 
 ### Changed

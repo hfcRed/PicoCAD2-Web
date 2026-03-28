@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.3
+
+### Changed
+
+- **`getState()` method** - Now returns the unstringified model.
+- **`setState()` method** - Now expects an unstringified model.
+
 ## 1.2.2
 
 ### Added

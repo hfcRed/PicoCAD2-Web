@@ -716,7 +716,7 @@ export class PicoCAD2Viewer {
 	 */
 	getState(): PicoCAD2ViewerState {
 		return {
-			source: this.source,
+			source: JSON.parse(this.source ?? "null"),
 			settings: {
 				shading: this.shading,
 				renderMode: this.renderMode,
@@ -770,7 +770,7 @@ export class PicoCAD2Viewer {
 	 */
 	setState(state: PicoCAD2ViewerState): void {
 		if (state.source !== null) {
-			this.load(state.source);
+			this.load(JSON.stringify(state.source));
 		}
 
 		const s = state.settings;

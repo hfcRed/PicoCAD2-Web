@@ -147,6 +147,7 @@ export class PicoCAD2Viewer {
 	private cameraControlZoom = true;
 	private cameraControlPan = true;
 	private cameraControlRotate = true;
+	private spinInertiaFactor = 0.92;
 	private dragButton = 0;
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
 	private pinchStartDist = 0;
@@ -500,6 +501,10 @@ export class PicoCAD2Viewer {
 		this.cameraControlZoom = options?.zoom ?? true;
 		this.cameraControlPan = options?.pan ?? true;
 		this.cameraControlRotate = options?.rotate ?? true;
+		this.spinInertiaFactor = Math.max(
+			0,
+			Math.min(1, options?.spinInertiaFactor ?? 0.92),
+		);
 
 		if (this.cameraControlsEnabled) return;
 		this.cameraControlsEnabled = true;
@@ -1032,7 +1037,7 @@ export class PicoCAD2Viewer {
 	private applyInertia(): void {
 		if (!this.inertiaActive) return;
 
-		const decay = 0.92;
+		const decay = this.spinInertiaFactor;
 		this.inertiaX *= decay;
 		this.inertiaY *= decay;
 

@@ -199,6 +199,7 @@ export interface CameraControlOptions {
 	zoom?: boolean;
 	pan?: boolean;
 	rotate?: boolean;
+	spinInertiaFactor?: number;
 }
 
 export interface AnimationSettings {

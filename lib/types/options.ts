@@ -200,6 +200,13 @@ export interface CameraControlOptions {
 	pan?: boolean;
 	rotate?: boolean;
 	spinInertiaFactor?: number;
+	useFixedOnInteract?: {
+		enabled: boolean;
+		/** Delay in ms after the last interaction before restoring. */
+		delayBeforeRestore: number;
+		/** Duration in ms for the camera to interpolate back to the original position. */
+		restoreTime: number;
+	};
 }
 
 export interface AnimationSettings {

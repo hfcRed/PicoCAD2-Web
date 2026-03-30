@@ -148,6 +148,11 @@ export class PicoCAD2Viewer {
 	private cameraControlPan = true;
 	private cameraControlRotate = true;
 	private spinInertiaFactor = 0.92;
+	private fixedOnInteract: CameraControlOptions["useFixedOnInteract"] | null =
+		null;
+	private fixedOnInteractTimer: ReturnType<typeof setTimeout> | null = null;
+	private savedCameraMode: CameraMode | null = null;
+	private _loadedWithBookmark = false;
 	private dragButton = 0;
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
 	private pinchStartDist = 0;
@@ -289,6 +294,8 @@ export class PicoCAD2Viewer {
 	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
 	load(source: string, useBookmark = false): void {
+		this._loadedWithBookmark = useBookmark;
+
 		if (this.resources) {
 			this.context.disposeModelResources(this.resources);
 			this.resources = null;
@@ -505,6 +512,7 @@ export class PicoCAD2Viewer {
 			0,
 			Math.min(1, options?.spinInertiaFactor ?? 0.92),
 		);
+		this.fixedOnInteract = options?.useFixedOnInteract ?? null;
 
 		if (this.cameraControlsEnabled) return;
 		this.cameraControlsEnabled = true;
@@ -545,6 +553,12 @@ export class PicoCAD2Viewer {
 	disableCameraControls(): void {
 		if (!this.cameraControlsEnabled) return;
 		this.cameraControlsEnabled = false;
+
+		if (this.fixedOnInteractTimer !== null) {
+			clearTimeout(this.fixedOnInteractTimer);
+			this.fixedOnInteractTimer = null;
+		}
+		this.savedCameraMode = null;
 
 		this.canvas.removeEventListener(
 			"pointerdown",
@@ -1121,11 +1135,55 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Called on any camera interaction. When useFixedOnInteract is enabled,
+	 * switches to "fixed" mode and schedules a restore after the delay.
+	 */
+	private onCameraInteraction(): void {
+		if (!this.fixedOnInteract?.enabled) return;
+
+		if (this.savedCameraMode === null) {
+			this.savedCameraMode = this.cameraMode;
+			// Absorb the current omegaOffset into omega so switching to "fixed"
+			// (which returns offset 0) doesn't cause a visual jump.
+			this.camera.omega += this.camera.omegaOffset;
+			this.camera.omegaOffset = 0;
+		}
+		this.cameraMode = "fixed";
+
+		if (this.fixedOnInteractTimer !== null) {
+			clearTimeout(this.fixedOnInteractTimer);
+		}
+
+		this.fixedOnInteractTimer = setTimeout(() => {
+			this.fixedOnInteractTimer = null;
+			this.inertiaActive = false;
+
+			// Restore the camera mode. Compute the offset the restored mode
+			// would produce this frame and absorb it out of omega so there's
+			// no jump when the mode starts driving omegaOffset again.
+			this.cameraMode = this.savedCameraMode!;
+			this.savedCameraMode = null;
+			const incomingOffset = this.computeCameraModeOffset();
+			this.camera.omega -= incomingOffset;
+			this.camera.omegaOffset = incomingOffset;
+
+			const state =
+				this._loadedWithBookmark && this.model?.bookmark
+					? this.model.bookmark
+					: this.model?.camera;
+			if (state) {
+				this.camera.initFromState(state, this.fixedOnInteract!.restoreTime);
+			}
+		}, this.fixedOnInteract.delayBeforeRestore);
+	}
+
+	/**
 	 * Handles pointer down events.
 	 *
 	 * @param e - The pointer event.
 	 */
 	private onPointerDown(e: PointerEvent): void {
+		this.onCameraInteraction();
 		this.inertiaActive = false;
 		this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 		this.dragButton = e.button;
@@ -1147,6 +1205,8 @@ export class PicoCAD2Viewer {
 
 		const prev = this.activePointers.get(e.pointerId);
 		if (!prev) return;
+
+		this.onCameraInteraction();
 
 		const dx = e.clientX - prev.x;
 		const dy = e.clientY - prev.y;
@@ -1224,6 +1284,7 @@ export class PicoCAD2Viewer {
 	private onWheel(e: WheelEvent): void {
 		if (!this.cameraControlZoom) return;
 
+		this.onCameraInteraction();
 		e.preventDefault();
 		this.camera.zoomBy(e.deltaY * 0.025);
 	}

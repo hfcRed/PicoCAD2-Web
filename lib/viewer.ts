@@ -1173,7 +1173,10 @@ export class PicoCAD2Viewer {
 				this.camera.rotate(-dx * 0.01, dy * 0.01);
 				this.inertiaX = -dx * 0.01;
 				this.inertiaY = dy * 0.01;
-			} else if (this.dragButton === 1 || this.dragButton === 2) {
+			} else if (
+				this.cameraControlPan &&
+				(this.dragButton === 1 || this.dragButton === 2)
+			) {
 				const panScale = this.camera.distanceToTarget * 0.002;
 				this.camera.pan(dx * panScale, dy * panScale);
 			}

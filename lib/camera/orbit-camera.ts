@@ -40,16 +40,62 @@ export class OrbitCamera {
 	private readonly viewProjectionMatrix: mat4 = mat4.create();
 	private needsUpdate = true;
 
+	private lerping = false;
+	private lerpStart = 0;
+	private lerpDuration = 0;
+	private lerpFrom: {
+		target: vec3;
+		distanceToTarget: number;
+		theta: number;
+		omega: number;
+	} = {
+		target: vec3.create(),
+		distanceToTarget: 0,
+		theta: 0,
+		omega: 0,
+	};
+	private lerpTo: {
+		target: vec3;
+		distanceToTarget: number;
+		theta: number;
+		omega: number;
+	} = {
+		target: vec3.create(),
+		distanceToTarget: 0,
+		theta: 0,
+		omega: 0,
+	};
+
 	/**
 	 * Initializes the camera from a saved camera state.
 	 *
 	 * @param state - The camera state to restore.
+	 * @param interpolateMs - Time in milliseconds to interpolate from the current state to the new one. Defaults to 0 (instant).
 	 */
-	initFromState(state: CameraState): void {
-		vec3.copy(this.target, state.target);
-		this.distanceToTarget = state.distanceToTarget;
-		this.theta = state.theta;
-		this.omega = state.omega;
+	initFromState(state: CameraState, interpolateMs = 0): void {
+		if (interpolateMs <= 0) {
+			this.lerping = false;
+			vec3.copy(this.target, state.target);
+			this.distanceToTarget = state.distanceToTarget;
+			this.theta = state.theta;
+			this.omega = state.omega;
+			this.needsUpdate = true;
+			return;
+		}
+
+		vec3.copy(this.lerpFrom.target, this.target);
+		this.lerpFrom.distanceToTarget = this.distanceToTarget;
+		this.lerpFrom.theta = this.theta;
+		this.lerpFrom.omega = this.omega;
+
+		vec3.copy(this.lerpTo.target, state.target);
+		this.lerpTo.distanceToTarget = state.distanceToTarget;
+		this.lerpTo.theta = state.theta;
+		this.lerpTo.omega = state.omega;
+
+		this.lerpStart = performance.now();
+		this.lerpDuration = interpolateMs;
+		this.lerping = true;
 		this.needsUpdate = true;
 	}
 
@@ -60,6 +106,8 @@ export class OrbitCamera {
 	 * @param deltaTheta - Change in vertical angle.
 	 */
 	rotate(deltaOmega: number, deltaTheta: number): void {
+		this.lerping = false;
+
 		this.omega += deltaOmega;
 		this.theta += deltaTheta;
 		this.theta = Math.max(
@@ -75,6 +123,8 @@ export class OrbitCamera {
 	 * @param delta - The zoom delta.
 	 */
 	zoomBy(delta: number): void {
+		this.lerping = false;
+
 		this.distanceToTarget = Math.max(1, this.distanceToTarget + delta);
 		this.needsUpdate = true;
 	}
@@ -86,6 +136,8 @@ export class OrbitCamera {
 	 * @param dy - Vertical pan amount.
 	 */
 	pan(dx: number, dy: number): void {
+		this.lerping = false;
+
 		const cosOmega = Math.cos(this.omega);
 		const sinOmega = Math.sin(this.omega);
 
@@ -160,8 +212,27 @@ export class OrbitCamera {
 	 * Recalculates position and view matrix from current spherical coordinates.
 	 */
 	private update(): void {
+		if (this.lerping) {
+			const elapsed = performance.now() - this.lerpStart;
+			const t = Math.min(elapsed / this.lerpDuration, 1);
+			const s = t * t * (3 - 2 * t);
+
+			vec3.lerp(this.target, this.lerpFrom.target, this.lerpTo.target, s);
+			this.distanceToTarget =
+				this.lerpFrom.distanceToTarget +
+				(this.lerpTo.distanceToTarget - this.lerpFrom.distanceToTarget) * s;
+			this.theta =
+				this.lerpFrom.theta + (this.lerpTo.theta - this.lerpFrom.theta) * s;
+			this.omega =
+				this.lerpFrom.omega + (this.lerpTo.omega - this.lerpFrom.omega) * s;
+
+			if (t >= 1) {
+				this.lerping = false;
+			}
+		}
+
 		this.updatePosition();
 		mat4.lookAt(this.viewMatrix, this.position, this.target, UP);
-		this.needsUpdate = false;
+		this.needsUpdate = this.lerping;
 	}
 }

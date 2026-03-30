@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.4
+
+### Added
+
+- **`spinInertiaFactor` camera control option** — Controls how quickly rotation spin decays after releasing. `0` = instant stop, `1` = never loses velocity. Defaults to `0.92`.
+- **`useFixedOnInteract` camera control option** — When enabled, interacting with the canvas temporarily switches the camera mode to `"fixed"`. After a configurable delay following the last interaction, the original camera mode and position are restored with smooth interpolation.
+- **`initFromState()` interpolation** — The camera's `initFromState()` method now accepts an optional second parameter for interpolation time in milliseconds. The camera smoothly interpolates from its current position to the target state using smoothstep easing.
+- **Transparent background** — When the background color matches the transparent color, the background is now rendered as transparent instead of opaque.
+
+### Fixed
+
+- **Pan control bypass** — Disabling pan via `enableCameraControls({ pan: false })` now correctly prevents middle/right-click mouse panning.
+- **Camera mode switching jump** — Switching between camera modes (e.g. `"spin"` to `"fixed"`) no longer causes a visual jump. The current rotation offset is absorbed into the camera angle on switch.
+
 ## 1.2.3
 
 ### Changed

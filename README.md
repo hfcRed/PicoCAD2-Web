@@ -155,6 +155,18 @@ viewer.disableCameraControls();
 // Enable only specific controls (all default to true)
 viewer.enableCameraControls({ zoom: true, pan: false, rotate: true });
 
+// Control spin inertia after releasing (0 = instant stop, 1 = never stops, default 0.92)
+viewer.enableCameraControls({ spinInertiaFactor: 0.5 });
+
+// Temporarily pause camera mode on interaction, then restore after a delay
+viewer.enableCameraControls({
+  useFixedOnInteract: {
+    enabled: true,
+    delayBeforeRestore: 2000, // ms after last interaction before restoring
+    restoreTime: 500,         // ms to interpolate back to the original camera position
+  },
+});
+
 // Access the camera directly
 viewer.camera.theta = Math.PI / 4;
 viewer.camera.omega = Math.PI / 6;

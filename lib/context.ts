@@ -37,7 +37,8 @@ export class PicoCAD2Context {
 
 		const gl = this.canvas.getContext("webgl2", {
 			antialias: false,
-			alpha: false,
+			alpha: true,
+			premultipliedAlpha: false,
 		});
 		if (!gl) throw new Error("WebGL 2 is not supported");
 		this.gl = gl;

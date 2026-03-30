@@ -426,6 +426,7 @@ export class PicoCAD2Viewer {
 		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
 		// when multiple viewers render in sequence within the same frame.
 		const bitmap = this.context.canvas.transferToImageBitmap();
+		this.ctx2d.clearRect(0, 0, dw, dh);
 		this.ctx2d.drawImage(bitmap, 0, 0, w, h, 0, 0, dw, dh);
 		bitmap.close();
 

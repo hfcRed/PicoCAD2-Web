@@ -11,11 +11,13 @@ precision highp float;
 in vec2 v_texCoord;
 uniform sampler2D u_texture;
 uniform vec3 u_backgroundColor;
+uniform float u_bgIsTransparent;
 out vec4 fragColor;
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
-    fragColor = vec4(mix(u_backgroundColor, col.rgb, col.a), 1.0);
+    float bgAlpha = mix(1.0, col.a, u_bgIsTransparent);
+    fragColor = vec4(mix(u_backgroundColor, col.rgb, col.a), bgAlpha);
 }
 `;
 
@@ -125,7 +127,11 @@ export class PostProcessPipeline {
 	 * @param ctx - The rendering context info.
 	 * @param backgroundColor - The background color for the final composite.
 	 */
-	execute(ctx: EffectContext, backgroundColor: Color3): void {
+	execute(
+		ctx: EffectContext,
+		backgroundColor: Color3,
+		bgIsTransparent = false,
+	): void {
 		const gl = ctx.gl;
 
 		for (const effect of this.postEffects) {
@@ -141,7 +147,7 @@ export class PostProcessPipeline {
 			effect.apply(ctx, inputTexture);
 		}
 
-		this.blit(gl, ctx.width, ctx.height, backgroundColor);
+		this.blit(gl, ctx.width, ctx.height, backgroundColor, bgIsTransparent);
 	}
 
 	/**
@@ -158,6 +164,7 @@ export class PostProcessPipeline {
 		w: number,
 		h: number,
 		backgroundColor: Color3,
+		bgIsTransparent = false,
 	): void {
 		if (!this.blitProgram) {
 			this.blitProgram = twgl.createProgramInfo(gl, [
@@ -175,6 +182,7 @@ export class PostProcessPipeline {
 		twgl.setUniforms(this.blitProgram, {
 			u_texture: this.pool.getCurrentTexture(),
 			u_backgroundColor: backgroundColor,
+			u_bgIsTransparent: bgIsTransparent ? 1.0 : 0.0,
 		});
 
 		gl.bindVertexArray(this.emptyVao);

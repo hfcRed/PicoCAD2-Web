@@ -143,6 +143,13 @@ export class Renderer {
 			bgB = colors[bgIdx * 3 + 2] ?? 0;
 		}
 
+		const tcIdx = model.texture.transparentColor;
+		const colors = model.texture.colors;
+		const tcR = colors[tcIdx * 3] ?? 0;
+		const tcG = colors[tcIdx * 3 + 1] ?? 0;
+		const tcB = colors[tcIdx * 3 + 2] ?? 0;
+		const bgIsTransparent = bgR === tcR && bgG === tcG && bgB === tcB;
+
 		if (useGradientOutline) {
 			(gradOutline as GradientOutlineEffect).backgroundColor = [bgR, bgG, bgB];
 		}
@@ -158,7 +165,7 @@ export class Renderer {
 			}
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-			gl.clearColor(bgR, bgG, bgB, 1);
+			gl.clearColor(bgR, bgG, bgB, bgIsTransparent ? 0 : 1);
 		}
 
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -202,9 +209,9 @@ export class Renderer {
 				time,
 				depthTexture: pipeline.pool.getDepthTexture(),
 			};
-			pipeline.execute(ctx, [bgR, bgG, bgB]);
+			pipeline.execute(ctx, [bgR, bgG, bgB], bgIsTransparent);
 		} else {
-			pipeline.blit(gl, w, h, [bgR, bgG, bgB]);
+			pipeline.blit(gl, w, h, [bgR, bgG, bgB], bgIsTransparent);
 		}
 	}
 

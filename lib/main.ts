@@ -1,3 +1,4 @@
+export const COMPATIBLE_VERSION = "2.1.0";
 export { PicoCAD2Context } from "./context.ts";
 export { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
@@ -41,6 +42,7 @@ export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type {
 	AnimationSettings,
 	BloomOptions,
+	CameraControlOptions,
 	CameraSettings,
 	ChromaticAberrationOptions,
 	ColorGradingOptions,
@@ -54,7 +56,6 @@ export type {
 	GradientOutlineOptions,
 	HalftoneOptions,
 	LensDistortionOptions,
-	CameraControlOptions,
 	ModelInfo,
 	NoiseOptions,
 	PicoCAD2ViewerOptions,

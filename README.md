@@ -2,6 +2,8 @@
 
 A JavaScript library for viewing [PicoCAD 2](https://picocad.net/) models in the browser using WebGL 2.
 
+[Live Demo](https://picocad2-web-viewer.hfcred.workers.dev/)
+
 ## Installation
 
 ```bash

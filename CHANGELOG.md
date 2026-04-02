@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.5
+
+### Added
+
+- **`COMPATIBLE_VERSION` constant** — Exported constant containing the PicoCAD 2 software version that the library is compatible with. Currently `"2.1.0"`.
+
+### Fixed
+
+- **Invisible folder rendering** — Folders with `visible` set to `false` now correctly hide all of their children. Previously, child meshes with `visible: true` inside an invisible folder would still render.
+
 ## 1.2.4
 
 ### Added

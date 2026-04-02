@@ -4,6 +4,15 @@ A JavaScript library for viewing [PicoCAD 2](https://picocad.net/) models in the
 
 [Live Demo](https://picocad2-web-viewer.hfcred.workers.dev/)
 
+## Compatibility
+
+The library exports a `COMPATIBLE_VERSION` constant indicating the PicoCAD 2 software version it targets. Currently `"2.1.0"`.
+
+```typescript
+import { COMPATIBLE_VERSION } from "picocad2-web";
+console.log(COMPATIBLE_VERSION); // "2.1.0"
+```
+
 ## Installation
 
 ```bash

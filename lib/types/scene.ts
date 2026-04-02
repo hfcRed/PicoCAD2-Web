@@ -47,6 +47,7 @@ export interface MotionData {
 export interface SceneNode {
 	name: string;
 	visible: boolean;
+	renderVisible: boolean;
 	children: SceneNode[];
 	transform: Transform;
 	staticTransform: Transform;

@@ -77,6 +77,7 @@ function parseNode(raw: RawGraphNode): SceneNode {
 	const node: SceneNode = {
 		name: raw.name,
 		visible: raw.visible,
+		renderVisible: raw.visible,
 		children: [],
 		transform,
 		staticTransform: cloneTransform(transform),

@@ -1,7 +1,7 @@
 import { mat4, vec3 } from "gl-matrix";
 import * as twgl from "twgl.js";
 import type { OrbitCamera } from "../camera/orbit-camera.ts";
-import { traverseNode, updateNodeMatrix } from "../scene/scene-graph.ts";
+import { updateRenderState } from "../scene/scene-graph.ts";
 import type { Color3, PicoCAD2Model } from "../types/scene.ts";
 import { buildAllBuffers, type NodeBuffers } from "./buffers.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
@@ -120,15 +120,7 @@ export class Renderer {
 		this.lightDirWorld[1] = v[4] * lx + v[5] * ly + v[6] * lz;
 		this.lightDirWorld[2] = v[8] * lx + v[9] * ly + v[10] * lz;
 
-		traverseNode(
-			model.root,
-			(node) => {
-				if (node.mesh) {
-					updateNodeMatrix(node);
-				}
-			},
-			(node) => node.visible,
-		);
+		updateRenderState(model.root);
 
 		let bgR: number;
 		let bgG: number;
@@ -339,7 +331,7 @@ export class Renderer {
 		const gl = this.gl;
 
 		for (const nb of resources.nodeBuffers) {
-			if (!nb.node.visible) continue;
+			if (!nb.node.renderVisible) continue;
 
 			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.localMatrix);
 

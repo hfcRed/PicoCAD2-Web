@@ -36,6 +36,27 @@ export function updateNodeMatrix(node: SceneNode): void {
 }
 
 /**
+ * Computes effective visibility and updates matrices for the scene graph.
+ * A node is render-visible only if both it and all its ancestors are visible.
+ * Also updates the local matrix for render-visible mesh nodes.
+ *
+ * @param root - The root node of the scene graph.
+ */
+export function updateRenderState(root: SceneNode): void {
+	propagateVisibility(root, true);
+}
+
+function propagateVisibility(node: SceneNode, parentVisible: boolean): void {
+	for (const child of node.children) {
+		child.renderVisible = child.visible && parentVisible;
+		if (child.renderVisible && child.mesh) {
+			updateNodeMatrix(child);
+		}
+		propagateVisibility(child, child.renderVisible);
+	}
+}
+
+/**
  * Marks all nodes in the scene graph as dirty, forcing matrix recomputation.
  *
  * @param root - The root node of the scene graph.

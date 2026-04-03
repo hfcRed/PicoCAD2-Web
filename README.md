@@ -139,7 +139,7 @@ viewer.cameraModeDirection = "right";
 
 // Tags (watermark text in viewport corners)
 viewer.leftTag = { text: "picocad2-web", color: [1, 1, 1] };
-viewer.rightTag = { text: "v0.2.0" };
+viewer.rightTag = { text: "v1.2.7" };
 
 // Check if a model is loaded
 if (viewer.loaded) { /* ... */ }

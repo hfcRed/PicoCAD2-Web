@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.7
+
+### Fixed
+
+- **Camera interaction during restore** — Interacting with the camera while it is restoring to its original position no longer causes erratic behavior. The in-progress interpolation is now resolved to its current position before handling the new interaction.
+- **Camera restore with animation** - Restoring the camera when the models camera speed was not synced with the animation speed no longer causes the camera to jump around.
+
 ## 1.2.6
 
 ### Changed

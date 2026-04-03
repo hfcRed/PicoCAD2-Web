@@ -100,6 +100,30 @@ export class OrbitCamera {
 	}
 
 	/**
+	 * If the camera is currently interpolating, resolves the lerp at its
+	 * current progress into the base properties and stops the interpolation.
+	 */
+	cancelLerp(): void {
+		if (!this.lerping) return;
+
+		const elapsed = performance.now() - this.lerpStart;
+		const t = Math.min(elapsed / this.lerpDuration, 1);
+		const s = t * t * (3 - 2 * t);
+
+		vec3.lerp(this.target, this.lerpFrom.target, this.lerpTo.target, s);
+		this.distanceToTarget =
+			this.lerpFrom.distanceToTarget +
+			(this.lerpTo.distanceToTarget - this.lerpFrom.distanceToTarget) * s;
+		this.theta =
+			this.lerpFrom.theta + (this.lerpTo.theta - this.lerpFrom.theta) * s;
+		this.omega =
+			this.lerpFrom.omega + (this.lerpTo.omega - this.lerpFrom.omega) * s;
+
+		this.lerping = false;
+		this.needsUpdate = true;
+	}
+
+	/**
 	 * Rotates the camera by adjusting omega and theta angles.
 	 *
 	 * @param deltaOmega - Change in horizontal angle.

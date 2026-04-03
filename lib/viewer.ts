@@ -1154,6 +1154,7 @@ export class PicoCAD2Viewer {
 	 */
 	private onCameraInteraction(): void {
 		if (!this.fixedOnInteract?.enabled) return;
+		this.camera.cancelLerp();
 
 		if (this.savedCameraMode === null) {
 			this.savedCameraMode = this.cameraMode;

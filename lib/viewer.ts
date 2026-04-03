@@ -384,6 +384,9 @@ export class PicoCAD2Viewer {
 
 	/**
 	 * Draws a single frame.
+	 *
+	 * @param syncWithAnimation - When `true` (default), camera mode offset
+	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
 	 */
 	draw(syncWithAnimation = true): void {
 		if (!this.model || !this.resources) return;
@@ -468,6 +471,9 @@ export class PicoCAD2Viewer {
 
 	/**
 	 * Starts the render loop.
+	 *
+	 * @param syncWithAnimation - When `true` (default), camera mode offset
+	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
 	 */
 	startRenderLoop(syncWithAnimation = true): void {
 		if (this.animationFrameId !== null) return;
@@ -1070,10 +1076,12 @@ export class PicoCAD2Viewer {
 	/**
 	 * Computes the camera mode omega offset for the current frame.
 	 *
-	 * When animation is playing, the cycle duration syncs to the animation
-	 * duration so the camera completes exactly one full cycle per animation loop.
-	 * Otherwise, {@link cameraModeSpeed} controls the cycle duration.
+	 * When `syncWithAnimation` is `true` and animation is playing, the cycle
+	 * duration syncs to the animation duration so the camera completes exactly
+	 * one full cycle per animation loop. Otherwise, {@link cameraModeSpeed}
+	 * controls the cycle duration.
 	 *
+	 * @param syncWithAnimation - Whether to sync with animation playback.
 	 * @returns The omega offset in radians.
 	 */
 	private computeCameraModeOffset(syncWithAnimation = true): number {

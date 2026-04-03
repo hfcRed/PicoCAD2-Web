@@ -154,6 +154,11 @@ viewer.stopRenderLoop();
 
 // Single frame (useful for static scenes or custom loops)
 viewer.draw();
+
+// By default, camera modes sync their cycle to the animation duration.
+// Pass false to use the cameraModeSpeed timer instead.
+viewer.startRenderLoop(false);
+viewer.draw(false);
 ```
 
 ## Camera Controls

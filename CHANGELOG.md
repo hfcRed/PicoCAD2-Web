@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.6
+
+### Changed
+
+- **`draw()` method** — Now accepts an optional `syncWithAnimation` boolean (default: `true`). When `false`, camera mode offset uses its own timer instead of syncing to animation playback.
+- **`startRenderLoop()` method** — Now accepts an optional `syncWithAnimation` boolean (default: `true`), passed through to `draw()` on each frame.
+
 ## 1.2.5
 
 ### Added

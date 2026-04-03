@@ -385,11 +385,11 @@ export class PicoCAD2Viewer {
 	/**
 	 * Draws a single frame.
 	 */
-	draw(): void {
+	draw(syncWithAnimation = true): void {
 		if (!this.model || !this.resources) return;
 
 		this.camera.projectionMode = this.projectionMode;
-		this.camera.omegaOffset = this.computeCameraModeOffset();
+		this.camera.omegaOffset = this.computeCameraModeOffset(syncWithAnimation);
 
 		if (this.animation.playing || this.animation.time > 0) {
 			restoreStaticTransforms(this.model.root);
@@ -469,7 +469,7 @@ export class PicoCAD2Viewer {
 	/**
 	 * Starts the render loop.
 	 */
-	startRenderLoop(): void {
+	startRenderLoop(syncWithAnimation = true): void {
 		if (this.animationFrameId !== null) return;
 
 		this.lastFrameTime = performance.now();
@@ -481,7 +481,7 @@ export class PicoCAD2Viewer {
 			this.applyInertia();
 			this.animation.advance(dt);
 			this.cameraModeTime += dt;
-			this.draw();
+			this.draw(syncWithAnimation);
 			this.onFrame?.(dt);
 
 			this.animationFrameId = requestAnimationFrame(loop);
@@ -1076,7 +1076,7 @@ export class PicoCAD2Viewer {
 	 *
 	 * @returns The omega offset in radians.
 	 */
-	private computeCameraModeOffset(): number {
+	private computeCameraModeOffset(syncWithAnimation = true): number {
 		if (this.cameraMode === "fixed") return 0;
 
 		const dir = this.cameraModeDirection === "right" ? 1 : -1;
@@ -1084,7 +1084,12 @@ export class PicoCAD2Viewer {
 		let time: number;
 		let cycleDuration: number;
 
-		if (this.animation.playing && this.model && this.model.motionDuration > 0) {
+		if (
+			syncWithAnimation &&
+			this.animation.playing &&
+			this.model &&
+			this.model.motionDuration > 0
+		) {
 			time = this.animation.time;
 			cycleDuration = this.model.motionDuration;
 		} else {

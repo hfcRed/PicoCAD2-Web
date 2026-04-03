@@ -1177,7 +1177,7 @@ export class PicoCAD2Viewer {
 			// no jump when the mode starts driving omegaOffset again.
 			this.cameraMode = this.savedCameraMode!;
 			this.savedCameraMode = null;
-			const incomingOffset = this.computeCameraModeOffset();
+			const incomingOffset = this.computeCameraModeOffset(true);
 			this.camera.omega -= incomingOffset;
 			this.camera.omegaOffset = incomingOffset;
 

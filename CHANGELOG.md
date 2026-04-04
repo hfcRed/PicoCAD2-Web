@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.10
+
+### Changed
+
+- **`setBookmark()` method** — Now writes the bookmark into the model source in addition to updating the parsed model, so the bookmark is preserved in `getState()` serialization.
+
 ## 1.2.9
 
 ### Changed

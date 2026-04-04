@@ -378,8 +378,21 @@ export class PicoCAD2Viewer {
 	 * @param bookmark - The camera state to store as the bookmark.
 	 */
 	setBookmark(bookmark: CameraBookmark): void {
-		if (!this.model) return;
+		if (!this.model || !this.source) return;
 		this.model.bookmark = bookmark;
+
+		const raw = JSON.parse(this.source);
+		if (!raw.metadata.camera) raw.metadata.camera = {};
+
+		raw.metadata.camera.bookmark = {
+			pos: [0, 0, 0],
+			target: [bookmark.target[0], bookmark.target[1], bookmark.target[2]],
+			distance_to_target: bookmark.distanceToTarget,
+			theta: bookmark.theta,
+			omega: bookmark.omega,
+		};
+
+		this.source = JSON.stringify(raw);
 	}
 
 	/**

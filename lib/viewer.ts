@@ -386,7 +386,11 @@ export class PicoCAD2Viewer {
 
 		raw.metadata.camera.bookmark = {
 			pos: { x: 0, y: 0, z: 0 },
-			target: { x: bookmark.target[0], y: bookmark.target[1], z: bookmark.target[2] },
+			target: {
+				x: bookmark.target[0],
+				y: bookmark.target[1],
+				z: bookmark.target[2],
+			},
 			distance_to_target: bookmark.distanceToTarget,
 			theta: bookmark.theta,
 			omega: bookmark.omega,
@@ -822,11 +826,13 @@ export class PicoCAD2Viewer {
 	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
 	setState(state: PicoCAD2ViewerState, useBookmark = false): void {
-		if (state.source !== null) {
-			this.load(JSON.stringify(state.source), useBookmark);
-		}
+		if (!state.source || !state.settings) return;
+
+		this.load(JSON.stringify(state.source), useBookmark);
+		if (!this.model) return;
 
 		const s = state.settings;
+
 		this.shading = s.shading;
 		this.renderMode = s.renderMode;
 		this.projectionMode = s.projectionMode;
@@ -838,6 +844,7 @@ export class PicoCAD2Viewer {
 		this.cameraMode = s.cameraMode;
 		this.cameraModeSpeed = s.cameraModeSpeed;
 		this.cameraModeDirection = s.cameraModeDirection;
+
 		this.leftTag = s.leftTag
 			? { text: s.leftTag.text, color: s.leftTag.color ?? [1, 1, 1] }
 			: null;
@@ -847,34 +854,29 @@ export class PicoCAD2Viewer {
 
 		this.animation.speed = s.animation.speed;
 		this.animation.time = s.animation.time;
+		this.animation.loop = s.animation.loop;
+
 		if (s.animation.playing) {
 			this.animation.play();
 		} else {
 			this.animation.pause();
 		}
-		this.animation.loop = s.animation.loop;
 
-		if (this.model) {
-			this.model.camera = {
-				target: new Float32Array([
-					s.camera.target[0],
-					s.camera.target[1],
-					s.camera.target[2],
-				]),
-				distanceToTarget: s.camera.distanceToTarget,
-				theta: s.camera.theta,
-				omega: s.camera.omega,
-			};
-		}
+		// Force the saved camera state onto the model so that the camera restoration
+		// in onCameraInteraction() will return to the saved state instead of the models's original camera.
+		this.model.camera = {
+			distanceToTarget: s.camera.distanceToTarget,
+			theta: s.camera.theta,
+			omega: s.camera.omega,
+			target: new Float32Array([
+				s.camera.target[0],
+				s.camera.target[1],
+				s.camera.target[2],
+			]),
+		};
 
-		if (!useBookmark || !this.model?.bookmark) {
-			this.camera.omega = s.camera.omega;
-			this.camera.theta = s.camera.theta;
-			this.camera.distanceToTarget = s.camera.distanceToTarget;
-			this.camera.target[0] = s.camera.target[0];
-			this.camera.target[1] = s.camera.target[1];
-			this.camera.target[2] = s.camera.target[2];
-			this.camera.zoom = s.camera.zoom;
+		if (!useBookmark || !this.model.bookmark) {
+			this.camera.initFromState(this.model.camera);
 		}
 
 		this.applyExtrasOptions(state.extras);

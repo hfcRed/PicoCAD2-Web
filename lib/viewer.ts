@@ -841,6 +841,19 @@ export class PicoCAD2Viewer {
 		}
 		this.animation.loop = s.animation.loop;
 
+		if (this.model) {
+			this.model.camera = {
+				target: new Float32Array([
+					s.camera.target[0],
+					s.camera.target[1],
+					s.camera.target[2],
+				]),
+				distanceToTarget: s.camera.distanceToTarget,
+				theta: s.camera.theta,
+				omega: s.camera.omega,
+			};
+		}
+
 		if (!useBookmark || !this.model?.bookmark) {
 			this.camera.omega = s.camera.omega;
 			this.camera.theta = s.camera.theta;

@@ -385,8 +385,8 @@ export class PicoCAD2Viewer {
 		if (!raw.metadata.camera) raw.metadata.camera = {};
 
 		raw.metadata.camera.bookmark = {
-			pos: [0, 0, 0],
-			target: [bookmark.target[0], bookmark.target[1], bookmark.target[2]],
+			pos: { x: 0, y: 0, z: 0 },
+			target: { x: bookmark.target[0], y: bookmark.target[1], z: bookmark.target[2] },
 			distance_to_target: bookmark.distanceToTarget,
 			theta: bookmark.theta,
 			omega: bookmark.omega,

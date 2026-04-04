@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.11
+
+### Fixed
+
+- **`setBookmark()` model source format** — Bookmark `target` and `pos` are now written as `{x, y, z}` objects matching the raw model format. Previously they were written as arrays, causing `NaN` camera values when restoring state with `useBookmark`.
+
 ## 1.2.10
 
 ### Changed

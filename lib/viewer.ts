@@ -806,10 +806,11 @@ export class PicoCAD2Viewer {
 	 * If the state includes a model source, it will be loaded.
 	 *
 	 * @param state - The state to restore.
+	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
-	setState(state: PicoCAD2ViewerState): void {
+	setState(state: PicoCAD2ViewerState, useBookmark = false): void {
 		if (state.source !== null) {
-			this.load(JSON.stringify(state.source));
+			this.load(JSON.stringify(state.source), useBookmark);
 		}
 
 		const s = state.settings;

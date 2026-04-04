@@ -279,6 +279,9 @@ localStorage.setItem("viewer", JSON.stringify(state));
 // Restore state (reloads model, applies all settings, camera, animation, extras)
 const saved = JSON.parse(localStorage.getItem("viewer"));
 viewer.setState(saved);
+
+// Restore state using the model's bookmarked camera position
+viewer.setState(saved, true);
 ```
 
 The state includes the raw model source string, all rendering settings, camera position, animation state, and extras configuration.

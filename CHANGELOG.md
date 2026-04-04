@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.9
+
+### Changed
+
+- **`setState()` method** — Now accepts an optional `useBookmark` boolean (default: `false`). When `true`, initializes the camera from the model's bookmark instead of the default camera state.
+
 ## 1.2.8
 
 ### Added

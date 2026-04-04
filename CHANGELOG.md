@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.8
+
+### Added
+
+- **`advanceTime()` method** - Method on the PicoCAD2Viewer class that allows you to advance the internal clock by the given delta time. Useful when creating a custom render loop.
+
 ## 1.2.7
 
 ### Fixed

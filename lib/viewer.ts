@@ -470,6 +470,21 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Advances the viewer's internal clock by the given delta.
+	 * Call this before `draw()` in a custom render loop to keep
+	 * shader effects (glitch, noise, etc.) animating.
+	 *
+	 * When `startRenderLoop()` is used, this is called automatically each frame.
+	 *
+	 * @param dt - The time delta in seconds to advance the clock by.
+	 */
+	advanceTime(dt: number): void {
+		this.elapsedTime += dt;
+		this.animation.advance(dt);
+		this.cameraModeTime += dt;
+	}
+
+	/**
 	 * Starts the render loop.
 	 *
 	 * @param syncWithAnimation - When `true` (default), camera mode offset
@@ -482,11 +497,9 @@ export class PicoCAD2Viewer {
 		const loop = (now: number): void => {
 			const dt = (now - this.lastFrameTime) / 1000;
 			this.lastFrameTime = now;
-			this.elapsedTime += dt;
 
+			this.advanceTime(dt);
 			this.applyInertia();
-			this.animation.advance(dt);
-			this.cameraModeTime += dt;
 			this.draw(syncWithAnimation);
 			this.onFrame?.(dt);
 

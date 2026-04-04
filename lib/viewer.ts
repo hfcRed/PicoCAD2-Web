@@ -841,13 +841,15 @@ export class PicoCAD2Viewer {
 		}
 		this.animation.loop = s.animation.loop;
 
-		this.camera.omega = s.camera.omega;
-		this.camera.theta = s.camera.theta;
-		this.camera.distanceToTarget = s.camera.distanceToTarget;
-		this.camera.target[0] = s.camera.target[0];
-		this.camera.target[1] = s.camera.target[1];
-		this.camera.target[2] = s.camera.target[2];
-		this.camera.zoom = s.camera.zoom;
+		if (!useBookmark || !this.model?.bookmark) {
+			this.camera.omega = s.camera.omega;
+			this.camera.theta = s.camera.theta;
+			this.camera.distanceToTarget = s.camera.distanceToTarget;
+			this.camera.target[0] = s.camera.target[0];
+			this.camera.target[1] = s.camera.target[1];
+			this.camera.target[2] = s.camera.target[2];
+			this.camera.zoom = s.camera.zoom;
+		}
 
 		this.applyExtrasOptions(state.extras);
 	}

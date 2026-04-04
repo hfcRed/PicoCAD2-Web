@@ -42,6 +42,7 @@ export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type {
 	AnimationSettings,
 	BloomOptions,
+	BookmarkSettings,
 	CameraControlOptions,
 	CameraSettings,
 	ChromaticAberrationOptions,
@@ -62,9 +63,8 @@ export type {
 	PicoCAD2ViewerState,
 	PixelationOptions,
 	PosterizationOptions,
-	SharpenOptions,
-	BookmarkSettings,
 	ResolutionSettings,
+	SharpenOptions,
 	ViewerSettings,
 	VignetteOptions,
 	WireframeOptions,

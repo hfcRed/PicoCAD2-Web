@@ -73,7 +73,7 @@ export interface RawCameraState {
 	distance_to_target: number;
 	theta: number;
 	omega: number;
-	bookmark?: RawCameraBookmark;
+	bookmark: RawCameraBookmark;
 }
 
 export interface RawTexture {
@@ -106,7 +106,7 @@ export interface RawMetadata {
 	motion_duration: number;
 	shading_mode?: number;
 	face_mode?: number;
-	camera?: RawCameraState;
+	camera: RawCameraState;
 	export_settings?: RawExportSettings;
 }
 

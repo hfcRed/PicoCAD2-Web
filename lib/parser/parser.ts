@@ -19,9 +19,8 @@ const CAMERA_MODES = new Set<CameraMode>(["spin", "sway", "pingpong", "fixed"]);
  * @param raw - The raw PicoCAD 2 file data.
  * @returns The camera state or null if not present.
  */
-function parseCameraState(raw: RawPicoCAD2File): CameraState | null {
+function parseCameraState(raw: RawPicoCAD2File): CameraState {
 	const cam = raw.metadata.camera;
-	if (!cam) return null;
 
 	return {
 		target: new Float32Array([cam.target.x, cam.target.y, cam.target.z]),
@@ -31,9 +30,8 @@ function parseCameraState(raw: RawPicoCAD2File): CameraState | null {
 	};
 }
 
-function parseCameraBookmark(raw: RawPicoCAD2File): CameraBookmark | null {
-	const bm = raw.metadata.camera?.bookmark;
-	if (!bm) return null;
+function parseCameraBookmark(raw: RawPicoCAD2File): CameraBookmark {
+	const bm = raw.metadata.camera.bookmark;
 
 	return {
 		target: new Float32Array([bm.target.x, bm.target.y, bm.target.z]),

@@ -284,7 +284,7 @@ viewer.setState(saved);
 viewer.setState(saved, true);
 ```
 
-The state includes the raw model source string, all rendering settings, camera position, animation state, and extras configuration.
+The state includes the raw model source string, all rendering settings, camera position, animation state, resolution, bookmark, and extras configuration.
 
 ## Image Export
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.12
+
+### Added
+
+- **`resolution` in `ViewerSettings`** — `getState()` now captures the render resolution (`width`, `height`, `scale`) and `setState()` restores it.
+- **`bookmark` in `ViewerSettings`** — `getState()` now captures the camera bookmark and `setState()` restores it directly, without requiring the bookmark to be embedded in the model source.
+- **`ResolutionSettings` type** — New exported type for resolution state (`width`, `height`, `scale`).
+- **`BookmarkSettings` type** — New exported type for serialized bookmark state (`omega`, `theta`, `distanceToTarget`, `target`).
+
+### Changed
+
+- **`setBookmark()` method** — No longer modifies the model source string. The bookmark is now stored only on the parsed model and preserved through `getState()` / `setState()` serialization.
+
 ## 1.2.11
 
 ### Fixed

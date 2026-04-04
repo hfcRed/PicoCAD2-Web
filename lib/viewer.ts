@@ -338,9 +338,9 @@ export class PicoCAD2Viewer {
 			this.leftTag = null;
 		}
 
-		if (useBookmark && this.model.bookmark) {
+		if (useBookmark) {
 			this.camera.initFromState(this.model.bookmark);
-		} else if (this.model.camera) {
+		} else {
 			this.camera.initFromState(this.model.camera);
 		}
 
@@ -378,25 +378,8 @@ export class PicoCAD2Viewer {
 	 * @param bookmark - The camera state to store as the bookmark.
 	 */
 	setBookmark(bookmark: CameraBookmark): void {
-		if (!this.model || !this.source) return;
+		if (!this.model) return;
 		this.model.bookmark = bookmark;
-
-		const raw = JSON.parse(this.source);
-		if (!raw.metadata.camera) raw.metadata.camera = {};
-
-		raw.metadata.camera.bookmark = {
-			pos: { x: 0, y: 0, z: 0 },
-			target: {
-				x: bookmark.target[0],
-				y: bookmark.target[1],
-				z: bookmark.target[2],
-			},
-			distance_to_target: bookmark.distanceToTarget,
-			theta: bookmark.theta,
-			omega: bookmark.omega,
-		};
-
-		this.source = JSON.stringify(raw);
 	}
 
 	/**
@@ -813,6 +796,28 @@ export class PicoCAD2Viewer {
 					],
 					zoom: this.camera.zoom,
 				},
+				resolution: {
+					width: this.renderWidth,
+					height: this.renderHeight,
+					scale: this.renderScale,
+				},
+				bookmark: this.model?.bookmark
+					? {
+							omega: this.model.bookmark.omega,
+							theta: this.model.bookmark.theta,
+							distanceToTarget: this.model.bookmark.distanceToTarget,
+							target: [
+								this.model.bookmark.target[0],
+								this.model.bookmark.target[1],
+								this.model.bookmark.target[2],
+							],
+						}
+					: {
+							omega: 0,
+							theta: 0,
+							distanceToTarget: 0,
+							target: [0, 0, 0],
+						},
 			},
 			extras: this.getExtrasState(),
 		};
@@ -862,6 +867,23 @@ export class PicoCAD2Viewer {
 			this.animation.pause();
 		}
 
+		this.model.bookmark = {
+			omega: s.bookmark.omega,
+			theta: s.bookmark.theta,
+			distanceToTarget: s.bookmark.distanceToTarget,
+			target: new Float32Array([
+				s.bookmark.target[0],
+				s.bookmark.target[1],
+				s.bookmark.target[2],
+			]),
+		};
+
+		this.setResolution(
+			s.resolution.width,
+			s.resolution.height,
+			s.resolution.scale,
+		);
+
 		// Force the saved camera state onto the model so that the camera restoration
 		// in onCameraInteraction() will return to the saved state instead of the models's original camera.
 		this.model.camera = {
@@ -875,7 +897,9 @@ export class PicoCAD2Viewer {
 			]),
 		};
 
-		if (!useBookmark || !this.model.bookmark) {
+		if (useBookmark) {
+			this.camera.initFromState(this.model.bookmark);
+		} else {
 			this.camera.initFromState(this.model.camera);
 		}
 

@@ -63,6 +63,8 @@ export type {
 	PixelationOptions,
 	PosterizationOptions,
 	SharpenOptions,
+	BookmarkSettings,
+	ResolutionSettings,
 	ViewerSettings,
 	VignetteOptions,
 	WireframeOptions,

@@ -224,6 +224,19 @@ export interface CameraSettings {
 	zoom: number;
 }
 
+export interface ResolutionSettings {
+	width: number;
+	height: number;
+	scale: number;
+}
+
+export interface BookmarkSettings {
+	omega: number;
+	theta: number;
+	distanceToTarget: number;
+	target: [number, number, number];
+}
+
 export interface ViewerSettings {
 	shading: boolean;
 	renderMode: RenderMode;
@@ -240,6 +253,8 @@ export interface ViewerSettings {
 	rightTag: { text: string; color?: Color3 } | null;
 	animation: AnimationSettings;
 	camera: CameraSettings;
+	resolution: ResolutionSettings;
+	bookmark: BookmarkSettings;
 }
 
 export interface PicoCAD2ViewerState {

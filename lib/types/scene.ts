@@ -91,8 +91,8 @@ export interface PicoCAD2Model {
 	texture: TextureData;
 	motionDuration: number;
 	shadingEnabled: boolean;
-	camera: CameraState | null;
-	bookmark: CameraBookmark | null;
+	camera: CameraState;
+	bookmark: CameraBookmark;
 	projectionMode: ProjectionMode;
 	exportSettings: ExportSettings;
 }

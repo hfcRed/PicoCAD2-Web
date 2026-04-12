@@ -39,6 +39,8 @@ void main() {
     int paletteRow = 0;
     if (u_shadingEnabled && !noShade) {
         vec3 normal = normalize(v_normal);
+        if (gl_FrontFacing) normal = -normal;
+        
         float rawDot = -dot(normal, u_lightDir);
         float lightFactor = 1.0 - (1.0 - rawDot) * (1.0 - rawDot);
         lightFactor = clamp(lightFactor, u_ambient, 1.0);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.13
+
+### Fixed
+
+- **Double-sided face shading** — Faces with both double-sided rendering and shading enabled now shade correctly on both sides. Previously, the backside always rendered in the darkest shading color regardless of light direction.
+
 ## 1.2.12
 
 ### Added

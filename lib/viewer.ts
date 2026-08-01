@@ -550,6 +550,10 @@ export class PicoCAD2Viewer {
 			"pointerleave",
 			this.boundHandlers.onPointerUp,
 		);
+		this.canvas.addEventListener(
+			"pointercancel",
+			this.boundHandlers.onPointerUp,
+		);
 		this.canvas.addEventListener("wheel", this.boundHandlers.onWheel, {
 			passive: false,
 		});
@@ -594,6 +598,10 @@ export class PicoCAD2Viewer {
 		);
 		this.canvas.removeEventListener(
 			"pointerleave",
+			this.boundHandlers.onPointerUp,
+		);
+		this.canvas.removeEventListener(
+			"pointercancel",
 			this.boundHandlers.onPointerUp,
 		);
 		this.canvas.removeEventListener("wheel", this.boundHandlers.onWheel);
@@ -1233,12 +1241,27 @@ export class PicoCAD2Viewer {
 		}
 		this.cameraMode = "fixed";
 
+		this.scheduleCameraModeRestore();
+	}
+
+	/**
+	 * Debounces restoring the camera mode after a useFixedOnInteract switch.
+	 * While a pointer is still held down the restore keeps deferring, so the
+	 * delay effectively counts from the last release.
+	 */
+	private scheduleCameraModeRestore(): void {
 		if (this.fixedOnInteractTimer !== null) {
 			clearTimeout(this.fixedOnInteractTimer);
 		}
 
 		this.fixedOnInteractTimer = setTimeout(() => {
 			this.fixedOnInteractTimer = null;
+
+			if (this.activePointers.size > 0) {
+				this.scheduleCameraModeRestore();
+				return;
+			}
+
 			this.inertiaActive = false;
 
 			// Restore the camera mode. Compute the offset the restored mode
@@ -1257,7 +1280,7 @@ export class PicoCAD2Viewer {
 			if (state) {
 				this.camera.initFromState(state, this.fixedOnInteract!.restoreTime);
 			}
-		}, this.fixedOnInteract.delayBeforeRestore);
+		}, this.fixedOnInteract!.delayBeforeRestore);
 	}
 
 	/**
@@ -1342,6 +1365,12 @@ export class PicoCAD2Viewer {
 		try {
 			this.canvas.releasePointerCapture(e.pointerId);
 		} catch {}
+
+		// Holding a pointer keeps the fixed mode, the restore delay counts
+		// from the release.
+		if (this.fixedOnInteract?.enabled && this.savedCameraMode !== null) {
+			this.scheduleCameraModeRestore();
+		}
 
 		if (this.activePointers.size === 1) {
 			this.pinchStartDist = 0;

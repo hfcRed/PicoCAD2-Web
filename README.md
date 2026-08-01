@@ -181,7 +181,7 @@ viewer.enableCameraControls({ spinInertiaFactor: 0.5 });
 viewer.enableCameraControls({
   useFixedOnInteract: {
     enabled: true,
-    delayBeforeRestore: 2000, // ms after last interaction before restoring
+    delayBeforeRestore: 2000, // ms after the last interaction or pointer release before restoring
     restoreTime: 500,         // ms to interpolate back to the original camera position
   },
 });

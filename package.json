@@ -24,10 +24,10 @@
 		"build": "tsc -b ./tsconfig.lib.json && vite build",
 		"preview": "vite preview",
 		"prepublishOnly": "pnpm run build",
+		"publish": "node scripts/publish.js",
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",
-		"check": "biome check --write .",
-		"publish": "pnpm publish"
+		"check": "biome check --write ."
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",

@@ -60,6 +60,7 @@ export class DepthFogEffect implements PostProcessEffect {
 			u_texture: inputTexture,
 			u_depthTexture: ctx.depthTexture,
 			u_modelOnly: this.modelOnly,
+			u_bgIsTransparent: ctx.bgIsTransparent,
 			u_fogColor: this.color,
 			u_near: this.near,
 			u_far: this.far,

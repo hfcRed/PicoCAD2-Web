@@ -35,10 +35,14 @@ export class PicoCAD2Context {
 	constructor() {
 		this.canvas = new OffscreenCanvas(1, 1);
 
+		// The drawing buffer holds premultiplied alpha: the renderer clears to
+		// premultiplied black when transparent and the blit outputs premultiplied
+		// colors. Declaring it avoids browsers multiplying by alpha a second time
+		// when fractional coverage (e.g. bloom halos) reaches the canvas.
 		const gl = this.canvas.getContext("webgl2", {
 			antialias: false,
 			alpha: true,
-			premultipliedAlpha: false,
+			premultipliedAlpha: true,
 		});
 		if (!gl) throw new Error("WebGL 2 is not supported");
 		this.gl = gl;

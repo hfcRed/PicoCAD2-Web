@@ -156,7 +156,10 @@ export class Renderer {
 			pipeline.pool.ensure(gl, w, h);
 			pipeline.pool.bindScene(gl);
 
-			if (useOutline || useGradientOutline) {
+			// With a transparent background the effect chain is premultiplied.
+			// Uncovered pixels must be (0, 0, 0, 0) so their color contributes
+			// nothing when effects resample or extend coverage.
+			if (useOutline || useGradientOutline || bgIsTransparent) {
 				gl.clearColor(0, 0, 0, 0);
 			} else {
 				gl.clearColor(bgR, bgG, bgB, 0);
@@ -187,6 +190,7 @@ export class Renderer {
 				height: h,
 				time,
 				depthTexture: pipeline.pool.getDepthTexture(),
+				bgIsTransparent,
 			};
 			for (const effect of pipeline.sceneEffects) {
 				if (!effect.enabled) continue;
@@ -202,7 +206,16 @@ export class Renderer {
 		if (useOutline) {
 			const inputTexture = pipeline.pool.swap(gl);
 			gl.viewport(0, 0, w, h);
-			this.drawOutline(w, h, inputTexture, settings, bgR, bgG, bgB);
+			this.drawOutline(
+				w,
+				h,
+				inputTexture,
+				settings,
+				bgR,
+				bgG,
+				bgB,
+				bgIsTransparent,
+			);
 		}
 
 		if (pipeline.hasActivePostEffects()) {
@@ -213,6 +226,7 @@ export class Renderer {
 				height: h,
 				time,
 				depthTexture: pipeline.pool.getDepthTexture(),
+				bgIsTransparent,
 			};
 			pipeline.execute(ctx, [bgR, bgG, bgB], bgIsTransparent);
 		} else {
@@ -257,6 +271,7 @@ export class Renderer {
 	 * @param bgR - Background red component (0-1).
 	 * @param bgG - Background green component (0-1).
 	 * @param bgB - Background blue component (0-1).
+	 * @param bgIsTransparent - Whether the background renders as transparent.
 	 */
 	private drawOutline(
 		w: number,
@@ -266,6 +281,7 @@ export class Renderer {
 		bgR: number,
 		bgG: number,
 		bgB: number,
+		bgIsTransparent: boolean,
 	): void {
 		const gl = this.gl;
 
@@ -284,6 +300,7 @@ export class Renderer {
 			u_outlineColor: settings.outlineColor,
 			u_texelSize: [1 / w, 1 / h],
 			u_backgroundColor: [bgR, bgG, bgB],
+			u_bgIsTransparent: bgIsTransparent,
 		});
 
 		gl.bindVertexArray(this.emptyVao);

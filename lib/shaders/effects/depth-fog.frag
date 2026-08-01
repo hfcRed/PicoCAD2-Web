@@ -11,6 +11,7 @@ uniform float u_far;
 uniform float u_density;
 uniform int u_mode;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -41,6 +42,13 @@ void main() {
 
     if (depth >= 0.9999) {
         fogFactor = 1.0;
+    }
+
+    if (u_bgIsTransparent) {
+        vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+        vec3 fx = mix(u_fogColor, s, fogFactor);
+        fragColor = vec4(fx * col.a, col.a);
+        return;
     }
 
     vec3 result = mix(u_fogColor, col.rgb, fogFactor);

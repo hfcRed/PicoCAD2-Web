@@ -9,6 +9,7 @@ uniform vec2 u_resolution;
 uniform float u_blend;
 uniform vec3 u_channelAmount;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -41,6 +42,14 @@ void main() {
     int yi = int(mod(pos.y, 4.0));
 
     float baseThreshold = (bayer4x4(xi, yi) + 0.5) / 16.0 * u_amount;
+
+    if (u_bgIsTransparent) {
+        vec3 s = orig.a > 0.0 ? orig.rgb / orig.a : vec3(0.0);
+        vec3 dithered = floor(s + baseThreshold * u_channelAmount);
+        vec3 fx = mix(s, dithered, clamp(u_blend, 0.0, 1.0));
+        fragColor = vec4(min(fx * orig.a, vec3(orig.a)), orig.a);
+        return;
+    }
 
     col.r = floor(col.r + baseThreshold * u_channelAmount.r);
     col.g = floor(col.g + baseThreshold * u_channelAmount.g);

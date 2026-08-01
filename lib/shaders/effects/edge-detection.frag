@@ -10,6 +10,7 @@ uniform vec3 u_backgroundColor;
 uniform float u_blend;
 uniform vec2 u_resolution;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -38,6 +39,19 @@ void main() {
     vec3 edgeResult = mix(u_backgroundColor, u_lineColor, edgeMask);
 
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (u_bgIsTransparent) {
+        if (u_modelOnly) {
+            vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+            vec3 fx = mix(s, edgeResult, u_blend);
+            fragColor = vec4(min(fx * col.a, vec3(col.a)), col.a);
+        } else {
+            float e = edgeMask * u_blend;
+            fragColor = vec4(u_lineColor * e + col.rgb * (1.0 - e), e + col.a * (1.0 - e));
+        }
+        return;
+    }
+
     vec3 result = mix(col.rgb, edgeResult, u_blend);
 
     fragColor = vec4(result, u_modelOnly ? col.a : 1.0);

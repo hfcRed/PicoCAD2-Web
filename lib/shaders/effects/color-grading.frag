@@ -9,6 +9,7 @@ uniform float u_contrast;
 uniform float u_saturation;
 uniform float u_hue;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -49,6 +50,20 @@ vec3 hsv2rgb(vec3 c) {
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (u_bgIsTransparent) {
+        vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+        s = (s - 0.5) * u_contrast + 0.5;
+        s *= u_brightness;
+
+        vec3 hsv = rgb2hsv(s);
+        hsv.y *= u_saturation;
+        hsv.x = mod(hsv.x + u_hue, 1.0);
+
+        fragColor = vec4(min(hsv2rgb(hsv) * col.a, vec3(col.a)), col.a);
+        return;
+    }
+
     col.rgb = (col.rgb - 0.5) * u_contrast + 0.5;
     col.rgb *= u_brightness;
 

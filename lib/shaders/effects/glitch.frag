@@ -12,6 +12,7 @@ uniform bool u_lineShift;
 uniform float u_time;
 uniform vec2 u_resolution;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -38,22 +39,35 @@ void main() {
     }
 
     vec4 col;
+    float splitA;
 
     if (u_rgbSplit) {
         float splitAmount = glitchStrength * 0.02;
-        float r = texture(u_texture, uv + vec2(splitAmount, 0.0)).r;
-        float g = texture(u_texture, uv).g;
-        float b = texture(u_texture, uv - vec2(splitAmount, 0.0)).b;
-        float a = texture(u_texture, uv).a;
-        col = vec4(r, g, b, a);
+        vec4 r = texture(u_texture, uv + vec2(splitAmount, 0.0));
+        vec4 g = texture(u_texture, uv);
+        vec4 b = texture(u_texture, uv - vec2(splitAmount, 0.0));
+
+        col = vec4(r.r, g.g, b.b, g.a);
+        splitA = max(r.a, max(g.a, b.a));
     } else {
         col = texture(u_texture, uv);
+        splitA = col.a;
     }
 
     float bh = blockHash(uv + 0.1, u_time);
     if (bh > 1.0 - u_intensity * 0.15) {
         float offset = (hash(floor(t * 3.0) + bh) - 0.5) * glitchStrength * 0.2;
         col = texture(u_texture, uv + vec2(offset, 0.0));
+        splitA = col.a;
+    }
+
+    if (u_bgIsTransparent) {
+        if (u_modelOnly) {
+            fragColor = vec4(min(col.rgb, vec3(col.a)), col.a);
+        } else {
+            fragColor = vec4(col.rgb, splitA);
+        }
+        return;
     }
 
     fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);

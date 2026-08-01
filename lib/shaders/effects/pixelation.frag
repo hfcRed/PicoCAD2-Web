@@ -9,6 +9,7 @@ uniform vec2 u_resolution;
 uniform float u_blend;
 uniform int u_shape;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -129,5 +130,18 @@ void main() {
 
     vec4 col = texture(u_texture, sampleUV);
     vec4 orig = texture(u_texture, uv);
-    fragColor = vec4(mix(orig, col, clamp(u_blend, 0.0, 1.0)).rgb, u_modelOnly ? orig.a : 1.0);
+    vec4 mixed = mix(orig, col, clamp(u_blend, 0.0, 1.0));
+
+    if (u_bgIsTransparent) {
+        if (u_modelOnly) {
+            float outA = min(mixed.a, orig.a);
+            vec3 rgb = mixed.a > 0.0 ? mixed.rgb * (outA / mixed.a) : vec3(0.0);
+            fragColor = vec4(rgb, outA);
+        } else {
+            fragColor = mixed;
+        }
+        return;
+    }
+
+    fragColor = vec4(mixed.rgb, u_modelOnly ? orig.a : 1.0);
 }

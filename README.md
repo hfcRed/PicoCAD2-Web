@@ -530,7 +530,7 @@ viewer.extras.wireframe.color = [0, 1, 0];    // Wireframe color (default: [1, 1
 
 ### Model Only
 
-All effects have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels and preserves transparency. Set to `false` to apply the effect to the entire viewport including the background.
+All effects have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels. Set to `false` to apply the effect to the entire viewport including the background.
 
 ```typescript
 viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport

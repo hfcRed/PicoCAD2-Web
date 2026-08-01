@@ -7,6 +7,7 @@ uniform sampler2D u_texture;
 uniform float u_strength;
 uniform float u_zoom;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -23,8 +24,15 @@ void main() {
 
     if (sampleUV.x < 0.0 || sampleUV.x > 1.0 || sampleUV.y < 0.0 || sampleUV.y > 1.0) {
         fragColor = vec4(0.0, 0.0, 0.0, 0.0);
-    } else {
-        vec4 col = texture(u_texture, sampleUV);
-        fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);
+        return;
     }
+
+    vec4 col = texture(u_texture, sampleUV);
+
+    if (u_bgIsTransparent) {
+        fragColor = col;
+        return;
+    }
+
+    fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);
 }

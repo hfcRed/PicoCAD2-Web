@@ -8,6 +8,7 @@ uniform float u_strength;
 uniform float u_threshold;
 uniform vec2 u_resolution;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -29,6 +30,11 @@ void main() {
     }
 
     vec3 result = center.rgb + diff.rgb * u_strength;
+
+    if (u_bgIsTransparent) {
+        fragColor = vec4(clamp(result, vec3(0.0), vec3(center.a)), center.a);
+        return;
+    }
 
     fragColor = vec4(result, u_modelOnly ? center.a : 1.0);
 }

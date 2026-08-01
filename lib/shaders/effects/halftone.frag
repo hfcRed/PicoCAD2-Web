@@ -9,6 +9,7 @@ uniform float u_angle;
 uniform float u_blend;
 uniform int u_mode;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 uniform vec2 u_resolution;
 
 out vec4 fragColor;
@@ -36,7 +37,13 @@ float linePattern(vec2 uv, float lum, float angle) {
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
-    float lum = dot(col.rgb, vec3(0.299, 0.587, 0.114));
+    vec3 base = col.rgb;
+
+    if (u_bgIsTransparent) {
+        base = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+    }
+
+    float lum = dot(base, vec3(0.299, 0.587, 0.114));
 
     vec2 pixelCoord = v_texCoord * u_resolution;
     float pattern;
@@ -54,7 +61,12 @@ void main() {
         pattern = min(line1 + line2, 1.0);
     }
 
-    vec3 result = mix(col.rgb, vec3(pattern), u_blend);
+    vec3 result = mix(base, vec3(pattern), u_blend);
+
+    if (u_bgIsTransparent) {
+        fragColor = vec4(min(result * col.a, vec3(col.a)), col.a);
+        return;
+    }
 
     fragColor = vec4(result, u_modelOnly ? col.a : 1.0);
 }

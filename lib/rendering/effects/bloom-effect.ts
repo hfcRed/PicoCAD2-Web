@@ -88,6 +88,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_texture: inputTexture,
 			u_threshold: this.threshold,
 			u_modelOnly: this.modelOnly,
+			u_bgIsTransparent: ctx.bgIsTransparent,
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 
@@ -122,6 +123,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_bloomTexture: this.texA,
 			u_intensity: this.intensity,
 			u_modelOnly: this.modelOnly,
+			u_bgIsTransparent: ctx.bgIsTransparent,
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 

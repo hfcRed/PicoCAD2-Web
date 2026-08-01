@@ -7,6 +7,7 @@ export interface EffectContext {
 	height: number;
 	time: number;
 	depthTexture: WebGLTexture | null;
+	bgIsTransparent: boolean;
 }
 
 export interface PostProcessEffect {

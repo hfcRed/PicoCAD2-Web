@@ -8,6 +8,7 @@ uniform float u_outlineSize;
 uniform vec3 u_outlineColor;
 uniform vec2 u_texelSize;
 uniform vec3 u_backgroundColor;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -30,5 +31,5 @@ void main() {
         }
     }
 
-    fragColor = vec4(u_backgroundColor, 0.0);
+    fragColor = vec4(u_bgIsTransparent ? vec3(0.0) : u_backgroundColor, 0.0);
 }

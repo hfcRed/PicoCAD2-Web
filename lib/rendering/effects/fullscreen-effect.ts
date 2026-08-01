@@ -26,7 +26,7 @@ export class FullscreenEffect implements PostProcessEffect {
 	 *
 	 * @param id - Unique identifier for this effect.
 	 * @param fragSource - The GLSL fragment shader source string.
-	 * @param getUniforms - Callback that returns uniform values for the shader. The base class automatically sets `u_texture`.
+	 * @param getUniforms - Callback that returns uniform values for the shader. The base class automatically sets `u_texture`, `u_modelOnly` and `u_bgIsTransparent`.
 	 */
 	constructor(
 		id: string,
@@ -67,6 +67,7 @@ export class FullscreenEffect implements PostProcessEffect {
 		twgl.setUniforms(this.program!, {
 			u_texture: inputTexture,
 			u_modelOnly: this.modelOnly,
+			u_bgIsTransparent: ctx.bgIsTransparent,
 			...this.getUniformsFn(ctx),
 		});
 

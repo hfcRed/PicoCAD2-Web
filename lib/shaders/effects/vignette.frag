@@ -9,6 +9,7 @@ uniform float u_smoothness;
 uniform float u_roundness;
 uniform vec3 u_color;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -20,6 +21,19 @@ void main() {
 
     float dist = length(uv);
     float vignette = smoothstep(1.0 - u_smoothness, 1.0, dist * u_intensity);
+
+    if (u_bgIsTransparent) {
+        if (u_modelOnly) {
+            vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+            vec3 fx = mix(s, u_color, vignette);
+            fragColor = vec4(fx * col.a, col.a);
+        } else {
+            vec3 rgb = u_color * vignette + col.rgb * (1.0 - vignette);
+            float outA = vignette + col.a * (1.0 - vignette);
+            fragColor = vec4(rgb, outA);
+        }
+        return;
+    }
 
     col.rgb = mix(col.rgb, u_color, vignette);
 

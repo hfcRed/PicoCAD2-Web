@@ -12,6 +12,7 @@ uniform float u_blueOffset;
 uniform float u_radialFalloff;
 uniform vec2 u_center;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -29,5 +30,15 @@ void main() {
     vec4 b = texture(u_texture, uv - dir * factor * u_blueOffset);
 
     float blendAlpha = (r.a + g.a + b.a) / 3.0;
+
+    if (u_bgIsTransparent) {
+        if (u_modelOnly) {
+            fragColor = vec4(min(vec3(r.r, g.g, b.b), vec3(blendAlpha)), blendAlpha);
+        } else {
+            fragColor = vec4(r.r, g.g, b.b, max(r.a, max(g.a, b.a)));
+        }
+        return;
+    }
+
     fragColor = vec4(r.r, g.g, b.b, u_modelOnly ? blendAlpha : 1.0);
 }

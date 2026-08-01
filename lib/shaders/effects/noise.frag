@@ -7,6 +7,7 @@ uniform sampler2D u_texture;
 uniform float u_amount;
 uniform float u_time;
 uniform bool u_modelOnly;
+uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
@@ -14,6 +15,14 @@ void main() {
     vec4 col = texture(u_texture, v_texCoord);
 
     float n = fract(sin(dot((v_texCoord * 512.0).xy, vec2(12.9898, 78.233))) * 43758.5453 + u_time);
+
+    if (u_bgIsTransparent) {
+        vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+        vec3 fx = s + (n - 0.5) * u_amount;
+        fragColor = vec4(min(fx * col.a, vec3(col.a)), col.a);
+        return;
+    }
+
     col.rgb += (n - 0.5) * u_amount;
 
     fragColor = vec4(col.rgb, u_modelOnly ? col.a : 1.0);

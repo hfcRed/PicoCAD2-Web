@@ -26,7 +26,8 @@
 		"prepublishOnly": "pnpm run build",
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",
-		"check": "biome check --write ."
+		"check": "biome check --write .",
+		"publish": "pnpm publish"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",

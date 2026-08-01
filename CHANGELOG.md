@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.15
+
+### Added
+
+- **`sourceColors` in `TextureData`** — The palette colors at the full precision of the model source, alongside the float32 `colors` used for the GPU palette.
+
+### Changed
+
+- **`modelInfo.backgroundColor` and `modelInfo.transparentColor`** — Now return the colors at the full precision of the model source. Previously they returned float32-rounded values from the GPU palette, so a background color set from `modelInfo` did not compare equal to the color in the model source.
+
 ## 1.2.14
 
 ### Fixed

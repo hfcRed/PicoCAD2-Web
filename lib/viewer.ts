@@ -1100,7 +1100,7 @@ export class PicoCAD2Viewer {
 
 		const texture = model.texture;
 		const bgIdx = texture.backgroundColor;
-		const colors = texture.colors;
+		const colors = texture.sourceColors;
 
 		return {
 			nodeCount,

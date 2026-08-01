@@ -61,6 +61,7 @@ export interface SceneNode {
 export interface TextureData {
 	pixels: Uint8Array;
 	colors: Float32Array;
+	sourceColors: Float64Array;
 	shadePalette1: Uint8Array;
 	shadePalette2: Uint8Array;
 	backgroundColor: number;

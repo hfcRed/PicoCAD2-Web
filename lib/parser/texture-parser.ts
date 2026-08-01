@@ -117,11 +117,16 @@ export function parseTexture(raw: RawTexture): TextureData {
 
 	const colorCount = raw.colors.length;
 	const colors = new Float32Array(colorCount * 3);
+	const sourceColors = new Float64Array(colorCount * 3);
+
 	for (let i = 0; i < colorCount; i++) {
 		const [r, g, b] = extractRGB(raw.colors[i]);
 		colors[i * 3] = r;
 		colors[i * 3 + 1] = g;
 		colors[i * 3 + 2] = b;
+		sourceColors[i * 3] = r;
+		sourceColors[i * 3 + 1] = g;
+		sourceColors[i * 3 + 2] = b;
 	}
 
 	let shadePalette1: Uint8Array;
@@ -141,6 +146,7 @@ export function parseTexture(raw: RawTexture): TextureData {
 	return {
 		pixels,
 		colors,
+		sourceColors,
 		shadePalette1,
 		shadePalette2,
 		backgroundColor: raw.background_color,

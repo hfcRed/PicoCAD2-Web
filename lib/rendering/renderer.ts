@@ -140,7 +140,13 @@ export class Renderer {
 		const tcR = colors[tcIdx * 3] ?? 0;
 		const tcG = colors[tcIdx * 3 + 1] ?? 0;
 		const tcB = colors[tcIdx * 3 + 2] ?? 0;
-		const bgIsTransparent = bgR === tcR && bgG === tcG && bgB === tcB;
+
+		// Compare in float32 space so both source-precision values and values
+		// from states saved by older versions match the transparent color.
+		const bgIsTransparent =
+			Math.fround(bgR) === tcR &&
+			Math.fround(bgG) === tcG &&
+			Math.fround(bgB) === tcB;
 
 		if (useGradientOutline) {
 			(gradOutline as GradientOutlineEffect).backgroundColor = [bgR, bgG, bgB];
@@ -157,7 +163,7 @@ export class Renderer {
 			}
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-			
+
 			// Clear to premultiplied black when transparent. Firefox composites the
 			// canvas as premultiplied, so RGB behind alpha 0 would bleed additively.
 			if (bgIsTransparent) {

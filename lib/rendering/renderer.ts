@@ -157,7 +157,14 @@ export class Renderer {
 			}
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-			gl.clearColor(bgR, bgG, bgB, bgIsTransparent ? 0 : 1);
+			
+			// Clear to premultiplied black when transparent. Firefox composites the
+			// canvas as premultiplied, so RGB behind alpha 0 would bleed additively.
+			if (bgIsTransparent) {
+				gl.clearColor(0, 0, 0, 0);
+			} else {
+				gl.clearColor(bgR, bgG, bgB, 1);
+			}
 		}
 
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.14
+
+### Fixed
+
+- **Transparent background bleeding on Firefox** — Backgrounds matching the transparent color no longer bleed their color additively into the page on Firefox.
+
 ## 1.2.13
 
 ### Fixed

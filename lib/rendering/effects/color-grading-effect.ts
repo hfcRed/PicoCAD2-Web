@@ -27,7 +27,7 @@ export class ColorGradingEffect extends FullscreenEffect {
 			u_brightness: this.brightness,
 			u_contrast: this.contrast,
 			u_saturation: this.saturation,
-			u_hue: this.hue,
+			u_hue: this.hue / 360,
 		};
 	}
 }

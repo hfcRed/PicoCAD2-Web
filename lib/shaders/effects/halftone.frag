@@ -25,7 +25,7 @@ float halftonePattern(vec2 uv, float lum, float angle) {
     vec2 cell = floor(rotated / u_dotSize) * u_dotSize + u_dotSize * 0.5;
     float dist = length(rotated - cell);
     float radius = u_dotSize * 0.5 * sqrt(1.0 - lum);
-    return step(dist, radius);
+    return 1.0 - step(dist, radius);
 }
 
 float linePattern(vec2 uv, float lum, float angle) {

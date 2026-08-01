@@ -27,6 +27,7 @@ export class CRTEffect extends FullscreenEffect {
 			u_curvature: this.curvature,
 			u_scanlineIntensity: this.scanlineIntensity,
 			u_resolution: [ctx.width, ctx.height],
+			u_backgroundColor: ctx.backgroundColor,
 		};
 	}
 }

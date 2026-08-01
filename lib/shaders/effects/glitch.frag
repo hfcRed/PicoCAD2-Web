@@ -32,7 +32,7 @@ void main() {
 
     if (u_lineShift) {
         float h = blockHash(uv, u_time);
-        float shift = (h - 0.5) * 2.0 * glitchStrength * 0.1;
+        float shift = (hash(h * 91.37 + floor(t * 3.0)) - 0.5) * 2.0 * glitchStrength * 0.1;
         if (h > 1.0 - u_intensity * 0.3) {
             uv.x += shift;
         }

@@ -10,13 +10,25 @@ uniform float u_near;
 uniform float u_far;
 uniform float u_density;
 uniform int u_mode;
+uniform float u_camNear;
+uniform float u_camFar;
+uniform bool u_orthographic;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
 out vec4 fragColor;
 
+/**
+ * Recovers eye-space distance from NDC depth using the camera's projection
+ * planes. The fog range (u_near/u_far) only shapes the fog ramp below.
+ * Orthographic depth is linear in NDC, perspective needs the hyperbolic
+ * inversion.
+ */
 float linearizeDepth(float d) {
-    return (2.0 * u_near * u_far) / (u_far + u_near - d * (u_far - u_near));
+    if (u_orthographic) {
+        return (d * (u_camFar - u_camNear) + u_camFar + u_camNear) * 0.5;
+    }
+    return (2.0 * u_camNear * u_camFar) / (u_camFar + u_camNear - d * (u_camFar - u_camNear));
 }
 
 void main() {

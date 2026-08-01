@@ -14,7 +14,8 @@ out vec4 fragColor;
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
 
-    float n = fract(sin(dot((v_texCoord * 512.0).xy, vec2(12.9898, 78.233))) * 43758.5453 + u_time);
+    vec2 seed = v_texCoord * 512.0 + fract(u_time) * vec2(31.7, 57.3);
+    float n = fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
 
     if (u_bgIsTransparent) {
         vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);

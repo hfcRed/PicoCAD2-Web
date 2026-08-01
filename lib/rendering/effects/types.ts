@@ -1,4 +1,5 @@
 import type { mat4 } from "gl-matrix";
+import type { Color3 } from "../../types/scene.ts";
 import type { ModelResources } from "../renderer.ts";
 
 export interface EffectContext {
@@ -7,6 +8,8 @@ export interface EffectContext {
 	height: number;
 	time: number;
 	depthTexture: WebGLTexture | null;
+	backgroundColor: Color3;
+	isOrthographic: boolean;
 	bgIsTransparent: boolean;
 }
 

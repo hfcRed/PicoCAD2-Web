@@ -46,7 +46,7 @@ export class PixelationEffect extends FullscreenEffect {
 	 */
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
 		return {
-			u_pixelSize: this.pixelSize,
+			u_pixelSize: Math.max(1, this.pixelSize),
 			u_resolution: [ctx.width, ctx.height],
 			u_blend: this.blend,
 			u_shape: SHAPE_MAP[this.shape],

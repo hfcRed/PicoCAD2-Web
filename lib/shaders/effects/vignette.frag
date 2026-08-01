@@ -8,6 +8,7 @@ uniform float u_intensity;
 uniform float u_smoothness;
 uniform float u_roundness;
 uniform vec3 u_color;
+uniform vec2 u_resolution;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
@@ -15,12 +16,11 @@ out vec4 fragColor;
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
-
     vec2 uv = v_texCoord * 2.0 - 1.0;
-    uv.x *= mix(1.0, 1.0, u_roundness);
+    uv.x *= mix(1.0, u_resolution.x / u_resolution.y, u_roundness);
 
     float dist = length(uv);
-    float vignette = smoothstep(1.0 - u_smoothness, 1.0, dist * u_intensity);
+    float vignette = smoothstep(1.0 - max(u_smoothness, 1e-4), 1.0, dist * u_intensity);
 
     if (u_bgIsTransparent) {
         if (u_modelOnly) {

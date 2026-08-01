@@ -5,6 +5,9 @@ import { makeProjectionMatrix } from "./projection.ts";
 const EPSILON = 0.00001;
 const UP: vec3 = vec3.fromValues(0, 1, 0);
 
+export const CAMERA_NEAR = 0.1;
+export const CAMERA_FAR = 1000;
+
 /** Orbital camera matching PicoCAD 2's spherical coordinate system. */
 export class OrbitCamera {
 	/** Horizontal orbit angle (azimuth) in radians. */
@@ -210,8 +213,8 @@ export class OrbitCamera {
 			this.projectionMode,
 			this.zoom,
 			aspect,
-			0.1,
-			1000,
+			CAMERA_NEAR,
+			CAMERA_FAR,
 			this.distanceToTarget,
 		);
 		return this.projectionMatrix;

@@ -18,16 +18,19 @@ out vec4 fragColor;
 
 void main() {
     vec2 uv = v_texCoord;
-    vec2 texel = 1.0 / u_resolution;
-    vec2 dir = normalize(uv - u_center);
 
-    float dist = length(uv - u_center) * 2.0;
+    vec2 deltaPx = (uv - u_center) * u_resolution;
+    float distPx = length(deltaPx);
+
+    vec2 dirUv = distPx > 0.0 ? (deltaPx / distPx) / u_resolution : vec2(0.0);
+
+    float dist = distPx * 2.0 / max(u_resolution.x, u_resolution.y);
     float falloffFactor = pow(dist, u_radialFalloff);
-    float factor = falloffFactor * u_amount * texel.x;
+    float factor = falloffFactor * u_amount;
 
-    vec4 r = texture(u_texture, uv - dir * factor * u_redOffset);
-    vec4 g = texture(u_texture, uv - dir * factor * u_greenOffset);
-    vec4 b = texture(u_texture, uv - dir * factor * u_blueOffset);
+    vec4 r = texture(u_texture, uv - dirUv * factor * u_redOffset);
+    vec4 g = texture(u_texture, uv - dirUv * factor * u_greenOffset);
+    vec4 b = texture(u_texture, uv - dirUv * factor * u_blueOffset);
 
     float blendAlpha = (r.a + g.a + b.a) / 3.0;
 

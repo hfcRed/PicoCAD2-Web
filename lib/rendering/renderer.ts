@@ -191,6 +191,8 @@ export class Renderer {
 				time,
 				depthTexture: pipeline.pool.getDepthTexture(),
 				bgIsTransparent,
+				backgroundColor: [bgR, bgG, bgB] as Color3,
+				isOrthographic: camera.projectionMode === "orthographic",
 			};
 			for (const effect of pipeline.sceneEffects) {
 				if (!effect.enabled) continue;
@@ -227,6 +229,8 @@ export class Renderer {
 				time,
 				depthTexture: pipeline.pool.getDepthTexture(),
 				bgIsTransparent,
+				backgroundColor: [bgR, bgG, bgB] as Color3,
+				isOrthographic: camera.projectionMode === "orthographic",
 			};
 			pipeline.execute(ctx, [bgR, bgG, bgB], bgIsTransparent);
 		} else {

@@ -15,7 +15,7 @@ out vec4 fragColor;
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
-    vec3 effectiveLevels = vec3(u_levels) * u_channelLevels;
+    vec3 effectiveLevels = max(vec3(u_levels) * u_channelLevels, vec3(2.0));
 
     if (u_bgIsTransparent) {
         vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);

@@ -41,19 +41,17 @@ void main() {
     int xi = int(mod(pos.x, 4.0));
     int yi = int(mod(pos.y, 4.0));
 
-    float baseThreshold = (bayer4x4(xi, yi) + 0.5) / 16.0 * u_amount;
+    vec3 offset = ((bayer4x4(xi, yi) + 0.5) / 16.0 - 0.5) * u_amount * u_channelAmount;
 
     if (u_bgIsTransparent) {
         vec3 s = orig.a > 0.0 ? orig.rgb / orig.a : vec3(0.0);
-        vec3 dithered = floor(s + baseThreshold * u_channelAmount);
+        vec3 dithered = floor(s + 0.5 + offset);
         vec3 fx = mix(s, dithered, clamp(u_blend, 0.0, 1.0));
         fragColor = vec4(min(fx * orig.a, vec3(orig.a)), orig.a);
         return;
     }
 
-    col.r = floor(col.r + baseThreshold * u_channelAmount.r);
-    col.g = floor(col.g + baseThreshold * u_channelAmount.g);
-    col.b = floor(col.b + baseThreshold * u_channelAmount.b);
+    col.rgb = floor(col.rgb + 0.5 + offset);
 
     fragColor = vec4(mix(orig.rgb, col.rgb, clamp(u_blend, 0.0, 1.0)), u_modelOnly ? orig.a : 1.0);
 }

@@ -7,6 +7,7 @@ uniform sampler2D u_texture;
 uniform float u_curvature;
 uniform float u_scanlineIntensity;
 uniform vec2 u_resolution;
+uniform vec3 u_backgroundColor;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
@@ -16,20 +17,20 @@ void main() {
     vec2 uv = v_texCoord;
 
     uv = uv * 2.0 - 1.0;
-    uv.x *= 1.0 + u_curvature * pow(uv.y, 2.0);
-    uv.y *= 1.0 + u_curvature * pow(uv.x, 2.0);
+    vec2 centered = uv;
+    uv = centered * (1.0 + u_curvature * centered.yx * centered.yx);
     uv = (uv + 1.0) * 0.5;
+
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        fragColor = vec4(u_bgIsTransparent ? vec3(0.0) : u_backgroundColor, 0.0);
+        return;
+    }
 
     vec4 col = texture(u_texture, uv);
     float scan = sin(uv.y * u_resolution.y * 3.14159) * 0.5 + 0.5;
     float m = mix(1.0, scan, u_scanlineIntensity);
 
     if (u_bgIsTransparent) {
-        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-            fragColor = vec4(0.0);
-            return;
-        }
-        
         if (u_modelOnly) {
             fragColor = vec4(col.rgb * m, col.a);
         } else {

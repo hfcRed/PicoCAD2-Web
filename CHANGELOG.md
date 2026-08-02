@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.3.0
+
+### Changed
+
+- **Full-viewport effects preserve transparent backgrounds** — Effects with `modelOnly` disabled no longer force the background opaque when it matches the transparent color.
+- **`useFixedOnInteract` hold behavior** — Holding a pointer down now keeps the fixed camera mode indefinitely. The restore delay counts from the pointer release instead of the last movement event.
+
+### Fixed
+
+- **Stuck camera pointers** — Cancelled pointer events (`pointercancel`) now release their pointer state, preventing stuck pinch or hold tracking.
+- **Halftone dots mode** — No longer renders a tonally inverted image. Dark ink dots on a light ground now match the polarity of the lines and crosshatch modes.
+- **Color grading hue** — Degree values now produce the documented shift. Previously the shader read the value as full turns, making every integer degree value a silent no-op.
+- **Depth fog distances** — `near` and `far` now behave as world-space distances. Previously depth was linearized with the fog range instead of the camera projection planes, so full fog was unreachable and the ramp was compressed.
+- **Depth fog in orthographic projection** — Fog now renders in orthographic mode. Previously the perspective depth inversion collapsed the whole scene to the near plane, disabling the effect entirely.
+- **Bloom during resize** — The model no longer disappears while the canvas is being resized with bloom enabled, and enabling bloom no longer shows one corrupted frame.
+- **CRT curvature** — The barrel distortion is now symmetric on both axes, and curved-off corners show the background instead of smearing the clamped edge pixels.
+- **Glitch line shift** — Displaced lines now jitter in both directions with varied magnitude. Previously the direction was correlated with the selection hash, so lines only ever shifted right.
+- **Noise animation** — Grain now re-randomizes every frame instead of drifting a frozen pattern across the screen.
+- **Dithering amount** — Now fades the dither pattern in and out around the rounding midpoint. Previously values below 1 biased the quantizer toward black, with 0 rendering the image fully black.
+- **Chromatic aberration on non-square canvases** — Fringe width and the radial falloff ring are now uniform in every direction, and the exact center pixel no longer produces undefined output.
+- **Vignette roundness** — The setting now works: 1 gives a circular vignette, 0 an ellipse following the viewport shape. Previously it had no effect.
+- **Degenerate effect settings** — Posterization levels below 2, pixelation sizes below 1, and a vignette smoothness of 0 no longer produce undefined or broken output.
+
 ## 1.2.15
 
 ### Added

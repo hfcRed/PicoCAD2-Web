@@ -49,9 +49,9 @@ export class WireframeEffect implements SceneEffect {
 		gl.disable(gl.CULL_FACE);
 
 		for (const nb of resources.nodeBuffers) {
-			if (!nb.node.renderVisible || !nb.wireframe) continue;
+			if (!nb.node.renderVisible || nb.node.ghost || !nb.wireframe) continue;
 
-			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.localMatrix);
+			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.worldMatrix);
 
 			const uniforms = {
 				u_mvp: this.mvpMatrix,

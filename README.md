@@ -6,11 +6,11 @@ A JavaScript library for viewing [PicoCAD 2](https://picocad.net/) models in the
 
 ## Compatibility
 
-The library exports a `COMPATIBLE_VERSION` constant indicating the PicoCAD 2 software version it targets. Currently `"2.1.0"`.
+The library exports a `COMPATIBLE_VERSION` constant indicating the PicoCAD 2 software version it targets. Currently `"2.2.0-b16"` (beta). Files saved by PicoCAD 2.1.0 remain fully supported.
 
 ```typescript
 import { COMPATIBLE_VERSION } from "picocad2-web";
-console.log(COMPATIBLE_VERSION); // "2.1.0"
+console.log(COMPATIBLE_VERSION); // "2.2.0-b16"
 ```
 
 ## Installation
@@ -215,6 +215,9 @@ viewer.animation.stop();
 viewer.animation.speed = 2;     // 2x speed
 viewer.animation.loop = false;  // Don't loop
 viewer.animation.setTime(1.5);  // Jump to 1.5 seconds
+
+// Loop count requested by the model's export settings (PicoCAD 2.2 "1x"/"2x").
+viewer.animation.loops;
 ```
 
 ## Resolution

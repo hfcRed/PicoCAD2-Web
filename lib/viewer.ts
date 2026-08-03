@@ -39,6 +39,7 @@ class AnimationController {
 	speed = 1;
 	time = 0;
 	loop = true;
+	loops = 1;
 
 	/**
 	 * Sets the animation duration from the model.
@@ -158,6 +159,7 @@ export class PicoCAD2Viewer {
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private cameraModeTime = 0;
+	private wasAnimating = false;
 	private _modelInfo: ModelInfo | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private resizeScale = 1;
@@ -312,6 +314,7 @@ export class PicoCAD2Viewer {
 
 		this.animation.setDuration(this.model.motionDuration);
 		this.animation.time = 0;
+		this.animation.loops = this.model.exportSettings.animateLoops;
 
 		const es = this.model.exportSettings;
 		this.cameraMode = es.cameraMode;
@@ -345,6 +348,7 @@ export class PicoCAD2Viewer {
 		}
 
 		storeStaticTransforms(this.model.root);
+		this.wasAnimating = false;
 
 		this._modelInfo = this.computeModelInfo(this.model);
 		this.onLoad?.(this._modelInfo);
@@ -397,6 +401,10 @@ export class PicoCAD2Viewer {
 		if (this.animation.playing || this.animation.time > 0) {
 			restoreStaticTransforms(this.model.root);
 			evaluateMotions(this.model.root, this.animation.time);
+			this.wasAnimating = true;
+		} else if (this.wasAnimating) {
+			restoreStaticTransforms(this.model.root);
+			this.wasAnimating = false;
 		}
 
 		const settings: RenderSettings = {
@@ -792,6 +800,7 @@ export class PicoCAD2Viewer {
 					time: this.animation.time,
 					playing: this.animation.playing,
 					loop: this.animation.loop,
+					loops: this.animation.loops,
 				},
 				camera: {
 					omega: this.camera.omega,
@@ -868,6 +877,9 @@ export class PicoCAD2Viewer {
 		this.animation.speed = s.animation.speed;
 		this.animation.time = s.animation.time;
 		this.animation.loop = s.animation.loop;
+
+		// The following properties have fallbacks for backwards compatibility
+		this.animation.loops = s.animation.loops ?? this.animation.loops;
 
 		if (s.animation.playing) {
 			this.animation.play();

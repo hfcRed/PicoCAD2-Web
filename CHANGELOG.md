@@ -1,5 +1,29 @@
 # Changelog
 
+## Beta Version (b16)
+
+### Added
+
+- **PicoCAD 2.2.0-b16 support** — `COMPATIBLE_VERSION` is now `"2.2.0-b16"`. Files saved by PicoCAD 2.1.0 remain fully supported.
+- **Scene graph transform propagation** — Node world matrices now compose with all ancestor matrices, matching PicoCAD 2.2's scene graph and parenting. Animated parent nodes carry their children with them.
+- **UV/spritesheet animation** — Motion clips with the new `"tex"` property animate face UVs frame by frame (`face_id`, `frames`, `step`, `return_uv`), including offset accumulation across clips and per-axis u/v shifting.
+- **`ExportSettings.animateLoops`** — The loop count from PicoCAD 2.2's `"1x"`/`"2x"` animate setting. Also exposed as `viewer.animation.loops` and included in the viewer state (`settings.animation.loops`).
+
+### Changed
+
+- **Euler rotation order** — Node rotations now compose as Z·Y·X (matching PicoCAD 2.2) instead of X·Y·Z. Models using rotation on more than one axis render differently.
+- **Scale motion clips** — Scale clip deltas are now multiplied by the node's base scale, matching PicoCAD 2.2.
+- **Orthographic near plane** — Faces at or behind the camera plane are no longer clipped in orthographic projection, matching PicoCAD 2.2.
+- **`animate` export setting** — Parses both the 2.1.0 boolean and the 2.2.0 `"off"`/`"1x"`/`"2x"` string forms. `"off"` no longer counts as enabled.
+- **`motion_duration` fallback** — Files without a timeline length now default to 6.4 seconds (matching PicoCAD 2.2).
+- **Auto-generated shade palettes** — When a file has no `shade_pal_1`/`shade_pal_2`, the second ramp is now derived from the first ramp's matched color darkened by 0.6 matching 2.2.0 (previously approximated with a single 0.42 factor).
+
+### Fixed
+
+- **Malformed motion clips** — Clips missing a `prop` are skipped on load instead of producing broken animation state, matching PicoCAD 2.2's load guard.
+- **`instant` easing at clip start** — The jump now happens at exactly the clip start time, matching PicoCAD 2.
+- **Stale pose after stopping animation** — Stopping the animation with `animation.stop()` now restores the model's static pose instead of freezing the last animated frame.
+
 ## 1.3.0
 
 ### Changed

@@ -8,6 +8,13 @@ const UP: vec3 = vec3.fromValues(0, 1, 0);
 export const CAMERA_NEAR = 0.1;
 export const CAMERA_FAR = 1000;
 
+/**
+ * Near plane used in orthographic mode. PicoCAD 2.2 does not near-cull faces
+ * in orthographic projection, so geometry at or behind the camera plane still
+ * renders. A negative near plane extends the depth range behind the camera.
+ */
+export const CAMERA_ORTHO_NEAR = -CAMERA_FAR;
+
 /** Orbital camera matching PicoCAD 2's spherical coordinate system. */
 export class OrbitCamera {
 	/** Horizontal orbit angle (azimuth) in radians. */
@@ -213,7 +220,7 @@ export class OrbitCamera {
 			this.projectionMode,
 			this.zoom,
 			aspect,
-			CAMERA_NEAR,
+			this.projectionMode === "orthographic" ? CAMERA_ORTHO_NEAR : CAMERA_NEAR,
 			CAMERA_FAR,
 			this.distanceToTarget,
 		);

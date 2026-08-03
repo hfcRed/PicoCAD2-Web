@@ -55,6 +55,28 @@ function paletteColor(colors: Float32Array, index: number): Color3 {
 }
 
 /**
+ * Normalizes the animate export setting across format versions.
+ * PicoCAD 2.1.0 stored a boolean; 2.2.0 stores "off" or a loop count like "1x".
+ *
+ * @param raw - The raw animate value from the file.
+ * @returns Whether animation plays and how many loops an export runs.
+ */
+function parseAnimate(raw: boolean | string | undefined): {
+	animate: boolean;
+	animateLoops: number;
+} {
+	if (typeof raw === "string") {
+		const animate = raw !== "off";
+		const loops = Number.parseInt(raw, 10);
+		return {
+			animate,
+			animateLoops: animate && Number.isFinite(loops) && loops > 0 ? loops : 1,
+		};
+	}
+	return { animate: raw ?? false, animateLoops: 1 };
+}
+
+/**
  * Parses export settings from raw metadata, resolving palette indices to colors.
  *
  * @param raw - The raw export settings from the model file.
@@ -66,11 +88,13 @@ function parseExportSettings(
 	colors: Float32Array,
 ): ExportSettings {
 	const anim = raw?.anim as CameraMode | undefined;
+	const { animate, animateLoops } = parseAnimate(raw?.animate);
 	return {
 		cameraMode: anim && CAMERA_MODES.has(anim) ? anim : "fixed",
 		cameraModeDirection: raw?.dir === 1 ? "right" : "left",
 		cameraModeSpeed: raw?.speed ?? 5,
-		animate: raw?.animate ?? false,
+		animate,
+		animateLoops,
 		outlineSize: raw?.outline_size ?? 0,
 		outlineColor: paletteColor(colors, raw?.outline_color ?? 0),
 		scanlines: raw?.scanlines ?? false,
@@ -109,7 +133,7 @@ export function parseModel(source: string): PicoCAD2Model {
 	return {
 		root: parseGraph(raw.graph),
 		texture,
-		motionDuration: raw.metadata.motion_duration,
+		motionDuration: raw.metadata.motion_duration ?? 6.4,
 		shadingEnabled: raw.metadata.shading_mode !== 0,
 		camera: parseCameraState(raw),
 		bookmark: parseCameraBookmark(raw),

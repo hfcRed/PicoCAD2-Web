@@ -5,6 +5,7 @@ const context = new PicoCAD2Context();
 const models = new Map<string, string>();
 const MODEL_NAMES = [
 	"advanced_meshes",
+	"helicopter_takeoff",
 	"livingroom",
 	"pig",
 	"pirate",
@@ -108,7 +109,7 @@ perfApply.addEventListener("click", async () => {
 async function init(): Promise<void> {
 	const allModels = await fetchAllModels();
 
-	createPerfViewers(6, allModels);
+	createPerfViewers(allModels.length, allModels);
 }
 
 init();

@@ -1,6 +1,12 @@
 import { mat4 } from "gl-matrix";
 import type { RawGraphNode } from "../types/model.ts";
-import type { Face, Mesh, SceneNode, Transform } from "../types/scene.ts";
+import type {
+	Face,
+	Mesh,
+	MotionData,
+	SceneNode,
+	Transform,
+} from "../types/scene.ts";
 import { createEmptyMotions, parseMotions } from "./animation-parser.ts";
 
 /**
@@ -47,17 +53,33 @@ function cloneTransform(t: Transform): Transform {
 function parseMesh(raw: NonNullable<RawGraphNode["mesh"]>): Mesh {
 	const vertices = new Float32Array(raw.vertices);
 
-	const faces: Face[] = raw.faces.map((rawFace) => ({
-		vertexIndices: rawFace.vertex_ids.map((id) => id - 1),
-		uvs: new Float32Array(rawFace.uvs),
-		color: rawFace.color,
-		doubleSided: rawFace.dbl ?? false,
-		priority: rawFace.prio ?? false,
-		noShading: rawFace.noshade ?? false,
-		noTexture: rawFace.notex ?? false,
-	}));
+	const faces: Face[] = raw.faces.map((rawFace) => {
+		const uvs = new Float32Array(rawFace.uvs);
+		return {
+			vertexIndices: rawFace.vertex_ids.map((id) => id - 1),
+			uvs,
+			staticUvs: new Float32Array(uvs),
+			color: rawFace.color,
+			doubleSided: rawFace.dbl ?? false,
+			priority: rawFace.prio ?? false,
+			noShading: rawFace.noshade ?? false,
+			noTexture: rawFace.notex ?? false,
+		};
+	});
 
 	return { vertices, faces };
+}
+
+/**
+ * Checks whether any clip in the motion data animates face UVs.
+ *
+ * @param motions - The parsed motion data.
+ * @returns True if the motions contain a "tex" clip.
+ */
+function containsTexClips(motions: MotionData): boolean {
+	return motions.tracks.some((track) =>
+		track.some((clip) => clip.prop === "tex"),
+	);
 }
 
 /**
@@ -74,18 +96,26 @@ function parseNode(raw: RawGraphNode): SceneNode {
 		raw.transform.scale,
 	);
 
+	const motions = raw.motions
+		? parseMotions(raw.motions)
+		: createEmptyMotions();
+
 	const node: SceneNode = {
 		name: raw.name,
 		visible: raw.visible,
 		renderVisible: raw.visible,
+		ghost: raw.ghost ?? false,
 		children: [],
 		transform,
 		staticTransform: cloneTransform(transform),
 		originalVisible: raw.visible,
 		mesh: raw.mesh ? parseMesh(raw.mesh) : null,
-		motions: raw.motions ? parseMotions(raw.motions) : createEmptyMotions(),
+		motions,
+		hasTexClips: containsTexClips(motions),
+		uvsDirty: false,
 		dirty: true,
 		localMatrix: mat4.create(),
+		worldMatrix: mat4.create(),
 	};
 
 	node.children = raw.children.map(parseNode);

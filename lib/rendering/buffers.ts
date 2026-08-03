@@ -37,6 +37,62 @@ function getFaceGroup(face: Face): number {
 }
 
 /**
+ * Collects fan-triangulated texture coordinates per render group,
+ * in the same face and triangle order as buildNodeBuffers.
+ * Used both when building buffers and when re-uploading animated UVs.
+ *
+ * @param mesh - The mesh whose face UVs to collect.
+ * @returns Per-group texcoord arrays.
+ */
+function collectGroupTexCoords(
+	mesh: Mesh,
+): [number[], number[], number[], number[]] {
+	const groups: [number[], number[], number[], number[]] = [[], [], [], []];
+
+	for (const face of mesh.faces) {
+		if (face.vertexIndices.length < 3) continue;
+
+		const group = getFaceGroup(face);
+		const numTriangles = face.vertexIndices.length - 2;
+		for (let t = 0; t < numTriangles; t++) {
+			for (const localIdx of [0, t + 1, t + 2]) {
+				groups[group].push(face.uvs[localIdx * 2], face.uvs[localIdx * 2 + 1]);
+			}
+		}
+	}
+
+	return groups;
+}
+
+/**
+ * Re-uploads the texture coordinate buffers of a node from its current
+ * face UVs. Called when "tex" clip animation changed the UVs.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @param nodeBuffers - The node buffer data to update.
+ */
+export function updateNodeTexCoords(
+	gl: WebGL2RenderingContext,
+	nodeBuffers: NodeBuffers,
+): void {
+	const mesh = nodeBuffers.node.mesh;
+	if (!mesh) return;
+
+	const groupTexCoords = collectGroupTexCoords(mesh);
+	for (let g = 0; g < NUM_GROUPS; g++) {
+		const group = nodeBuffers.groups[g];
+		if (!group) continue;
+
+		const attrib = group.bufferInfo.attribs?.a_texCoord;
+		if (!attrib) continue;
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, attrib.buffer);
+		gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(groupTexCoords[g]));
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+	}
+}
+
+/**
  * Computes the face normal from the first three vertices using cross product.
  *
  * @param mesh - The mesh containing the vertices.
@@ -89,9 +145,10 @@ export function buildNodeBuffers(
 	// Collect triangulated vertex data per group
 	const groupPositions: number[][] = [[], [], [], []];
 	const groupNormals: number[][] = [[], [], [], []];
-	const groupTexCoords: number[][] = [[], [], [], []];
 	const groupColorIndices: number[][] = [[], [], [], []];
 	const groupFaceFlags: number[][] = [[], [], [], []];
+
+	const groupTexCoords = collectGroupTexCoords(mesh);
 
 	// Wireframe line positions
 	const wirePositions: number[] = [];
@@ -115,10 +172,6 @@ export function buildNodeBuffers(
 					mesh.vertices[vertIdx + 2],
 				);
 				groupNormals[group].push(normal[0], normal[1], normal[2]);
-				groupTexCoords[group].push(
-					face.uvs[localIdx * 2],
-					face.uvs[localIdx * 2 + 1],
-				);
 				groupColorIndices[group].push(face.color);
 				groupFaceFlags[group].push(flags);
 			}

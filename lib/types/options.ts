@@ -214,6 +214,7 @@ export interface AnimationSettings {
 	time: number;
 	playing: boolean;
 	loop: boolean;
+	loops: number;
 }
 
 export interface CameraSettings {

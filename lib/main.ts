@@ -1,4 +1,4 @@
-export const COMPATIBLE_VERSION = "2.1.0";
+export const COMPATIBLE_VERSION = "2.2.0-b16";
 export { PicoCAD2Context } from "./context.ts";
 export { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";

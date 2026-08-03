@@ -1,5 +1,9 @@
 import * as twgl from "twgl.js";
-import { CAMERA_FAR, CAMERA_NEAR } from "../../camera/orbit-camera.ts";
+import {
+	CAMERA_FAR,
+	CAMERA_NEAR,
+	CAMERA_ORTHO_NEAR,
+} from "../../camera/orbit-camera.ts";
 import depthFogFrag from "../../shaders/effects/depth-fog.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
@@ -67,7 +71,7 @@ export class DepthFogEffect implements PostProcessEffect {
 			u_far: this.far,
 			u_density: this.density,
 			u_mode: FOG_MODE_MAP[this.mode],
-			u_camNear: CAMERA_NEAR,
+			u_camNear: ctx.isOrthographic ? CAMERA_ORTHO_NEAR : CAMERA_NEAR,
 			u_camFar: CAMERA_FAR,
 			u_orthographic: ctx.isOrthographic,
 		});

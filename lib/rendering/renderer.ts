@@ -3,7 +3,11 @@ import * as twgl from "twgl.js";
 import type { OrbitCamera } from "../camera/orbit-camera.ts";
 import { updateRenderState } from "../scene/scene-graph.ts";
 import type { Color3, PicoCAD2Model } from "../types/scene.ts";
-import { buildAllBuffers, type NodeBuffers } from "./buffers.ts";
+import {
+	buildAllBuffers,
+	type NodeBuffers,
+	updateNodeTexCoords,
+} from "./buffers.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
@@ -365,9 +369,16 @@ export class Renderer {
 		const gl = this.gl;
 
 		for (const nb of resources.nodeBuffers) {
-			if (!nb.node.renderVisible) continue;
+			// Ghost ("editor only") meshes are hidden outside the editor,
+			// but their nodes still drive child transforms.
+			if (!nb.node.renderVisible || nb.node.ghost) continue;
 
-			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.localMatrix);
+			if (nb.node.uvsDirty) {
+				updateNodeTexCoords(gl, nb);
+				nb.node.uvsDirty = false;
+			}
+
+			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.worldMatrix);
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -383,7 +394,7 @@ export class Renderer {
 
 				const uniforms = {
 					u_mvp: this.mvpMatrix,
-					u_worldMatrix: nb.node.localMatrix,
+					u_worldMatrix: nb.node.worldMatrix,
 					u_indexTexture: resources.indexTexture,
 					u_paletteTexture: resources.paletteTexture,
 					u_lightDir: this.lightDirWorld,

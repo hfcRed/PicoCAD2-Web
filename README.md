@@ -19,6 +19,12 @@ console.log(COMPATIBLE_VERSION); // "2.2.0-b16"
 npm install picocad2-web
 ```
 
+Beta releases targeting PicoCAD 2 beta versions are published under the `beta` dist-tag and are never installed by default. To install beta versions run:
+
+```bash
+npm install picocad2-web@beta
+```
+
 ## Quick Start
 
 ```typescript

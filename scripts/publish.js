@@ -13,6 +13,20 @@ const NPMRC_PATH = join(
 	"..",
 	".npmrc",
 );
+const PACKAGE_PATH = join(
+	dirname(fileURLToPath(import.meta.url)),
+	"..",
+	"package.json",
+);
+
+function prereleaseTag() {
+	const { version } = JSON.parse(readFileSync(PACKAGE_PATH, "utf8"));
+	const prerelease = version.split("-")[1];
+	if (!prerelease) return null;
+
+	const identifier = prerelease.split(".")[0];
+	return /^[a-zA-Z]/.test(identifier) ? identifier : "next";
+}
 
 function run(command, options = {}) {
 	return spawnSync(command, { shell: true, ...options });
@@ -60,8 +74,20 @@ async function promptForToken(user) {
 }
 
 function publish() {
-	const args = process.argv.slice(2).join(" ");
-	const result = run(`pnpm publish ${args}`, {
+	const args = process.argv.slice(2);
+
+	const tag = prereleaseTag();
+	const hasExplicitTag = args.some(
+		(arg) => arg === "--tag" || arg.startsWith("--tag="),
+	);
+	if (tag && !hasExplicitTag) {
+		console.log(
+			`Prerelease version detected, publishing under the "${tag}" dist-tag.`,
+		);
+		args.push("--tag", tag);
+	}
+
+	const result = run(`pnpm publish ${args.join(" ")}`, {
 		encoding: "utf8",
 		stdio: ["inherit", "pipe", "pipe"],
 		env: { ...process.env, PICOCAD_PUBLISH_ACTIVE: "1" },

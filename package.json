@@ -4,7 +4,7 @@
 	"license": "MIT",
 	"description": "Package for viewing PicoCAD 2 files in the browser",
 	"private": false,
-	"version": "1.3.0",
+	"version": "1.4.0-beta.0",
 	"type": "module",
 	"exports": {
 		".": {

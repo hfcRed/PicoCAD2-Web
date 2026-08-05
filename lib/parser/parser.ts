@@ -1,4 +1,8 @@
-import type { RawExportSettings, RawPicoCAD2File } from "../types/model.ts";
+import type {
+	RawCameraBookmark,
+	RawExportSettings,
+	RawPicoCAD2File,
+} from "../types/model.ts";
 import type {
 	CameraBookmark,
 	CameraMode,
@@ -30,8 +34,29 @@ function parseCameraState(raw: RawPicoCAD2File): CameraState {
 	};
 }
 
+function isRawBookmark(value: unknown): value is RawCameraBookmark {
+	if (typeof value !== "object" || value === null) return false;
+	const bm = value as Partial<RawCameraBookmark>;
+	return (
+		typeof bm.distance_to_target === "number" &&
+		typeof bm.theta === "number" &&
+		typeof bm.omega === "number" &&
+		typeof bm.target === "object" &&
+		bm.target !== null
+	);
+}
+
 function parseCameraBookmark(raw: RawPicoCAD2File): CameraBookmark {
-	const bm = raw.metadata.camera.bookmark;
+	// Some PicoCAD 2.2 beta builds serialize the bookmark under an obfuscated
+	// Lua identifier instead of "bookmark", so recover it by shape.
+	const cam = raw.metadata.camera;
+	const bm =
+		cam.bookmark ??
+		Object.values(cam as unknown as Record<string, unknown>).find(
+			isRawBookmark,
+		);
+
+	if (!bm) return parseCameraState(raw);
 
 	return {
 		target: new Float32Array([bm.target.x, bm.target.y, bm.target.z]),

@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- **Obfuscated bookmark keys** — Camera bookmarks saved by some PicoCAD 2.2 beta builds under an obfuscated key instead of `"bookmark"` are now recognized, and files without any bookmark fall back to the default camera state instead of failing to load.
 - **Malformed motion clips** — Clips missing a `prop` are skipped on load instead of producing broken animation state, matching PicoCAD 2.2's load guard.
 - **`instant` easing at clip start** — The jump now happens at exactly the clip start time, matching PicoCAD 2.
 - **Stale pose after stopping animation** — Stopping the animation with `animation.stop()` now restores the model's static pose instead of freezing the last animated frame.

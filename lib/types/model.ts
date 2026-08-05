@@ -81,7 +81,7 @@ export interface RawCameraState {
 	distance_to_target: number;
 	theta: number;
 	omega: number;
-	bookmark: RawCameraBookmark;
+	bookmark?: RawCameraBookmark;
 }
 
 export interface RawTexture {

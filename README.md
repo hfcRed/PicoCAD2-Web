@@ -1,5 +1,9 @@
 # picocad2-web
 
+![NPM Downloads](https://img.shields.io/npm/dm/picocad2-web?style=flat-square)
+![NPM Version](https://img.shields.io/npm/v/picocad2-web?style=flat-square)
+![Static Badge](https://img.shields.io/badge/PicoCAD2_Compatibility-v2.2.0--b16-green?style=flat-square)
+
 A JavaScript library for viewing [PicoCAD 2](https://picocad.net/) models in the browser using WebGL 2.
 
 [Live Demo](https://picocad2-web-viewer.hfcred.workers.dev/)

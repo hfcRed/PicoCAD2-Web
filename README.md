@@ -60,6 +60,8 @@ const viewer1 = new PicoCAD2Viewer({ canvas: canvas1, context });
 const viewer2 = new PicoCAD2Viewer({ canvas: canvas2, context });
 ```
 
+Viewers sharing a context also share a single render loop: each frame, all viewers render into one combined framebuffer that is captured once and distributed to their canvases. Capturing the drawing buffer is expensive (especially on Firefox), so sharing a context scales to much more viewers.
+
 ## Viewer Options
 
 All options are optional and can be passed to the `PicoCAD2Viewer` constructor:
@@ -74,6 +76,7 @@ const viewer = new PicoCAD2Viewer({
   resolution: { width: 128, height: 128, scale: 2 },
 
   // Rendering
+  maxFps: 60,                       // Max render loop rate in fps, 0 = display refresh rate (default: 60)
   shading: true,                    // Enable lighting (default: true)
   renderMode: "texture",            // "texture" | "color" | "none" (default: "texture")
   projectionMode: "perspective",    // "perspective" | "orthographic" | "fisheye" (default: "perspective")

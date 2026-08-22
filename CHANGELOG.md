@@ -1,6 +1,23 @@
 # Changelog
 
-## Beta Version (b16)
+## 1.4.0-beta.2
+
+### Added
+
+- **`maxFps` viewer option** — Caps how often `startRenderLoop()` draws (default: 60). Previously the loop drew on every animation frame, so high refresh rate displays rendered caused periodic GC stutter in Firefox. Set to 0 to draw at the display refresh rate as before. Also available as `viewer.maxFps` and included in the viewer state (`settings.maxFps`).
+
+### Changed
+
+- **Batched shared-context rendering** — All viewers sharing a `PicoCAD2Context` are now driven by a single render loop that draws every due viewer into one atlas frame and captures the drawing buffer with a single `transferToImageBitmap()` per frame, instead of one capture per viewer. Capturing is the dominant per-viewer cost on Firefox, so multi-viewer pages scale dramatically better there.
+- **Reduced per-frame allocations** — Render settings, shader uniform objects, and effect contexts are now reused across frames instead of rebuilt every draw, reducing garbage collection pressure in the render loop.
+- **`onFrame` follows the frame cap** — With `maxFps` set, the `onFrame` callback now fires once per drawn frame with the elapsed time since the previous drawn frame, instead of once per display refresh.
+
+### Fixed
+
+- **Non-square resolutions no longer stretch** — The projection was fed the aspect ratio as width / height, but PicoCAD 2's projection matrices expect height / width. Non-square viewports now match PicoCAD 2.
+- **UVs outside the texture clamp instead of tiling** — UVs mapped outside the 128x128 texture space now repeat the texture's edge pixels, matching PicoCAD 2 (LÖVE's default "clamp" wrap mode). Previously the texture tiled.
+
+## 1.4.0-beta.1
 
 ### Added
 

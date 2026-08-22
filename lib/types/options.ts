@@ -255,6 +255,7 @@ export interface ViewerSettings {
 	animation: AnimationSettings;
 	camera: CameraSettings;
 	resolution: ResolutionSettings;
+	maxFps: number;
 	bookmark: BookmarkSettings;
 }
 
@@ -284,6 +285,7 @@ export interface PicoCAD2ViewerOptions {
 		height: number;
 		scale?: number;
 	};
+	maxFps?: number;
 	extras?: ExtrasOptions;
 	onLoad?: ((info: ModelInfo) => void) | null;
 	onFrame?: ((dt: number) => void) | null;

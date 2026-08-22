@@ -10,6 +10,7 @@ import {
 } from "./buffers.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
+import type { EffectContext } from "./effects/types.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
 
@@ -34,6 +35,12 @@ const LIGHT_DIR_VIEW = vec3.normalize(
 /** Ambient light level matching PicoCAD 2. */
 const AMBIENT = 0.15;
 
+/** Render groups drawn first, into a depth buffer that is cleared afterwards. */
+const PRIORITY_GROUPS = [2, 3] as const;
+
+/** Render groups drawn after the depth clear. */
+const NON_PRIORITY_GROUPS = [0, 1] as const;
+
 export interface ModelResources {
 	indexTexture: WebGLTexture;
 	paletteTexture: WebGLTexture;
@@ -53,6 +60,26 @@ export class Renderer {
 	private readonly lightDirWorld: vec3 = vec3.create();
 	private programs: ShaderPrograms;
 	private emptyVao: WebGLVertexArrayObject | null = null;
+	private readonly effectCtx: EffectContext;
+	private readonly modelUniforms = {
+		u_mvp: this.mvpMatrix,
+		u_worldMatrix: this.mvpMatrix as mat4,
+		u_indexTexture: null as WebGLTexture | null,
+		u_paletteTexture: null as WebGLTexture | null,
+		u_lightDir: this.lightDirWorld,
+		u_ambient: AMBIENT,
+		u_transparentColor: 0,
+		u_shadingEnabled: true,
+		u_renderMode: 0,
+	};
+	private readonly outlineUniforms = {
+		u_texture: null as WebGLTexture | null,
+		u_outlineSize: 0,
+		u_outlineColor: [0, 0, 0] as Color3,
+		u_texelSize: [1, 1] as [number, number],
+		u_backgroundColor: [0, 0, 0] as Color3,
+		u_bgIsTransparent: false,
+	};
 
 	/**
 	 * Creates a new renderer for the given WebGL 2 context.
@@ -62,6 +89,16 @@ export class Renderer {
 	constructor(gl: WebGL2RenderingContext) {
 		this.gl = gl;
 		this.programs = createPrograms(gl);
+		this.effectCtx = {
+			gl,
+			width: 0,
+			height: 0,
+			time: 0,
+			depthTexture: null,
+			backgroundColor: [0, 0, 0],
+			isOrthographic: false,
+			bgIsTransparent: false,
+		};
 	}
 
 	/**
@@ -79,7 +116,9 @@ export class Renderer {
 	}
 
 	/**
-	 * Renders a single frame of the given model.
+	 * Renders a single frame of the given model into a region of the canvas.
+	 * Off-screen effect passes always run at `w × h`; only output to the
+	 * default framebuffer is placed at `(x, y)` (GL bottom-left origin).
 	 *
 	 * @param camera - The orbit camera providing view/projection matrices.
 	 * @param settings - The current render settings.
@@ -87,6 +126,10 @@ export class Renderer {
 	 * @param resources - The GPU resources for this model.
 	 * @param time - Elapsed time in seconds for animated effects.
 	 * @param pipeline - The per-viewer post-process pipeline.
+	 * @param x - The output viewport x offset in the default framebuffer.
+	 * @param y - The output viewport y offset in the default framebuffer.
+	 * @param w - The render width in pixels.
+	 * @param h - The render height in pixels.
 	 */
 	draw(
 		camera: OrbitCamera,
@@ -95,10 +138,12 @@ export class Renderer {
 		resources: ModelResources,
 		time: number,
 		pipeline: PostProcessPipeline,
+		x: number,
+		y: number,
+		w: number,
+		h: number,
 	): void {
 		const gl = this.gl;
-		const w = gl.canvas.width;
-		const h = gl.canvas.height;
 
 		const gradOutline = pipeline.getPostEffect("gradientOutline");
 		const useGradientOutline =
@@ -130,7 +175,9 @@ export class Renderer {
 		let bgG: number;
 		let bgB: number;
 		if (settings.backgroundColor) {
-			[bgR, bgG, bgB] = settings.backgroundColor;
+			bgR = settings.backgroundColor[0];
+			bgG = settings.backgroundColor[1];
+			bgB = settings.backgroundColor[2];
 		} else {
 			const bgIdx = model.texture.backgroundColor;
 			const colors = model.texture.colors;
@@ -153,8 +200,21 @@ export class Renderer {
 			Math.fround(bgB) === tcB;
 
 		if (useGradientOutline) {
-			(gradOutline as GradientOutlineEffect).backgroundColor = [bgR, bgG, bgB];
+			const goBg = (gradOutline as GradientOutlineEffect).backgroundColor;
+			goBg[0] = bgR;
+			goBg[1] = bgG;
+			goBg[2] = bgB;
 		}
+
+		const ctx = this.effectCtx;
+		ctx.width = w;
+		ctx.height = h;
+		ctx.time = time;
+		ctx.bgIsTransparent = bgIsTransparent;
+		ctx.backgroundColor[0] = bgR;
+		ctx.backgroundColor[1] = bgG;
+		ctx.backgroundColor[2] = bgB;
+		ctx.isOrthographic = camera.projectionMode === "orthographic";
 
 		if (useFbo) {
 			pipeline.pool.ensure(gl, w, h);
@@ -168,6 +228,9 @@ export class Renderer {
 			} else {
 				gl.clearColor(bgR, bgG, bgB, 0);
 			}
+
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			gl.viewport(0, 0, w, h);
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -178,26 +241,22 @@ export class Renderer {
 			} else {
 				gl.clearColor(bgR, bgG, bgB, 1);
 			}
-		}
 
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-		gl.viewport(0, 0, w, h);
+			// The canvas may hold other viewers' regions this frame; scissor the
+			// clear so only this viewer's rect is touched.
+			gl.enable(gl.SCISSOR_TEST);
+			gl.scissor(x, y, w, h);
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			gl.disable(gl.SCISSOR_TEST);
+			gl.viewport(x, y, w, h);
+		}
 
 		if (settings.renderMode < 2) {
 			this.drawModel(vpMatrix, settings, model, resources);
 		}
 
 		if (pipeline.hasActiveSceneEffects()) {
-			const ctx = {
-				gl,
-				width: w,
-				height: h,
-				time,
-				depthTexture: pipeline.pool.getDepthTexture(),
-				bgIsTransparent,
-				backgroundColor: [bgR, bgG, bgB] as Color3,
-				isOrthographic: camera.projectionMode === "orthographic",
-			};
+			ctx.depthTexture = pipeline.pool.getDepthTexture();
 			for (const effect of pipeline.sceneEffects) {
 				if (!effect.enabled) continue;
 				if (!effect.initialized) {
@@ -226,19 +285,10 @@ export class Renderer {
 
 		if (pipeline.hasActivePostEffects()) {
 			pipeline.pool.detachDepth(gl);
-			const ctx = {
-				gl,
-				width: w,
-				height: h,
-				time,
-				depthTexture: pipeline.pool.getDepthTexture(),
-				bgIsTransparent,
-				backgroundColor: [bgR, bgG, bgB] as Color3,
-				isOrthographic: camera.projectionMode === "orthographic",
-			};
-			pipeline.execute(ctx, [bgR, bgG, bgB], bgIsTransparent);
+			ctx.depthTexture = pipeline.pool.getDepthTexture();
+			pipeline.execute(ctx, ctx.backgroundColor, bgIsTransparent, x, y);
 		} else {
-			pipeline.blit(gl, w, h, [bgR, bgG, bgB], bgIsTransparent);
+			pipeline.blit(gl, x, y, w, h, ctx.backgroundColor, bgIsTransparent);
 		}
 	}
 
@@ -302,14 +352,17 @@ export class Renderer {
 
 		gl.useProgram(this.programs.outline.program);
 
-		twgl.setUniforms(this.programs.outline, {
-			u_texture: inputTexture,
-			u_outlineSize: settings.outlineSize,
-			u_outlineColor: settings.outlineColor,
-			u_texelSize: [1 / w, 1 / h],
-			u_backgroundColor: [bgR, bgG, bgB],
-			u_bgIsTransparent: bgIsTransparent,
-		});
+		const uniforms = this.outlineUniforms;
+		uniforms.u_texture = inputTexture;
+		uniforms.u_outlineSize = settings.outlineSize;
+		uniforms.u_outlineColor = settings.outlineColor;
+		uniforms.u_texelSize[0] = 1 / w;
+		uniforms.u_texelSize[1] = 1 / h;
+		uniforms.u_backgroundColor[0] = bgR;
+		uniforms.u_backgroundColor[1] = bgG;
+		uniforms.u_backgroundColor[2] = bgB;
+		uniforms.u_bgIsTransparent = bgIsTransparent;
+		twgl.setUniforms(this.programs.outline, uniforms);
 
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -337,14 +390,21 @@ export class Renderer {
 		gl.depthFunc(gl.LEQUAL);
 		gl.depthMask(true);
 
+		const uniforms = this.modelUniforms;
+		uniforms.u_indexTexture = resources.indexTexture;
+		uniforms.u_paletteTexture = resources.paletteTexture;
+		uniforms.u_transparentColor = model.texture.transparentColor;
+		uniforms.u_shadingEnabled = settings.shading;
+		uniforms.u_renderMode = settings.renderMode;
+
 		// Draw priority faces
-		this.drawGroups(vpMatrix, settings, [2, 3], model, resources);
+		this.drawGroups(vpMatrix, PRIORITY_GROUPS, resources);
 
 		// Clear depth buffer
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 
 		// Draw non-priority faces
-		this.drawGroups(vpMatrix, settings, [0, 1], model, resources);
+		this.drawGroups(vpMatrix, NON_PRIORITY_GROUPS, resources);
 
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);
@@ -352,18 +412,15 @@ export class Renderer {
 
 	/**
 	 * Draws specific render groups across all node buffers.
+	 * Model-wide uniforms in {@link modelUniforms} must be set by the caller.
 	 *
 	 * @param vpMatrix - The view-projection matrix.
-	 * @param settings - The current render settings.
 	 * @param groupIndices - Which render groups to draw.
-	 * @param model - The parsed model.
 	 * @param resources - The GPU resources.
 	 */
 	private drawGroups(
 		vpMatrix: mat4,
-		settings: RenderSettings,
-		groupIndices: number[],
-		model: PicoCAD2Model,
+		groupIndices: readonly number[],
 		resources: ModelResources,
 	): void {
 		const gl = this.gl;
@@ -379,6 +436,7 @@ export class Renderer {
 			}
 
 			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.worldMatrix);
+			this.modelUniforms.u_worldMatrix = nb.node.worldMatrix;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -392,20 +450,8 @@ export class Renderer {
 					gl.cullFace(gl.FRONT);
 				}
 
-				const uniforms = {
-					u_mvp: this.mvpMatrix,
-					u_worldMatrix: nb.node.worldMatrix,
-					u_indexTexture: resources.indexTexture,
-					u_paletteTexture: resources.paletteTexture,
-					u_lightDir: this.lightDirWorld,
-					u_ambient: AMBIENT,
-					u_transparentColor: model.texture.transparentColor,
-					u_shadingEnabled: settings.shading,
-					u_renderMode: settings.renderMode,
-				};
-
 				twgl.setBuffersAndAttributes(gl, this.programs.model, group.bufferInfo);
-				twgl.setUniforms(this.programs.model, uniforms);
+				twgl.setUniforms(this.programs.model, this.modelUniforms);
 				twgl.drawBufferInfo(gl, group.bufferInfo);
 
 				this.stats.drawCalls++;

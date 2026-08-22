@@ -128,6 +128,7 @@ export class PicoCAD2Viewer {
 	cameraMode: CameraMode = "fixed";
 	cameraModeSpeed = 5;
 	cameraModeDirection: "left" | "right" = "left";
+	maxFps = 60;
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -141,8 +142,10 @@ export class PicoCAD2Viewer {
 	private renderWidth = 128;
 	private renderHeight = 128;
 	private renderScale = 1;
-	private animationFrameId: number | null = null;
+	private renderLoopActive = false;
+	private loopSyncWithAnimation = true;
 	private lastFrameTime = 0;
+	private lastDt = 0;
 	private elapsedTime = 0;
 	private cameraControlsEnabled = false;
 	private cameraControlZoom = true;
@@ -166,6 +169,15 @@ export class PicoCAD2Viewer {
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;
+
+	private readonly renderSettings: RenderSettings = {
+		shading: true,
+		renderMode: 0,
+		backgroundColor: null,
+		outlineSize: 0,
+		outlineColor: [0, 0, 0],
+	};
+
 	private readonly boundHandlers: {
 		onPointerDown: (e: PointerEvent) => void;
 		onPointerMove: (e: PointerEvent) => void;
@@ -223,6 +235,7 @@ export class PicoCAD2Viewer {
 		if (options?.cameraModeDirection) {
 			this.cameraModeDirection = options.cameraModeDirection;
 		}
+		if (options?.maxFps !== undefined) this.maxFps = options.maxFps;
 
 		if (options?.extras) {
 			this.applyExtrasOptions(options.extras);
@@ -395,6 +408,37 @@ export class PicoCAD2Viewer {
 	draw(syncWithAnimation = true): void {
 		if (!this.model || !this.resources) return;
 
+		this.prepareFrame(syncWithAnimation);
+
+		this.context.render(
+			this.camera,
+			this.renderSettings,
+			this.model,
+			this.resources,
+			this.renderWidth,
+			this.renderHeight,
+			this.elapsedTime,
+			this.pipeline,
+		);
+
+		// Use transferToImageBitmap to atomically capture the WebGL drawing buffer.
+		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
+		// when multiple viewers render in sequence within the same frame.
+		const bitmap = this.context.canvas.transferToImageBitmap();
+		this.present(bitmap, 0, 0);
+		bitmap.close();
+	}
+
+	/**
+	 * Updates the camera and animation pose and fills the render settings
+	 * for the current frame.
+	 * 
+	 * @param syncWithAnimation - When `true` (default), camera mode offset
+	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
+	 */
+	private prepareFrame(syncWithAnimation: boolean): void {
+		if (!this.model) return;
+
 		this.camera.projectionMode = this.projectionMode;
 		this.camera.omegaOffset = this.computeCameraModeOffset(syncWithAnimation);
 
@@ -407,39 +451,32 @@ export class PicoCAD2Viewer {
 			this.wasAnimating = false;
 		}
 
-		const settings: RenderSettings = {
-			shading: this.shading,
-			renderMode:
-				this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2,
-			backgroundColor: this.backgroundColor,
-			outlineSize: this.outlineSize,
-			outlineColor: this.outlineColor,
-		};
+		const settings = this.renderSettings;
+		settings.shading = this.shading;
+		settings.renderMode =
+			this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2;
+		settings.backgroundColor = this.backgroundColor;
+		settings.outlineSize = this.outlineSize;
+		settings.outlineColor = this.outlineColor;
+	}
 
+	/**
+	 * Draws the viewer's region of a captured frame to its canvas and
+	 * applies the 2D overlays (scanlines, tags).
+	 *
+	 * @param bitmap - The captured frame.
+	 * @param sx - The source x position of this viewer's region in the bitmap.
+	 * @param sy - The source y position of this viewer's region in the bitmap.
+	 */
+	private present(bitmap: ImageBitmap, sx: number, sy: number): void {
 		const w = this.renderWidth;
 		const h = this.renderHeight;
 		const s = this.renderScale;
 		const dw = w * s;
 		const dh = h * s;
 
-		this.context.render(
-			this.camera,
-			settings,
-			this.model,
-			this.resources,
-			w,
-			h,
-			this.elapsedTime,
-			this.pipeline,
-		);
-
-		// Use transferToImageBitmap to atomically capture the WebGL drawing buffer.
-		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
-		// when multiple viewers render in sequence within the same frame.
-		const bitmap = this.context.canvas.transferToImageBitmap();
 		this.ctx2d.clearRect(0, 0, dw, dh);
-		this.ctx2d.drawImage(bitmap, 0, 0, w, h, 0, 0, dw, dh);
-		bitmap.close();
+		this.ctx2d.drawImage(bitmap, sx, sy, w, h, 0, 0, dw, dh);
 
 		if (this.scanlines) {
 			const [sr, sg, sb] = this.scanlineColor;
@@ -495,36 +532,113 @@ export class PicoCAD2Viewer {
 	/**
 	 * Starts the render loop.
 	 *
+	 * All viewers sharing this viewer's context render together in a single
+	 * shared loop with one drawing buffer capture per frame. Each viewer is
+	 * drawn at most {@link maxFps} times per second; on displays with a
+	 * higher refresh rate the loop skips animation frames until enough time
+	 * has passed, so animation speed is unaffected by the cap.
+	 *
 	 * @param syncWithAnimation - When `true` (default), camera mode offset
 	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
 	 */
 	startRenderLoop(syncWithAnimation = true): void {
-		if (this.animationFrameId !== null) return;
-
+		if (this.renderLoopActive) return;
+		this.renderLoopActive = true;
+		this.loopSyncWithAnimation = syncWithAnimation;
 		this.lastFrameTime = performance.now();
-		const loop = (now: number): void => {
-			const dt = (now - this.lastFrameTime) / 1000;
-			this.lastFrameTime = now;
-
-			this.advanceTime(dt);
-			this.applyInertia();
-			this.draw(syncWithAnimation);
-			this.onFrame?.(dt);
-
-			this.animationFrameId = requestAnimationFrame(loop);
-		};
-
-		this.animationFrameId = requestAnimationFrame(loop);
+		this.context._register(this);
 	}
 
 	/**
 	 * Stops the render loop.
 	 */
 	stopRenderLoop(): void {
-		if (this.animationFrameId !== null) {
-			cancelAnimationFrame(this.animationFrameId);
-			this.animationFrameId = null;
-		}
+		if (!this.renderLoopActive) return;
+		this.renderLoopActive = false;
+		this.context._unregister(this);
+	}
+
+	/**
+	 * The viewer's render width, for the shared render loop's atlas layout.
+	 *
+	 * @internal
+	 */
+	get _renderWidth(): number {
+		return this.renderWidth;
+	}
+
+	/**
+	 * The viewer's render height, for the shared render loop's atlas layout.
+	 *
+	 * @internal
+	 */
+	get _renderHeight(): number {
+		return this.renderHeight;
+	}
+
+	/**
+	 * Advances this viewer's frame timing. Returns whether a new frame is
+	 * due under the {@link maxFps} cap; when it is, the clock and inertia
+	 * have been advanced by the elapsed time since the last drawn frame.
+	 *
+	 * @internal
+	 */
+	_tick(now: number): boolean {
+		const interval = this.maxFps > 0 ? 1000 / this.maxFps : 0;
+		const elapsed = now - this.lastFrameTime;
+		if (elapsed < interval) return false;
+
+		// Keep the remainder so the effective rate doesn't drift below
+		// maxFps when the display refresh doesn't divide it evenly.
+		this.lastFrameTime = interval > 0 ? now - (elapsed % interval) : now;
+
+		this.lastDt = elapsed / 1000;
+		this.advanceTime(this.lastDt);
+		this.applyInertia();
+		return true;
+	}
+
+	/**
+	 * Renders this viewer's scene into its atlas region. Returns false if
+	 * no model is loaded and nothing was rendered.
+	 *
+	 * @internal
+	 */
+	_renderToAtlas(x: number, y: number): boolean {
+		if (!this.model || !this.resources) return false;
+
+		this.prepareFrame(this.loopSyncWithAnimation);
+		this.context._renderAt(
+			this.camera,
+			this.renderSettings,
+			this.model,
+			this.resources,
+			x,
+			y,
+			this.renderWidth,
+			this.renderHeight,
+			this.elapsedTime,
+			this.pipeline,
+		);
+		return true;
+	}
+
+	/**
+	 * Presents this viewer's region of the captured atlas frame.
+	 *
+	 * @internal
+	 */
+	_presentFromAtlas(bitmap: ImageBitmap, sx: number, sy: number): void {
+		this.present(bitmap, sx, sy);
+	}
+
+	/**
+	 * Fires the per-frame callback after the shared loop finishes a frame.
+	 *
+	 * @internal
+	 */
+	_emitFrame(): void {
+		this.onFrame?.(this.lastDt);
 	}
 
 	/**
@@ -818,6 +932,7 @@ export class PicoCAD2Viewer {
 					height: this.renderHeight,
 					scale: this.renderScale,
 				},
+				maxFps: this.maxFps,
 				bookmark: this.model?.bookmark
 					? {
 							omega: this.model.bookmark.omega,
@@ -880,6 +995,7 @@ export class PicoCAD2Viewer {
 
 		// The following properties have fallbacks for backwards compatibility
 		this.animation.loops = s.animation.loops ?? this.animation.loops;
+		this.maxFps = s.maxFps ?? this.maxFps;
 
 		if (s.animation.playing) {
 			this.animation.play();

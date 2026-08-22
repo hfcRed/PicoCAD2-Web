@@ -133,11 +133,15 @@ export class PostProcessPipeline {
 	 *
 	 * @param ctx - The rendering context info.
 	 * @param backgroundColor - The background color for the final composite.
+	 * @param x - The output viewport x offset in the default framebuffer.
+	 * @param y - The output viewport y offset in the default framebuffer.
 	 */
 	execute(
 		ctx: EffectContext,
 		backgroundColor: Color3,
 		bgIsTransparent = false,
+		x = 0,
+		y = 0,
 	): void {
 		const gl = ctx.gl;
 
@@ -154,7 +158,15 @@ export class PostProcessPipeline {
 			effect.apply(ctx, inputTexture);
 		}
 
-		this.blit(gl, ctx.width, ctx.height, backgroundColor, bgIsTransparent);
+		this.blit(
+			gl,
+			x,
+			y,
+			ctx.width,
+			ctx.height,
+			backgroundColor,
+			bgIsTransparent,
+		);
 	}
 
 	/**
@@ -162,12 +174,16 @@ export class PostProcessPipeline {
 	 * blending the scene over the background color using alpha.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
+	 * @param x - The output viewport x offset in the default framebuffer.
+	 * @param y - The output viewport y offset in the default framebuffer.
 	 * @param w - The render width.
 	 * @param h - The render height.
 	 * @param backgroundColor - The background color for compositing.
 	 */
 	blit(
 		gl: WebGL2RenderingContext,
+		x: number,
+		y: number,
 		w: number,
 		h: number,
 		backgroundColor: Color3,
@@ -182,7 +198,7 @@ export class PostProcessPipeline {
 		}
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-		gl.viewport(0, 0, w, h);
+		gl.viewport(x, y, w, h);
 		gl.disable(gl.DEPTH_TEST);
 
 		gl.useProgram(this.blitProgram.program);

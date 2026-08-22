@@ -17,6 +17,7 @@ interface ViewerSlot {
 	y: number;
 	width: number;
 	height: number;
+	fits: boolean;
 }
 
 /**
@@ -43,6 +44,8 @@ export class PicoCAD2Context {
 	private layoutDirty = false;
 	private atlasWidth = 0;
 	private atlasHeight = 0;
+	private atlasOverflowed = false;
+	private readonly maxAtlasSize: number;
 	private frameId: number | null = null;
 
 	/**
@@ -71,6 +74,11 @@ export class PicoCAD2Context {
 		});
 		if (!gl) throw new Error("WebGL 2 is not supported");
 		this.gl = gl;
+
+		this.maxAtlasSize = Math.min(
+			gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
+			gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number,
+		);
 
 		this.renderer = new Renderer(gl);
 
@@ -174,7 +182,7 @@ export class PicoCAD2Context {
 	_register(viewer: PicoCAD2Viewer): void {
 		if (this.slots.some((slot) => slot.viewer === viewer)) return;
 
-		this.slots.push({ viewer, x: 0, y: 0, width: 0, height: 0 });
+		this.slots.push({ viewer, x: 0, y: 0, width: 0, height: 0, fits: true });
 		this.layoutDirty = true;
 
 		if (this.frameId === null) {
@@ -220,6 +228,8 @@ export class PicoCAD2Context {
 		const rendered = this.renderedSlots;
 		rendered.length = 0;
 		for (const slot of due) {
+			if (!slot.fits) continue;
+
 			// Convert the slot's top-left image position to GL's bottom-left origin.
 			const glY = this.atlasHeight - slot.y - slot.height;
 			if (slot.viewer._renderToAtlas(slot.x, glY)) {
@@ -275,6 +285,9 @@ export class PicoCAD2Context {
 	/**
 	 * Shelf-packs all registered viewers into an atlas that is roughly
 	 * square, so it stays well below the driver's canvas size limits.
+	 * The atlas is clamped to the maximum supported size; viewers whose
+	 * region would fall outside it are marked unfit and skipped by the
+	 * render loop, so one oversized viewer cannot break the shared canvas.
 	 */
 	private packLayout(): void {
 		let totalArea = 0;
@@ -289,7 +302,7 @@ export class PicoCAD2Context {
 		// Sorting by height keeps shelf rows dense when resolutions differ.
 		this.slots.sort((a, b) => b.height - a.height);
 
-		const maxSize = this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE) as number;
+		const maxSize = this.maxAtlasSize;
 		const targetWidth = Math.min(
 			maxSize,
 			Math.max(widest, Math.ceil(Math.sqrt(totalArea))),
@@ -299,6 +312,7 @@ export class PicoCAD2Context {
 		let y = 0;
 		let rowHeight = 0;
 		let atlasWidth = 1;
+		let overflowed = false;
 		for (const slot of this.slots) {
 			if (x > 0 && x + slot.width > targetWidth) {
 				x = 0;
@@ -307,19 +321,26 @@ export class PicoCAD2Context {
 			}
 			slot.x = x;
 			slot.y = y;
+			slot.fits =
+				slot.x + slot.width <= maxSize && slot.y + slot.height <= maxSize;
+			if (!slot.fits) {
+				overflowed = true;
+				continue;
+			}
 			x += slot.width;
 			rowHeight = Math.max(rowHeight, slot.height);
 			atlasWidth = Math.max(atlasWidth, x);
 		}
 
-		this.atlasWidth = atlasWidth;
-		this.atlasHeight = Math.max(1, y + rowHeight);
+		this.atlasWidth = Math.min(atlasWidth, maxSize);
+		this.atlasHeight = Math.min(Math.max(1, y + rowHeight), maxSize);
 
-		if (this.atlasHeight > maxSize) {
+		if (overflowed && !this.atlasOverflowed) {
 			console.warn(
-				`PicoCAD2Context: atlas height ${this.atlasHeight} exceeds the maximum texture size ${maxSize}; viewers may render incorrectly. Reduce viewer count or resolutions.`,
+				`PicoCAD2Context: the combined viewer resolutions exceed the maximum atlas size (${maxSize}); viewers that don't fit will not be rendered. Reduce viewer count or resolutions.`,
 			);
 		}
+		this.atlasOverflowed = overflowed;
 	}
 
 	/**

@@ -155,7 +155,7 @@ export class Renderer {
 		this.stats.drawCalls = 0;
 		this.stats.polyCount = 0;
 
-		const aspect = w / h;
+		const aspect = h / w;
 		const vpMatrix = camera.getViewProjectionMatrix(aspect);
 
 		// Compute world-space light direction from camera orientation.

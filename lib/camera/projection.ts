@@ -13,7 +13,7 @@ const GLOBAL_W = 0.35;
  * @param out - The output mat4.
  * @param mode - The projection mode.
  * @param zoom - The zoom level.
- * @param aspect - The aspect ratio.
+ * @param aspect - The aspect ratio as height / width (PicoCAD 2's convention).
  * @param znear - The near clipping plane.
  * @param zfar - The far clipping plane.
  * @param camDist - The camera distance to target (used for orthographic scaling).
@@ -49,7 +49,7 @@ export function makeProjectionMatrix(
  *
  * @param out - The output mat4.
  * @param zoom - The zoom level.
- * @param aspect - The aspect ratio.
+ * @param aspect - The aspect ratio as height / width (PicoCAD 2's convention).
  * @param znear - The near clipping plane.
  * @param zfar - The far clipping plane.
  * @returns The output matrix.
@@ -85,7 +85,7 @@ function makePerspectiveMatrix(
  *
  * @param out - The output mat4.
  * @param zoom - The zoom level.
- * @param aspect - The aspect ratio.
+ * @param aspect - The aspect ratio as height / width (PicoCAD 2's convention).
  * @param znear - The near clipping plane.
  * @param zfar - The far clipping plane.
  * @param camDist - The camera distance to target.
@@ -121,7 +121,7 @@ function makeOrthoMatrix(
  *
  * @param out - The output mat4.
  * @param zoom - The zoom level.
- * @param aspect - The aspect ratio.
+ * @param aspect - The aspect ratio as height / width (PicoCAD 2's convention).
  * @param znear - The near clipping plane.
  * @param zfar - The far clipping plane.
  * @returns The output matrix.

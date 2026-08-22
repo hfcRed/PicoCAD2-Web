@@ -211,7 +211,7 @@ export class OrbitCamera {
 	/**
 	 * Returns the projection matrix for the given aspect ratio, recomputing if needed.
 	 *
-	 * @param aspect - The viewport aspect ratio.
+	 * @param aspect - The viewport aspect ratio as height / width (PicoCAD 2's convention).
 	 * @returns The current projection matrix.
 	 */
 	getProjectionMatrix(aspect: number): mat4 {
@@ -230,7 +230,7 @@ export class OrbitCamera {
 	/**
 	 * Returns the combined view-projection matrix.
 	 *
-	 * @param aspect - The viewport aspect ratio.
+	 * @param aspect - The viewport aspect ratio as height / width (PicoCAD 2's convention).
 	 * @returns The view-projection matrix.
 	 */
 	getViewProjectionMatrix(aspect: number): mat4 {

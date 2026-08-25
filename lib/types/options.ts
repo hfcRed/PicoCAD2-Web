@@ -69,7 +69,6 @@ export interface CRTOptions {
 	modelOnly?: boolean;
 	curvature?: number;
 	scanlineIntensity?: number;
-	/** Gates the scanline shading only; curvature stays whole-frame. */
 	maskedColors?: number[];
 }
 
@@ -223,9 +222,7 @@ export interface CameraControlOptions {
 	spinInertiaFactor?: number;
 	useFixedOnInteract?: {
 		enabled: boolean;
-		/** Delay in ms after the last interaction before restoring. */
 		delayBeforeRestore: number;
-		/** Duration in ms for the camera to interpolate back to the original position. */
 		restoreTime: number;
 	};
 }

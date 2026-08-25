@@ -113,8 +113,6 @@ export class PicoCAD2Viewer {
 	readonly canvas: HTMLCanvasElement;
 	readonly camera: OrbitCamera = new OrbitCamera();
 	readonly animation: AnimationController = new AnimationController();
-	private _extras!: ViewerExtras;
-	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
 
 	shading = true;
 	renderMode: RenderMode = "texture";
@@ -170,6 +168,9 @@ export class PicoCAD2Viewer {
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;
+	private _extras!: ViewerExtras;
+
+	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
 
 	private readonly renderSettings: RenderSettings = {
 		shading: true,
@@ -908,7 +909,10 @@ export class PicoCAD2Viewer {
 				cameraModeSpeed: this.cameraModeSpeed,
 				cameraModeDirection: this.cameraModeDirection,
 				leftTag: this.leftTag
-					? { text: this.leftTag.text, color: this.leftTag.color ?? [1, 1, 1] }
+					? {
+							text: this.leftTag.text,
+							color: this.leftTag.color ?? [1, 1, 1],
+						}
 					: null,
 				rightTag: this.rightTag
 					? {

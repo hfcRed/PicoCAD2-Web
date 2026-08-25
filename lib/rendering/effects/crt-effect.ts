@@ -13,7 +13,7 @@ export class CRTEffect extends FullscreenEffect {
 	 * Creates a new CRT effect.
 	 */
 	constructor() {
-		super("crt", crtFrag, (ctx: EffectContext) => this.getUniforms(ctx));
+		super("crt", crtFrag, (ctx: EffectContext) => this.getUniforms(ctx), true);
 	}
 
 	/**

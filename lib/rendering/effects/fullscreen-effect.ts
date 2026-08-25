@@ -1,5 +1,6 @@
 import * as twgl from "twgl.js";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import { packColorMask } from "./color-mask.ts";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
 
 /**
@@ -17,25 +18,30 @@ export class FullscreenEffect implements PostProcessEffect {
 	) => Record<string, unknown>;
 
 	readonly id: string;
+	readonly warpsIndex: boolean;
 	enabled = false;
 	initialized = false;
 	modelOnly = true;
+	maskedColors: number[] = [];
 
 	/**
 	 * Creates a new fullscreen effect.
 	 *
 	 * @param id - Unique identifier for this effect.
 	 * @param fragSource - The GLSL fragment shader source string.
-	 * @param getUniforms - Callback that returns uniform values for the shader. The base class automatically sets `u_texture`, `u_modelOnly` and `u_bgIsTransparent`.
+	 * @param getUniforms - Callback that returns uniform values for the shader. The base class automatically sets `u_texture`, `u_modelOnly`, `u_bgIsTransparent`, `u_indexTexture` and `u_colorMask`.
+	 * @param warpsIndex - True for effects that remap screen positions, their shader must write the palette index through as a second output (`fragIndex`).
 	 */
 	constructor(
 		id: string,
 		fragSource: string,
 		getUniforms: (ctx: EffectContext) => Record<string, unknown>,
+		warpsIndex = false,
 	) {
 		this.id = id;
 		this.fragSource = fragSource;
 		this.getUniformsFn = getUniforms;
+		this.warpsIndex = warpsIndex;
 	}
 
 	/**
@@ -68,6 +74,8 @@ export class FullscreenEffect implements PostProcessEffect {
 			u_texture: inputTexture,
 			u_modelOnly: this.modelOnly,
 			u_bgIsTransparent: ctx.bgIsTransparent,
+			u_indexTexture: ctx.indexTexture,
+			u_colorMask: packColorMask(this.maskedColors),
 			...this.getUniformsFn(ctx),
 		});
 

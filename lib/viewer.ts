@@ -2,6 +2,7 @@ import { evaluateMotions } from "./animation/animator.ts";
 import { OrbitCamera } from "./camera/orbit-camera.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
+import { packColorMask } from "./rendering/effects/color-mask.ts";
 import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import {
@@ -176,6 +177,7 @@ export class PicoCAD2Viewer {
 		backgroundColor: null,
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
+		cutoutMask: 0,
 	};
 
 	private readonly boundHandlers: {
@@ -432,7 +434,7 @@ export class PicoCAD2Viewer {
 	/**
 	 * Updates the camera and animation pose and fills the render settings
 	 * for the current frame.
-	 * 
+	 *
 	 * @param syncWithAnimation - When `true` (default), camera mode offset
 	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
 	 */
@@ -458,6 +460,11 @@ export class PicoCAD2Viewer {
 		settings.backgroundColor = this.backgroundColor;
 		settings.outlineSize = this.outlineSize;
 		settings.outlineColor = this.outlineColor;
+
+		const cutout = this._extras.colorCutout;
+		settings.cutoutMask = cutout.enabled
+			? packColorMask(cutout.maskedColors)
+			: 0;
 	}
 
 	/**
@@ -1053,6 +1060,10 @@ export class PicoCAD2Viewer {
 				modelOnly: e.wireframe.modelOnly,
 				color: [...e.wireframe.color],
 			},
+			colorCutout: {
+				enabled: e.colorCutout.enabled,
+				maskedColors: [...e.colorCutout.maskedColors],
+			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,
 				modelOnly: e.gradientOutline.modelOnly,
@@ -1069,6 +1080,7 @@ export class PicoCAD2Viewer {
 				contrast: e.colorGrading.contrast,
 				saturation: e.colorGrading.saturation,
 				hue: e.colorGrading.hue,
+				maskedColors: [...e.colorGrading.maskedColors],
 			},
 			posterization: {
 				enabled: e.posterization.enabled,
@@ -1077,6 +1089,7 @@ export class PicoCAD2Viewer {
 				channelLevels: [...e.posterization.channelLevels],
 				gamma: e.posterization.gamma,
 				colorBanding: e.posterization.colorBanding,
+				maskedColors: [...e.posterization.maskedColors],
 			},
 			bloom: {
 				enabled: e.bloom.enabled,
@@ -1084,6 +1097,7 @@ export class PicoCAD2Viewer {
 				threshold: e.bloom.threshold,
 				intensity: e.bloom.intensity,
 				blur: e.bloom.blur,
+				maskedColors: [...e.bloom.maskedColors],
 			},
 			dithering: {
 				enabled: e.dithering.enabled,
@@ -1091,12 +1105,14 @@ export class PicoCAD2Viewer {
 				amount: e.dithering.amount,
 				blend: e.dithering.blend,
 				channelAmount: [...e.dithering.channelAmount],
+				maskedColors: [...e.dithering.maskedColors],
 			},
 			crt: {
 				enabled: e.crt.enabled,
 				modelOnly: e.crt.modelOnly,
 				curvature: e.crt.curvature,
 				scanlineIntensity: e.crt.scanlineIntensity,
+				maskedColors: [...e.crt.maskedColors],
 			},
 			pixelation: {
 				enabled: e.pixelation.enabled,
@@ -1104,6 +1120,7 @@ export class PicoCAD2Viewer {
 				pixelSize: e.pixelation.pixelSize,
 				shape: e.pixelation.shape,
 				blend: e.pixelation.blend,
+				maskedColors: [...e.pixelation.maskedColors],
 			},
 			lensDistortion: {
 				enabled: e.lensDistortion.enabled,
@@ -1115,6 +1132,7 @@ export class PicoCAD2Viewer {
 				enabled: e.noise.enabled,
 				modelOnly: e.noise.modelOnly,
 				amount: e.noise.amount,
+				maskedColors: [...e.noise.maskedColors],
 			},
 			chromaticAberration: {
 				enabled: e.chromaticAberration.enabled,
@@ -1126,6 +1144,7 @@ export class PicoCAD2Viewer {
 				radialFalloff: e.chromaticAberration.radialFalloff,
 				centerX: e.chromaticAberration.centerX,
 				centerY: e.chromaticAberration.centerY,
+				maskedColors: [...e.chromaticAberration.maskedColors],
 			},
 			vignette: {
 				enabled: e.vignette.enabled,
@@ -1143,6 +1162,7 @@ export class PicoCAD2Viewer {
 				far: e.depthFog.far,
 				density: e.depthFog.density,
 				mode: e.depthFog.mode,
+				maskedColors: [...e.depthFog.maskedColors],
 			},
 			halftone: {
 				enabled: e.halftone.enabled,
@@ -1151,6 +1171,7 @@ export class PicoCAD2Viewer {
 				angle: e.halftone.angle,
 				blend: e.halftone.blend,
 				mode: e.halftone.mode,
+				maskedColors: [...e.halftone.maskedColors],
 			},
 			glitch: {
 				enabled: e.glitch.enabled,
@@ -1160,6 +1181,7 @@ export class PicoCAD2Viewer {
 				blockSize: e.glitch.blockSize,
 				rgbSplit: e.glitch.rgbSplit,
 				lineShift: e.glitch.lineShift,
+				maskedColors: [...e.glitch.maskedColors],
 			},
 			colorTint: {
 				enabled: e.colorTint.enabled,
@@ -1170,12 +1192,14 @@ export class PicoCAD2Viewer {
 				shadowColor: [...e.colorTint.shadowColor],
 				highlightColor: [...e.colorTint.highlightColor],
 				blend: e.colorTint.blend,
+				maskedColors: [...e.colorTint.maskedColors],
 			},
 			sharpen: {
 				enabled: e.sharpen.enabled,
 				modelOnly: e.sharpen.modelOnly,
 				strength: e.sharpen.strength,
 				threshold: e.sharpen.threshold,
+				maskedColors: [...e.sharpen.maskedColors],
 			},
 			edgeDetection: {
 				enabled: e.edgeDetection.enabled,
@@ -1184,6 +1208,7 @@ export class PicoCAD2Viewer {
 				lineColor: [...e.edgeDetection.lineColor],
 				backgroundColor: [...e.edgeDetection.backgroundColor],
 				blend: e.edgeDetection.blend,
+				maskedColors: [...e.edgeDetection.maskedColors],
 			},
 		};
 	}
@@ -1202,6 +1227,7 @@ export class PicoCAD2Viewer {
 		};
 
 		assign(this.extras.wireframe, extras.wireframe);
+		assign(this.extras.colorCutout, extras.colorCutout);
 		assign(this.extras.gradientOutline, extras.gradientOutline);
 		assign(this.extras.colorGrading, extras.colorGrading);
 		assign(this.extras.posterization, extras.posterization);

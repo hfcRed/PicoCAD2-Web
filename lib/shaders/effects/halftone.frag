@@ -12,6 +12,8 @@ uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 uniform vec2 u_resolution;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 mat2 rotate2d(float a) {
@@ -37,6 +39,12 @@ float linePattern(vec2 uv, float lum, float angle) {
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (!inColorMask(v_texCoord)) {
+        fragColor = col;
+        return;
+    }
+
     vec3 base = col.rgb;
 
     if (u_bgIsTransparent) {

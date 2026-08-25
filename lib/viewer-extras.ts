@@ -1,5 +1,6 @@
 import { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 import { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
+import { ColorCutoutEffect } from "./rendering/effects/color-cutout-effect.ts";
 import { ColorGradingEffect } from "./rendering/effects/color-grading-effect.ts";
 import { ColorTintEffect } from "./rendering/effects/color-tint-effect.ts";
 import { CRTEffect } from "./rendering/effects/crt-effect.ts";
@@ -30,6 +31,7 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  */
 export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
+	readonly colorCutout: ColorCutoutEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly colorGrading: ColorGradingEffect;
 	readonly posterization: PosterizationEffect;
@@ -57,6 +59,9 @@ export class ViewerExtras {
 	constructor(pipeline: PostProcessPipeline) {
 		this.wireframe = new WireframeEffect();
 		pipeline.addSceneEffect(this.wireframe);
+
+		// Applied inside the model shader, not the effect pipeline.
+		this.colorCutout = new ColorCutoutEffect();
 
 		// Scene reconstruction
 		this.gradientOutline = new GradientOutlineEffect();

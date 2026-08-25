@@ -20,6 +20,7 @@ export interface RenderSettings {
 	outlineSize: number;
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
+	cutoutMask: number;
 }
 
 /**
@@ -71,6 +72,7 @@ export class Renderer {
 		u_transparentColor: 0,
 		u_shadingEnabled: true,
 		u_renderMode: 0,
+		u_cutoutMask: 0,
 	};
 	private readonly outlineUniforms = {
 		u_texture: null as WebGLTexture | null,
@@ -95,6 +97,7 @@ export class Renderer {
 			height: 0,
 			time: 0,
 			depthTexture: null,
+			indexTexture: null,
 			backgroundColor: [0, 0, 0],
 			isOrthographic: false,
 			bgIsTransparent: false,
@@ -230,6 +233,7 @@ export class Renderer {
 			}
 
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			pipeline.pool.clearIndex(gl);
 			gl.viewport(0, 0, w, h);
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -255,8 +259,15 @@ export class Renderer {
 			this.drawModel(vpMatrix, settings, model, resources);
 		}
 
+		// Only the model shader writes the index attachment, later passes
+		// (wireframe, outline, post effects) draw to the color buffer alone.
+		if (useFbo) {
+			pipeline.pool.disableIndexWrites(gl);
+		}
+
 		if (pipeline.hasActiveSceneEffects()) {
 			ctx.depthTexture = pipeline.pool.getDepthTexture();
+			ctx.indexTexture = pipeline.pool.getIndexTexture();
 			for (const effect of pipeline.sceneEffects) {
 				if (!effect.enabled) continue;
 				if (!effect.initialized) {
@@ -284,8 +295,9 @@ export class Renderer {
 		}
 
 		if (pipeline.hasActivePostEffects()) {
-			pipeline.pool.detachDepth(gl);
+			pipeline.pool.detachSceneTextures(gl);
 			ctx.depthTexture = pipeline.pool.getDepthTexture();
+			ctx.indexTexture = pipeline.pool.getIndexTexture();
 			pipeline.execute(ctx, ctx.backgroundColor, bgIsTransparent, x, y);
 		} else {
 			pipeline.blit(gl, x, y, w, h, ctx.backgroundColor, bgIsTransparent);
@@ -396,6 +408,7 @@ export class Renderer {
 		uniforms.u_transparentColor = model.texture.transparentColor;
 		uniforms.u_shadingEnabled = settings.shading;
 		uniforms.u_renderMode = settings.renderMode;
+		uniforms.u_cutoutMask = settings.cutoutMask;
 
 		// Draw priority faces
 		this.drawGroups(vpMatrix, PRIORITY_GROUPS, resources);

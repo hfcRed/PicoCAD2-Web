@@ -33,6 +33,7 @@ export interface ColorGradingOptions {
 	contrast?: number;
 	saturation?: number;
 	hue?: number;
+	maskedColors?: number[];
 }
 
 export interface PosterizationOptions {
@@ -42,6 +43,7 @@ export interface PosterizationOptions {
 	channelLevels?: Color3;
 	gamma?: number;
 	colorBanding?: boolean;
+	maskedColors?: number[];
 }
 
 export interface BloomOptions {
@@ -50,6 +52,7 @@ export interface BloomOptions {
 	threshold?: number;
 	intensity?: number;
 	blur?: number;
+	maskedColors?: number[];
 }
 
 export interface DitheringOptions {
@@ -58,6 +61,7 @@ export interface DitheringOptions {
 	amount?: number;
 	blend?: number;
 	channelAmount?: Color3;
+	maskedColors?: number[];
 }
 
 export interface CRTOptions {
@@ -65,6 +69,8 @@ export interface CRTOptions {
 	modelOnly?: boolean;
 	curvature?: number;
 	scanlineIntensity?: number;
+	/** Gates the scanline shading only; curvature stays whole-frame. */
+	maskedColors?: number[];
 }
 
 export interface PixelationOptions {
@@ -73,6 +79,7 @@ export interface PixelationOptions {
 	pixelSize?: number;
 	shape?: PixelShape;
 	blend?: number;
+	maskedColors?: number[];
 }
 
 export interface LensDistortionOptions {
@@ -86,6 +93,7 @@ export interface NoiseOptions {
 	enabled?: boolean;
 	modelOnly?: boolean;
 	amount?: number;
+	maskedColors?: number[];
 }
 
 export interface ChromaticAberrationOptions {
@@ -98,6 +106,7 @@ export interface ChromaticAberrationOptions {
 	radialFalloff?: number;
 	centerX?: number;
 	centerY?: number;
+	maskedColors?: number[];
 }
 
 export interface VignetteOptions {
@@ -117,6 +126,7 @@ export interface DepthFogOptions {
 	far?: number;
 	density?: number;
 	mode?: FogMode;
+	maskedColors?: number[];
 }
 
 export interface HalftoneOptions {
@@ -126,6 +136,7 @@ export interface HalftoneOptions {
 	angle?: number;
 	blend?: number;
 	mode?: HalftoneMode;
+	maskedColors?: number[];
 }
 
 export interface GlitchOptions {
@@ -136,6 +147,7 @@ export interface GlitchOptions {
 	blockSize?: number;
 	rgbSplit?: boolean;
 	lineShift?: boolean;
+	maskedColors?: number[];
 }
 
 export interface ColorTintOptions {
@@ -147,6 +159,7 @@ export interface ColorTintOptions {
 	shadowColor?: Color3;
 	highlightColor?: Color3;
 	blend?: number;
+	maskedColors?: number[];
 }
 
 export interface SharpenOptions {
@@ -154,6 +167,7 @@ export interface SharpenOptions {
 	modelOnly?: boolean;
 	strength?: number;
 	threshold?: number;
+	maskedColors?: number[];
 }
 
 export interface EdgeDetectionOptions {
@@ -163,10 +177,17 @@ export interface EdgeDetectionOptions {
 	lineColor?: Color3;
 	backgroundColor?: Color3;
 	blend?: number;
+	maskedColors?: number[];
+}
+
+export interface ColorCutoutOptions {
+	enabled?: boolean;
+	maskedColors?: number[];
 }
 
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
+	colorCutout?: ColorCutoutOptions;
 	gradientOutline?: GradientOutlineOptions;
 	colorGrading?: ColorGradingOptions;
 	posterization?: PosterizationOptions;

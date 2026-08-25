@@ -17,7 +17,12 @@ export class GlitchEffect extends FullscreenEffect {
 	 * Creates a new glitch effect.
 	 */
 	constructor() {
-		super("glitch", glitchFrag, (ctx: EffectContext) => this.getUniforms(ctx));
+		super(
+			"glitch",
+			glitchFrag,
+			(ctx: EffectContext) => this.getUniforms(ctx),
+			true,
+		);
 	}
 
 	/**

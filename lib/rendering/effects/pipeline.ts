@@ -155,7 +155,18 @@ export class PostProcessPipeline {
 			const inputTexture = this.pool.swap(gl);
 			gl.viewport(0, 0, ctx.width, ctx.height);
 			gl.disable(gl.DEPTH_TEST);
-			effect.apply(ctx, inputTexture);
+
+			// Warping effects carry the palette index buffer alongside their
+			// color output so masks stay valid after the warp: they read the
+			// current index texture and write the other one of the pair.
+			if (effect.warpsIndex) {
+				this.pool.attachIndexTarget(gl);
+				effect.apply(ctx, inputTexture);
+				this.pool.resolveIndexTarget(gl);
+				ctx.indexTexture = this.pool.getIndexTexture();
+			} else {
+				effect.apply(ctx, inputTexture);
+			}
 		}
 
 		this.blit(

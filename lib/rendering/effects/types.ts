@@ -8,6 +8,7 @@ export interface EffectContext {
 	height: number;
 	time: number;
 	depthTexture: WebGLTexture | null;
+	indexTexture: WebGLTexture | null;
 	backgroundColor: Color3;
 	isOrthographic: boolean;
 	bgIsTransparent: boolean;
@@ -16,8 +17,10 @@ export interface EffectContext {
 export interface PostProcessEffect {
 	readonly id: string;
 	readonly initialized: boolean;
+	readonly warpsIndex?: boolean;
 	enabled: boolean;
 	modelOnly: boolean;
+	maskedColors: number[];
 	init(gl: WebGL2RenderingContext): void;
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void;
 	dispose(): void;

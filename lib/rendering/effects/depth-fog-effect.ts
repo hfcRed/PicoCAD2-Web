@@ -6,6 +6,7 @@ import {
 } from "../../camera/orbit-camera.ts";
 import depthFogFrag from "../../shaders/effects/depth-fog.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import { packColorMask } from "./color-mask.ts";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
 
 /** Fog falloff mode. */
@@ -30,6 +31,7 @@ export class DepthFogEffect implements PostProcessEffect {
 	enabled = false;
 	initialized = false;
 	modelOnly = true;
+	maskedColors: number[] = [];
 
 	color: [number, number, number] = [0.8, 0.85, 0.9];
 	near = 0.1;
@@ -66,6 +68,8 @@ export class DepthFogEffect implements PostProcessEffect {
 			u_depthTexture: ctx.depthTexture,
 			u_modelOnly: this.modelOnly,
 			u_bgIsTransparent: ctx.bgIsTransparent,
+			u_indexTexture: ctx.indexTexture,
+			u_colorMask: packColorMask(this.maskedColors),
 			u_fogColor: this.color,
 			u_near: this.near,
 			u_far: this.far,

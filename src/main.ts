@@ -58,10 +58,9 @@ function createPerfViewers(count: number, modelTexts: string[]): void {
 			canvas,
 			context,
 			resolution: { width: 128, height: 128, scale: 2 },
-			backgroundColor: [0, 0, 0,],
+			backgroundColor: [0, 0, 0],
 		});
 
-		
 		v.load(modelTexts[i % modelTexts.length]);
 		v.startRenderLoop();
 		v.enableCameraControls();

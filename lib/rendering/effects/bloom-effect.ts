@@ -3,6 +3,7 @@ import bloomBlurFrag from "../../shaders/effects/bloom-blur.frag";
 import bloomCompositeFrag from "../../shaders/effects/bloom-composite.frag";
 import bloomThresholdFrag from "../../shaders/effects/bloom-threshold.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import { packColorMask } from "./color-mask.ts";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
 
 /**
@@ -14,6 +15,7 @@ export class BloomEffect implements PostProcessEffect {
 	enabled = false;
 	initialized = false;
 	modelOnly = true;
+	maskedColors: number[] = [];
 	threshold = 0.8;
 	intensity = 1.0;
 	blur = 4.0;
@@ -91,6 +93,8 @@ export class BloomEffect implements PostProcessEffect {
 			u_threshold: this.threshold,
 			u_modelOnly: this.modelOnly,
 			u_bgIsTransparent: ctx.bgIsTransparent,
+			u_indexTexture: ctx.indexTexture,
+			u_colorMask: packColorMask(this.maskedColors),
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 

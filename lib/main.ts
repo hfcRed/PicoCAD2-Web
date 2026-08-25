@@ -2,7 +2,9 @@ export const COMPATIBLE_VERSION = "2.2.0-b16";
 export { PicoCAD2Context } from "./context.ts";
 export { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
+export { ColorCutoutEffect } from "./rendering/effects/color-cutout-effect.ts";
 export { ColorGradingEffect } from "./rendering/effects/color-grading-effect.ts";
+export { packColorMask } from "./rendering/effects/color-mask.ts";
 export {
 	ColorTintEffect,
 	type ColorTintMode,
@@ -46,6 +48,7 @@ export type {
 	CameraControlOptions,
 	CameraSettings,
 	ChromaticAberrationOptions,
+	ColorCutoutOptions,
 	ColorGradingOptions,
 	ColorTintOptions,
 	CRTOptions,

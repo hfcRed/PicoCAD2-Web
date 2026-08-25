@@ -33,8 +33,11 @@ export class PixelationEffect extends FullscreenEffect {
 	 * Creates a new pixelation effect.
 	 */
 	constructor() {
-		super("pixelation", pixelationFrag, (ctx: EffectContext) =>
-			this.getUniforms(ctx),
+		super(
+			"pixelation",
+			pixelationFrag,
+			(ctx: EffectContext) => this.getUniforms(ctx),
+			true,
 		);
 	}
 

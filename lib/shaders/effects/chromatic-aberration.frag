@@ -14,10 +14,15 @@ uniform vec2 u_center;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
-out vec4 fragColor;
+#include color-mask.glsl;
+
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragIndex;
 
 void main() {
     vec2 uv = v_texCoord;
+
+    fragIndex = texture(u_indexTexture, uv);
 
     vec2 deltaPx = (uv - u_center) * u_resolution;
     float distPx = length(deltaPx);
@@ -28,9 +33,13 @@ void main() {
     float falloffFactor = pow(dist, u_radialFalloff);
     float factor = falloffFactor * u_amount;
 
-    vec4 r = texture(u_texture, uv - dirUv * factor * u_redOffset);
-    vec4 g = texture(u_texture, uv - dirUv * factor * u_greenOffset);
-    vec4 b = texture(u_texture, uv - dirUv * factor * u_blueOffset);
+    vec2 rUV = uv - dirUv * factor * u_redOffset;
+    vec2 gUV = uv - dirUv * factor * u_greenOffset;
+    vec2 bUV = uv - dirUv * factor * u_blueOffset;
+
+    vec4 r = inColorMask(rUV) ? texture(u_texture, rUV) : texture(u_texture, uv);
+    vec4 g = inColorMask(gUV) ? texture(u_texture, gUV) : texture(u_texture, uv);
+    vec4 b = inColorMask(bUV) ? texture(u_texture, bUV) : texture(u_texture, uv);
 
     float blendAlpha = (r.a + g.a + b.a) / 3.0;
 

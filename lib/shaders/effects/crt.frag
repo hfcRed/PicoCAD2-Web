@@ -11,7 +11,10 @@ uniform vec3 u_backgroundColor;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
-out vec4 fragColor;
+#include color-mask.glsl;
+
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragIndex;
 
 void main() {
     vec2 uv = v_texCoord;
@@ -23,12 +26,15 @@ void main() {
 
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
         fragColor = vec4(u_bgIsTransparent ? vec3(0.0) : u_backgroundColor, 0.0);
+        fragIndex = NO_MODEL_INDEX;
         return;
     }
 
     vec4 col = texture(u_texture, uv);
+    fragIndex = texture(u_indexTexture, uv);
+
     float scan = sin(uv.y * u_resolution.y * 3.14159) * 0.5 + 0.5;
-    float m = mix(1.0, scan, u_scanlineIntensity);
+    float m = inColorMask(uv) ? mix(1.0, scan, u_scanlineIntensity) : 1.0;
 
     if (u_bgIsTransparent) {
         if (u_modelOnly) {

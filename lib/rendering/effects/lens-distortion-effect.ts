@@ -12,7 +12,7 @@ export class LensDistortionEffect extends FullscreenEffect {
 	 * Creates a new lens distortion effect.
 	 */
 	constructor() {
-		super("lensDistortion", lensDistortionFrag, () => this.getUniforms());
+		super("lensDistortion", lensDistortionFrag, () => this.getUniforms(), true);
 	}
 
 	/**

@@ -35,7 +35,7 @@ export function createIndexTexture(
 	);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-	
+
 	// PicoCAD 2 renders faces as LÖVE meshes whose texture keeps LÖVE's
 	// default "clamp" wrap mode, so UVs outside the texture repeat the edge
 	// pixels instead of tiling.

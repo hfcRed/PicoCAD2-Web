@@ -13,8 +13,10 @@ uniform float u_ambient;
 uniform float u_transparentColor;
 uniform bool u_shadingEnabled;
 uniform int u_renderMode; // 0 = texture, 1 = color
+uniform int u_cutoutMask;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragIndex;
 
 void main() {
     int flags = int(v_faceFlags + 0.5);
@@ -35,12 +37,18 @@ void main() {
         colorIdx = v_colorIndex;
     }
 
+    // Color cutout: selected palette colors act as additional transparent colors
+    int cutoutIdx = int(colorIdx + 0.5);
+    if (cutoutIdx < 16 && ((u_cutoutMask >> cutoutIdx) & 1) != 0) {
+        discard;
+    }
+
     // Compute shading level
     int paletteRow = 0;
     if (u_shadingEnabled && !noShade) {
         vec3 normal = normalize(v_normal);
         if (gl_FrontFacing) normal = -normal;
-        
+
         float rawDot = -dot(normal, u_lightDir);
         float lightFactor = 1.0 - (1.0 - rawDot) * (1.0 - rawDot);
         lightFactor = clamp(lightFactor, u_ambient, 1.0);
@@ -61,4 +69,10 @@ void main() {
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
 
     fragColor = vec4(color, 1.0);
+
+    // Base palette index (R) and shade row (G) for the screen-space index
+    // buffer used by effect color masks. The base index is written before
+    // the shade-row remap so masks select materials, not displayed colors.
+    // Ignored when no second color attachment is bound.
+    fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, 0.0, 0.0);
 }

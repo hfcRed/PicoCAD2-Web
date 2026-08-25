@@ -22,6 +22,7 @@ export class ChromaticAberrationEffect extends FullscreenEffect {
 			"chromaticAberration",
 			chromaticAberrationFrag,
 			(ctx: EffectContext) => this.getUniforms(ctx),
+			true,
 		);
 	}
 

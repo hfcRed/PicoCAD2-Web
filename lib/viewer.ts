@@ -291,7 +291,7 @@ export class PicoCAD2Viewer {
 
 		const texture = this.model.texture;
 		const bgIdx = texture.backgroundColor;
-		const colors = texture.colors;
+		const colors = texture.sourceColors;
 
 		return {
 			...this._modelInfo,
@@ -1268,6 +1268,11 @@ export class PicoCAD2Viewer {
 		const bgIdx = texture.backgroundColor;
 		const colors = texture.sourceColors;
 
+		const palette: Color3[] = [];
+		for (let i = 0; i < colors.length; i += 3) {
+			palette.push([colors[i], colors[i + 1], colors[i + 2]]);
+		}
+
 		return {
 			nodeCount,
 			polyCount,
@@ -1283,6 +1288,7 @@ export class PicoCAD2Viewer {
 				colors[texture.transparentColor * 3 + 1] ?? 0,
 				colors[texture.transparentColor * 3 + 2] ?? 0,
 			],
+			palette,
 		};
 	}
 

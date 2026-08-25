@@ -213,6 +213,7 @@ export interface ModelInfo {
 	hasAnimation: boolean;
 	backgroundColor: Color3;
 	transparentColor: Color3;
+	palette: Color3[];
 }
 
 export interface CameraControlOptions {

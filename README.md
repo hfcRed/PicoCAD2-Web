@@ -260,6 +260,7 @@ const info = viewer.modelInfo;
 // info.hasAnimation      - Whether the model has animation data
 // info.backgroundColor   - Rendered background color as [r, g, b] (0-1 range)
 // info.transparentColor  - Transparent color as [r, g, b] (0-1 range)
+// info.palette           - Full color palette as an array of [r, g, b] (0-1 range)
 ```
 
 ## Callbacks

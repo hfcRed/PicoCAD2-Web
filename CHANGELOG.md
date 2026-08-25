@@ -7,6 +7,11 @@
 - **Palette color masks (`maskedColors`)** — Bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, depth fog, edge detection and sharpen now accept a `maskedColors` array of base palette indices (0-15) selecting which colors the effect applies to. An empty array (the default) applies the effect everywhere, preserving existing behavior. Masks match the base palette index, so a color is selected whether lit or in shadow, and non-empty masks only ever match model pixels. Masked bloom acts as an emission mask (`extras.bloom.maskedColors = [10]` makes palette color 10 glow). Masked glitch only displaces and smears the selected colors. Included in options and the viewer state.
 - **Color cutout effect (`extras.colorCutout`)** — Renders the selected palette colors as additional transparent colors. Applied in the model shader, so it produces real holes that outlines and depth-based effects see. Unlike effect masks, an empty `maskedColors` array cuts nothing.
 - **Palette index buffer for custom effects** — The scene pass now writes a screen-space palette index buffer (R = base palette index, 255 = no model pixel, G = shade row) available to post-process effects as `EffectContext.indexTexture`. `FullscreenEffect` passes it to shaders as `u_indexTexture` together with a `u_colorMask` bitmask packed from the effect's `maskedColors` (helper exported as `packColorMask`).
+- **`modelInfo.palette`** — The model's full color palette as an array of `Color3` values in palette index order, at the full precision of the model source.
+
+### Fixed
+
+- **`modelInfo.backgroundColor` full precision** — Now returns the color at the full precision of the model source again when no background color override is set.
 
 ## 1.4.0-beta.2
 

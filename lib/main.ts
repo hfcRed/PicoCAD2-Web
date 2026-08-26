@@ -18,12 +18,25 @@ export { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
 export { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
 export { FullscreenEffect } from "./rendering/effects/fullscreen-effect.ts";
 export { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
+export {
+	GlitterEffect,
+	type GlitterShape,
+	type GlitterSpace,
+} from "./rendering/effects/glitter-effect.ts";
+export {
+	GradientLightEffect,
+	type GradientLightSource,
+} from "./rendering/effects/gradient-light-effect.ts";
 export { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effect.ts";
 export {
 	HalftoneEffect,
 	type HalftoneMode,
 } from "./rendering/effects/halftone-effect.ts";
 export { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
+export {
+	type MaterialStyle,
+	nearestPaletteIndex,
+} from "./rendering/effects/material-style.ts";
 export { NoiseEffect } from "./rendering/effects/noise-effect.ts";
 export { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 export {
@@ -31,7 +44,12 @@ export {
 	type PixelShape,
 } from "./rendering/effects/pixelation-effect.ts";
 export { PosterizationEffect } from "./rendering/effects/posterization-effect.ts";
+export { RimLightEffect } from "./rendering/effects/rim-light-effect.ts";
 export { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
+export {
+	SpecularEffect,
+	type SpecularEnvironment,
+} from "./rendering/effects/specular-effect.ts";
 export type {
 	EffectContext,
 	PostProcessEffect,
@@ -41,6 +59,7 @@ export { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
 export { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 export { BitmapFont } from "./rendering/font.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
+export type { WorldBounds } from "./scene/scene-graph.ts";
 export type {
 	AnimationSettings,
 	BloomOptions,
@@ -57,6 +76,8 @@ export type {
 	EdgeDetectionOptions,
 	ExtrasOptions,
 	GlitchOptions,
+	GlitterOptions,
+	GradientLightOptions,
 	GradientOutlineOptions,
 	HalftoneOptions,
 	LensDistortionOptions,
@@ -67,7 +88,10 @@ export type {
 	PixelationOptions,
 	PosterizationOptions,
 	ResolutionSettings,
+	RimLightOptions,
 	SharpenOptions,
+	SpecularEnvironmentOptions,
+	SpecularOptions,
 	ViewerSettings,
 	VignetteOptions,
 	WireframeOptions,

@@ -98,9 +98,10 @@ const viewer = new PicoCAD2Viewer({
   // Animation
   animationSpeed: 1,              // Animation playback speed multiplier (default: 1)
 
-  // Post-processing extras (all disabled by default)
+  // Effects (all disabled by default)
   extras: {
     bloom: { enabled: true, threshold: 0.6, intensity: 1.5 },
+    rimLight: { enabled: true, color: [1, 1, 1] },
     noise: { enabled: true, amount: 0.05 },
   },
 
@@ -316,9 +317,13 @@ const dataUrl = viewer.toDataURL("image/jpeg", 0.9);
 const pixels = viewer.toPixelData();
 ```
 
-## Post-Processing Effects
+## Effects
 
-All effects are available through `viewer.extras`. They are disabled by default and use lazy shader compilation (no GPU cost until first enabled).
+All effects live on `viewer.extras` and are disabled by default. They fall into three categories depending on where they run:
+
+- **Material effects** shade the model's surfaces inside the model shader. They use the model's true normals, work in every render path, and render before outlines and post-processing.
+- **Scene effects** draw additional geometry into the 3D scene alongside the model.
+- **Post-processing effects** are fullscreen passes over the rendered image, applied in a fixed chain.
 
 ```typescript
 // Enable an effect
@@ -328,6 +333,123 @@ viewer.extras.noise.amount = 0.1;
 // Disable it
 viewer.extras.noise.enabled = false;
 ```
+
+Post-processing shaders are compiled lazily, so effects have no GPU cost until first enabled.
+
+### Color Masks
+
+Effects that support masking have a `maskedColors` property: an array of base palette indices (0-15) selecting which of the model's colors the effect applies to. An empty array (the default) applies the effect everywhere.
+
+Masks select *materials*, not displayed colors: a color is matched whether it is lit or in shadow, and pixels keep their material identity under warping effects (glitch, pixelation, lens distortion, chromatic aberration, CRT) and under material effects like rim light. Non-empty masks only ever match model pixels, never the background or outline.
+
+```typescript
+// Make palette color 10 glow
+viewer.extras.bloom.enabled = true;
+viewer.extras.bloom.maskedColors = [10];
+
+// Glitch only the "screen" color of a model
+viewer.extras.glitch.enabled = true;
+viewer.extras.glitch.maskedColors = [12];
+```
+
+All material effects support masking, per texel. These post-processing effects support it: bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, pixelation, chromatic aberration, CRT, depth fog, edge detection, and sharpen.
+
+## Material Effects
+
+Material effects render inside the model shader. Each one has a `style` property choosing how it writes its result:
+
+- `"palette"` (default) — the effect only ever outputs the model's own palette colors: effect colors snap to the nearest palette entry, and soft edges use the same checkerboard dithering as the shading system. The render stays made of palette entries.
+- `"smooth"` — plain RGB blending for a modern look.
+
+### Color Cutout
+
+Renders the selected palette colors as additional transparent colors, punching real holes into the model that outlines and depth-based effects see. Unlike effect masks, an empty `maskedColors` array cuts nothing.
+
+```typescript
+viewer.extras.colorCutout.enabled = true;
+viewer.extras.colorCutout.maskedColors = [3, 7];    // These colors become transparent
+```
+
+### Rim Light
+
+Fresnel rim on the model's silhouette. On flat-shaded geometry the rim is chunky per-face, like classic sprite edge-lighting.
+
+```typescript
+viewer.extras.rimLight.enabled = true;
+viewer.extras.rimLight.color = [1, 1, 1];    // Rim color (default: [1, 1, 1])
+viewer.extras.rimLight.width = 0.35;         // How far the rim reaches in from the silhouette, 0-1 (default: 0.35)
+viewer.extras.rimLight.sharpness = 0.7;      // Soft dithered falloff to hard cut, 0-1 (default: 0.7)
+viewer.extras.rimLight.lightAlign = 0;       // -1 shadow side only, 0 everywhere, +1 lit side only (default: 0)
+viewer.extras.rimLight.blend = 1;            // Mix over the base color, 0-1 (default: 1)
+viewer.extras.rimLight.invert = false;       // Light camera-facing geometry instead (default: false)
+```
+
+The light is attached to the camera, so `lightAlign = -1` gives a backlight: the silhouette rim tilted away from the light.
+
+### Gradient Light
+
+Two-color tint ramp over the model: lit (or high) areas pull toward one color, shadowed (or low) areas toward another.
+
+```typescript
+viewer.extras.gradientLight.enabled = true;
+viewer.extras.gradientLight.litColor = [1, 0.92, 0.6];       // Color where the source is high (default: [1, 0.92, 0.6])
+viewer.extras.gradientLight.shadowColor = [0.35, 0.35, 0.7]; // Color where the source is low (default: [0.35, 0.35, 0.7])
+viewer.extras.gradientLight.source = "light";                // "light" | "worldY" | "screenY" (default: "light")
+viewer.extras.gradientLight.blend = 0.5;                     // Tint amount, 0-1 (default: 0.5)
+```
+
+### Specular
+
+Blinn-Phong highlight from the headlight, plus an optional procedural environment reflection: a two-color sky/ground sampled by the reflected view ray.
+
+```typescript
+viewer.extras.specular.enabled = true;
+viewer.extras.specular.strength = 0.5;       // Highlight intensity, 0-1 (default: 0.5)
+viewer.extras.specular.smoothness = 0.5;     // Highlight tightness, 0-1 (default: 0.5)
+viewer.extras.specular.color = [1, 1, 1];    // Highlight color (default: [1, 1, 1])
+viewer.extras.specular.anisotropy = 0;       // Screen-space highlight stretch, 0-1 (default: 0)
+
+// Environment reflection (off by default)
+viewer.extras.specular.environment.strength = 0.5;                  // Reflection amount, 0 = off (default: 0)
+viewer.extras.specular.environment.skyColor = [0.62, 0.87, 1];      // Reflected by upward-facing surfaces (default: [0.62, 0.87, 1])
+viewer.extras.specular.environment.groundColor = [0.42, 0.28, 0.2]; // Reflected by downward-facing surfaces (default: [0.42, 0.28, 0.2])
+viewer.extras.specular.environment.horizon = 0.5;                   // Horizon band sharpness, 0-1 (default: 0.5)
+viewer.extras.specular.environment.fresnel = 0.5;                   // Edge weighting of reflections, 0-1 (default: 0.5)
+```
+
+### Glitter
+
+View-angle triggered sparkles that pop in and out as the camera orbits, with a per-cell twinkle over time.
+
+```typescript
+viewer.extras.glitter.enabled = true;
+viewer.extras.glitter.space = "uv";          // Sparkle space (default: "uv")
+// Available spaces: "uv" (quantized to the texel grid) | "screen" | "world" (sticks to surfaces under animation)
+viewer.extras.glitter.density = 48;          // Sparkle cells per unit (default: 48)
+viewer.extras.glitter.size = 0.6;            // Lit fraction of a cell, 0-1 (default: 0.6)
+viewer.extras.glitter.color = [1, 1, 1];     // Sparkle color (default: [1, 1, 1])
+viewer.extras.glitter.brightness = 1;        // Max sparkle intensity (default: 1)
+viewer.extras.glitter.angleRange = 40;       // View-angle window in degrees, larger = more sparkles (default: 40)
+viewer.extras.glitter.speed = 1;             // Twinkle rate (default: 1)
+viewer.extras.glitter.shape = "square";      // "square" | "circle" (default: "square")
+viewer.extras.glitter.randomHue = false;     // Random per-cell hues, smooth style only (default: false)
+viewer.extras.glitter.hueRange = 0.5;        // Hue spread for randomHue, 0-1 (default: 0.5)
+```
+
+## Scene Effects
+
+Scene effects render additional geometry into the 3D scene, depth-tested against the model, before any post-processing.
+
+### Wireframe
+
+Renders wireframe edges over the model.
+
+```typescript
+viewer.extras.wireframe.enabled = true;
+viewer.extras.wireframe.color = [0, 1, 0];    // Wireframe color (default: [1, 1, 1])
+```
+
+## Post-Processing Effects
 
 ### Noise
 
@@ -536,18 +658,9 @@ viewer.extras.edgeDetection.backgroundColor = [1, 1, 1];      // Fill color (def
 viewer.extras.edgeDetection.blend = 1.0;                      // Blend with original (default: 1.0)
 ```
 
-### Wireframe
-
-Renders wireframe edges over the model. This is a scene effect (renders geometry) rather than a post-process effect.
-
-```typescript
-viewer.extras.wireframe.enabled = true;
-viewer.extras.wireframe.color = [0, 1, 0];    // Wireframe color (default: [1, 1, 1])
-```
-
 ### Model Only
 
-All effects have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels. Set to `false` to apply the effect to the entire viewport including the background.
+All post-processing effects and the wireframe have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels. Set to `false` to apply the effect to the entire viewport including the background. Material effects are inherently model-only.
 
 ```typescript
 viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport
@@ -575,7 +688,7 @@ When multiple effects are active, they are applied in this fixed order:
 16. Glitch
 17. Vignette
 
-Wireframe is a scene effect and renders into the scene before any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, gradient light, specular, rim light, glitter. Scene effects render into the 3D scene after the model. Both happen before the outline and any post-processing.
 
 ## Custom Effects
 
@@ -609,6 +722,8 @@ invertEffect.enabled = true;
 ```
 
 The fragment shader receives `v_texCoord` (0-1 UV coordinates) and must write to `fragColor`. The base class automatically binds the input texture as `u_texture`.
+
+Custom effects can also be color-masked: the scene's palette index buffer is available as `EffectContext.indexTexture` (R = base palette index, 255 = no model pixel; G = shade row). `FullscreenEffect` binds it as `u_indexTexture` automatically, together with a `u_colorMask` bitmask packed from the effect's `maskedColors` array (the packing helper is exported as `packColorMask`).
 
 ### Implementing PostProcessEffect
 

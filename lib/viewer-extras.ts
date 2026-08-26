@@ -8,6 +8,8 @@ import { DepthFogEffect } from "./rendering/effects/depth-fog-effect.ts";
 import { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
 import { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
 import { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
+import { GlitterEffect } from "./rendering/effects/glitter-effect.ts";
+import { GradientLightEffect } from "./rendering/effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effect.ts";
 import { HalftoneEffect } from "./rendering/effects/halftone-effect.ts";
 import { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
@@ -15,7 +17,9 @@ import { NoiseEffect } from "./rendering/effects/noise-effect.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import { PixelationEffect } from "./rendering/effects/pixelation-effect.ts";
 import { PosterizationEffect } from "./rendering/effects/posterization-effect.ts";
+import { RimLightEffect } from "./rendering/effects/rim-light-effect.ts";
 import { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
+import { SpecularEffect } from "./rendering/effects/specular-effect.ts";
 import { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
 import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 
@@ -23,7 +27,9 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  * Provides access to extra (non-official) effects for the viewer.
  * All effects are pre-instantiated but disabled by default.
  *
- * Post-process effects are applied in this default order:
+ * Material effects (color cutout, gradient light, specular, rim light,
+ * glitter) are applied inside the model shader, in that order, before any
+ * post-processing. Post-process effects are applied in this default order:
  * gradient outline -> depth fog -> edge detection -> color grading ->
  * color tint -> posterization -> sharpen -> bloom -> dithering ->
  * halftone -> CRT -> pixelation -> lens distortion -> chromatic aberration ->
@@ -32,6 +38,10 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
 	readonly colorCutout: ColorCutoutEffect;
+	readonly rimLight: RimLightEffect;
+	readonly gradientLight: GradientLightEffect;
+	readonly specular: SpecularEffect;
+	readonly glitter: GlitterEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly colorGrading: ColorGradingEffect;
 	readonly posterization: PosterizationEffect;
@@ -62,6 +72,10 @@ export class ViewerExtras {
 
 		// Applied inside the model shader, not the effect pipeline.
 		this.colorCutout = new ColorCutoutEffect();
+		this.rimLight = new RimLightEffect();
+		this.gradientLight = new GradientLightEffect();
+		this.specular = new SpecularEffect();
+		this.glitter = new GlitterEffect();
 
 		// Scene reconstruction
 		this.gradientOutline = new GradientOutlineEffect();

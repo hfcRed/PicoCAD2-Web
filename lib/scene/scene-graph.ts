@@ -1,8 +1,13 @@
-import { mat4 } from "gl-matrix";
+import { mat4, vec3 } from "gl-matrix";
 import type { SceneNode } from "../types/scene.ts";
 import { computeLocalMatrix } from "./transform.ts";
 
 const IDENTITY: mat4 = mat4.create();
+
+export interface WorldBounds {
+	min: [number, number, number];
+	max: [number, number, number];
+}
 
 /**
  * Traverses the scene graph in preorder, calling the callback on each child node.
@@ -65,6 +70,39 @@ function updateSubtree(
 
 		updateSubtree(child, true, child.worldMatrix, dirty);
 	}
+}
+
+/**
+ * Computes the world-space bounding box of all visible non-ghost meshes in
+ * their current pose. Call after {@link updateRenderState} so world
+ * matrices are valid.
+ *
+ * @param root - The root node of the scene graph.
+ * @returns The bounds, or a unit box around the origin if there is no geometry.
+ */
+export function computeWorldBounds(root: SceneNode): WorldBounds {
+	const min: [number, number, number] = [Infinity, Infinity, Infinity];
+	const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+	const v = vec3.create();
+
+	traverseNode(root, (node) => {
+		if (!node.mesh || node.ghost || !node.renderVisible) return;
+
+		const vertices = node.mesh.vertices;
+		for (let i = 0; i < vertices.length; i += 3) {
+			vec3.set(v, vertices[i], vertices[i + 1], vertices[i + 2]);
+			vec3.transformMat4(v, v, node.worldMatrix);
+			for (let axis = 0; axis < 3; axis++) {
+				if (v[axis] < min[axis]) min[axis] = v[axis];
+				if (v[axis] > max[axis]) max[axis] = v[axis];
+			}
+		}
+	});
+
+	if (min[0] > max[0]) {
+		return { min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] };
+	}
+	return { min, max };
 }
 
 /**

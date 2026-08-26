@@ -1,7 +1,13 @@
 import type { PicoCAD2Context } from "../context.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
+import type {
+	GlitterShape,
+	GlitterSpace,
+} from "../rendering/effects/glitter-effect.ts";
+import type { GradientLightSource } from "../rendering/effects/gradient-light-effect.ts";
 import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
+import type { MaterialStyle } from "../rendering/effects/material-style.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
 import type {
 	CameraMode,
@@ -184,9 +190,70 @@ export interface ColorCutoutOptions {
 	maskedColors?: number[];
 }
 
+export interface RimLightOptions {
+	enabled?: boolean;
+	color?: Color3;
+	width?: number;
+	sharpness?: number;
+	lightAlign?: number;
+	blend?: number;
+	invert?: boolean;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
+export interface GradientLightOptions {
+	enabled?: boolean;
+	litColor?: Color3;
+	shadowColor?: Color3;
+	source?: GradientLightSource;
+	blend?: number;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
+export interface SpecularEnvironmentOptions {
+	strength?: number;
+	skyColor?: Color3;
+	groundColor?: Color3;
+	horizon?: number;
+	fresnel?: number;
+}
+
+export interface SpecularOptions {
+	enabled?: boolean;
+	strength?: number;
+	smoothness?: number;
+	color?: Color3;
+	anisotropy?: number;
+	environment?: SpecularEnvironmentOptions;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
+export interface GlitterOptions {
+	enabled?: boolean;
+	space?: GlitterSpace;
+	density?: number;
+	size?: number;
+	color?: Color3;
+	randomHue?: boolean;
+	hueRange?: number;
+	brightness?: number;
+	angleRange?: number;
+	speed?: number;
+	shape?: GlitterShape;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
 	colorCutout?: ColorCutoutOptions;
+	rimLight?: RimLightOptions;
+	gradientLight?: GradientLightOptions;
+	specular?: SpecularOptions;
+	glitter?: GlitterOptions;
 	gradientOutline?: GradientOutlineOptions;
 	colorGrading?: ColorGradingOptions;
 	posterization?: PosterizationOptions;

@@ -179,6 +179,10 @@ export class PicoCAD2Viewer {
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
 		cutoutMask: 0,
+		rimLight: null,
+		gradientLight: null,
+		specular: null,
+		glitter: null,
 	};
 
 	private readonly boundHandlers: {
@@ -466,6 +470,11 @@ export class PicoCAD2Viewer {
 		settings.cutoutMask = cutout.enabled
 			? packColorMask(cutout.maskedColors)
 			: 0;
+
+		settings.rimLight = this._extras.rimLight;
+		settings.gradientLight = this._extras.gradientLight;
+		settings.specular = this._extras.specular;
+		settings.glitter = this._extras.glitter;
 	}
 
 	/**
@@ -1068,6 +1077,57 @@ export class PicoCAD2Viewer {
 				enabled: e.colorCutout.enabled,
 				maskedColors: [...e.colorCutout.maskedColors],
 			},
+			rimLight: {
+				enabled: e.rimLight.enabled,
+				color: [...e.rimLight.color],
+				width: e.rimLight.width,
+				sharpness: e.rimLight.sharpness,
+				lightAlign: e.rimLight.lightAlign,
+				blend: e.rimLight.blend,
+				invert: e.rimLight.invert,
+				style: e.rimLight.style,
+				maskedColors: [...e.rimLight.maskedColors],
+			},
+			gradientLight: {
+				enabled: e.gradientLight.enabled,
+				litColor: [...e.gradientLight.litColor],
+				shadowColor: [...e.gradientLight.shadowColor],
+				source: e.gradientLight.source,
+				blend: e.gradientLight.blend,
+				style: e.gradientLight.style,
+				maskedColors: [...e.gradientLight.maskedColors],
+			},
+			specular: {
+				enabled: e.specular.enabled,
+				strength: e.specular.strength,
+				smoothness: e.specular.smoothness,
+				color: [...e.specular.color],
+				anisotropy: e.specular.anisotropy,
+				environment: {
+					strength: e.specular.environment.strength,
+					skyColor: [...e.specular.environment.skyColor],
+					groundColor: [...e.specular.environment.groundColor],
+					horizon: e.specular.environment.horizon,
+					fresnel: e.specular.environment.fresnel,
+				},
+				style: e.specular.style,
+				maskedColors: [...e.specular.maskedColors],
+			},
+			glitter: {
+				enabled: e.glitter.enabled,
+				space: e.glitter.space,
+				density: e.glitter.density,
+				size: e.glitter.size,
+				color: [...e.glitter.color],
+				randomHue: e.glitter.randomHue,
+				hueRange: e.glitter.hueRange,
+				brightness: e.glitter.brightness,
+				angleRange: e.glitter.angleRange,
+				speed: e.glitter.speed,
+				shape: e.glitter.shape,
+				style: e.glitter.style,
+				maskedColors: [...e.glitter.maskedColors],
+			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,
 				modelOnly: e.gradientOutline.modelOnly,
@@ -1232,6 +1292,9 @@ export class PicoCAD2Viewer {
 
 		assign(this.extras.wireframe, extras.wireframe);
 		assign(this.extras.colorCutout, extras.colorCutout);
+		assign(this.extras.rimLight, extras.rimLight);
+		assign(this.extras.gradientLight, extras.gradientLight);
+		assign(this.extras.glitter, extras.glitter);
 		assign(this.extras.gradientOutline, extras.gradientOutline);
 		assign(this.extras.colorGrading, extras.colorGrading);
 		assign(this.extras.posterization, extras.posterization);
@@ -1249,6 +1312,12 @@ export class PicoCAD2Viewer {
 		assign(this.extras.colorTint, extras.colorTint);
 		assign(this.extras.sharpen, extras.sharpen);
 		assign(this.extras.edgeDetection, extras.edgeDetection);
+
+		if (extras.specular) {
+			const { environment, ...specular } = extras.specular;
+			assign(this.extras.specular, specular);
+			assign(this.extras.specular.environment, environment);
+		}
 	}
 
 	/**

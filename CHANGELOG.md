@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Material effects** — Four new effects that render inside the model shader instead of the post-process chain, so they work in every render path, use the model's true normals, and leave the palette index buffer intact for post-effect masks:
+  - **Rim light (`extras.rimLight`)** — Fresnel silhouette rim.
+  - **Gradient light (`extras.gradientLight`)** — Two-color tint ramp.
+  - **Specular (`extras.specular`)** — Blinn-Phong highlight from the headlight with an `anisotropy` stretch, plus an optional procedural environment reflection (`environment`)..
+  - **Glitter (`extras.glitter`)** — View-angle triggered sparkle cells..
+
+  Every material effect has a `style` setting: `"palette"` (default) renders using only palette colors. The effect colors snap to the nearest palette color and soft edges use the same checkerboard dithering as the shading system. `"smooth"` does plain RGB blending.
+
 - **Palette color masks (`maskedColors`)** — Bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, depth fog, edge detection and sharpen now accept a `maskedColors` array of base palette indices (0-15) selecting which colors the effect applies to. An empty array (the default) applies the effect everywhere, preserving existing behavior. Masks match the base palette index, so a color is selected whether lit or in shadow, and non-empty masks only ever match model pixels. Masked bloom acts as an emission mask (`extras.bloom.maskedColors = [10]` makes palette color 10 glow). Masked glitch only displaces and smears the selected colors. Included in options and the viewer state.
 - **Color cutout effect (`extras.colorCutout`)** — Renders the selected palette colors as additional transparent colors. Applied in the model shader, so it produces real holes that outlines and depth-based effects see. Unlike effect masks, an empty `maskedColors` array cuts nothing.
 - **Palette index buffer for custom effects** — The scene pass now writes a screen-space palette index buffer (R = base palette index, 255 = no model pixel, G = shade row) available to post-process effects as `EffectContext.indexTexture`. `FullscreenEffect` passes it to shaders as `u_indexTexture` together with a `u_colorMask` bitmask packed from the effect's `maskedColors` (helper exported as `packColorMask`).

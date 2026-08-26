@@ -1,15 +1,25 @@
 import { mat4, vec3 } from "gl-matrix";
 import * as twgl from "twgl.js";
 import type { OrbitCamera } from "../camera/orbit-camera.ts";
-import { updateRenderState } from "../scene/scene-graph.ts";
+import {
+	computeWorldBounds,
+	updateRenderState,
+	type WorldBounds,
+} from "../scene/scene-graph.ts";
 import type { Color3, PicoCAD2Model } from "../types/scene.ts";
 import {
 	buildAllBuffers,
 	type NodeBuffers,
 	updateNodeTexCoords,
 } from "./buffers.ts";
+import { packColorMask } from "./effects/color-mask.ts";
+import type { GlitterEffect } from "./effects/glitter-effect.ts";
+import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
+import { writeStyledColor } from "./effects/material-style.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
+import type { RimLightEffect } from "./effects/rim-light-effect.ts";
+import type { SpecularEffect } from "./effects/specular-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
@@ -21,6 +31,10 @@ export interface RenderSettings {
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
 	cutoutMask: number;
+	rimLight: RimLightEffect | null;
+	gradientLight: GradientLightEffect | null;
+	specular: SpecularEffect | null;
+	glitter: GlitterEffect | null;
 }
 
 /**
@@ -46,6 +60,8 @@ export interface ModelResources {
 	indexTexture: WebGLTexture;
 	paletteTexture: WebGLTexture;
 	nodeBuffers: NodeBuffers[];
+	/** World-space bounds of the rest pose, for effects that need a model frame. */
+	bounds: WorldBounds;
 }
 
 export interface RenderStats {
@@ -62,9 +78,11 @@ export class Renderer {
 	private programs: ShaderPrograms;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private readonly effectCtx: EffectContext;
-	private readonly modelUniforms = {
+	private readonly nodeUniforms = {
 		u_mvp: this.mvpMatrix,
 		u_worldMatrix: this.mvpMatrix as mat4,
+	};
+	private readonly modelUniforms = {
 		u_indexTexture: null as WebGLTexture | null,
 		u_paletteTexture: null as WebGLTexture | null,
 		u_lightDir: this.lightDirWorld,
@@ -73,6 +91,60 @@ export class Renderer {
 		u_shadingEnabled: true,
 		u_renderMode: 0,
 		u_cutoutMask: 0,
+
+		u_cameraPos: [0, 0, 0] as Color3,
+		u_cameraFwd: [0, 0, -1] as Color3,
+		u_cameraRight: [1, 0, 0] as Color3,
+		u_isOrtho: false,
+		u_time: 0,
+		u_resolution: [1, 1] as [number, number],
+		u_viewportOrigin: [0, 0] as [number, number],
+		u_boundsMinY: 0,
+		u_boundsSpanY: 1,
+
+		u_rimEnabled: false,
+		u_rimColor: [1, 1, 1] as Color3,
+		u_rimWidth: 0,
+		u_rimSharpness: 0,
+		u_rimLightAlign: 0,
+		u_rimBlend: 0,
+		u_rimInvert: false,
+		u_rimSmooth: false,
+		u_rimMask: 0,
+
+		u_gradLightEnabled: false,
+		u_gradLightLit: [1, 1, 1] as Color3,
+		u_gradLightShadow: [0, 0, 0] as Color3,
+		u_gradLightSource: 0,
+		u_gradLightBlend: 0,
+		u_gradLightSmooth: false,
+		u_gradLightMask: 0,
+
+		u_specEnabled: false,
+		u_specColor: [1, 1, 1] as Color3,
+		u_specStrength: 0,
+		u_specSmoothness: 0,
+		u_specAnisotropy: 0,
+		u_envStrength: 0,
+		u_envSky: [0, 0, 0] as Color3,
+		u_envGround: [0, 0, 0] as Color3,
+		u_envHorizon: 0.5,
+		u_envFresnel: 0,
+		u_specSmooth: false,
+		u_specMask: 0,
+
+		u_glitterEnabled: false,
+		u_glitterColor: [1, 1, 1] as Color3,
+		u_glitterSpace: 0,
+		u_glitterDensity: 0,
+		u_glitterSize: 0,
+		u_glitterHueRange: 0,
+		u_glitterBrightness: 0,
+		u_glitterAngleCos: 0,
+		u_glitterSpeed: 0,
+		u_glitterShape: 0,
+		u_glitterSmooth: false,
+		u_glitterMask: 0,
 	};
 	private readonly outlineUniforms = {
 		u_texture: null as WebGLTexture | null,
@@ -111,10 +183,13 @@ export class Renderer {
 	 * @returns The GPU resources needed to render this model.
 	 */
 	createModelResources(model: PicoCAD2Model): ModelResources {
+		updateRenderState(model.root);
+
 		return {
 			indexTexture: createIndexTexture(this.gl, model.texture),
 			paletteTexture: createPaletteTexture(this.gl, model.texture),
 			nodeBuffers: buildAllBuffers(this.gl, model.root),
+			bounds: computeWorldBounds(model.root),
 		};
 	}
 
@@ -171,6 +246,26 @@ export class Renderer {
 		this.lightDirWorld[0] = v[0] * lx + v[1] * ly + v[2] * lz;
 		this.lightDirWorld[1] = v[4] * lx + v[5] * ly + v[6] * lz;
 		this.lightDirWorld[2] = v[8] * lx + v[9] * ly + v[10] * lz;
+
+		// Camera world position and basis for the material effects, from the
+		// view matrix V = [R|t]: position = -Rᵀt, right = Rᵀx̂, forward = -Rᵀẑ.
+		const mu = this.modelUniforms;
+		mu.u_cameraPos[0] = -(v[0] * v[12] + v[1] * v[13] + v[2] * v[14]);
+		mu.u_cameraPos[1] = -(v[4] * v[12] + v[5] * v[13] + v[6] * v[14]);
+		mu.u_cameraPos[2] = -(v[8] * v[12] + v[9] * v[13] + v[10] * v[14]);
+		mu.u_cameraFwd[0] = -v[2];
+		mu.u_cameraFwd[1] = -v[6];
+		mu.u_cameraFwd[2] = -v[10];
+		mu.u_cameraRight[0] = v[0];
+		mu.u_cameraRight[1] = v[4];
+		mu.u_cameraRight[2] = v[8];
+		mu.u_isOrtho = camera.projectionMode === "orthographic";
+		mu.u_time = time;
+		mu.u_resolution[0] = w;
+		mu.u_resolution[1] = h;
+
+		mu.u_viewportOrigin[0] = useFbo ? 0 : x;
+		mu.u_viewportOrigin[1] = useFbo ? 0 : y;
 
 		updateRenderState(model.root);
 
@@ -409,6 +504,8 @@ export class Renderer {
 		uniforms.u_shadingEnabled = settings.shading;
 		uniforms.u_renderMode = settings.renderMode;
 		uniforms.u_cutoutMask = settings.cutoutMask;
+		this.updateMaterialUniforms(settings, model, resources);
+		twgl.setUniforms(this.programs.model, uniforms);
 
 		// Draw priority faces
 		this.drawGroups(vpMatrix, PRIORITY_GROUPS, resources);
@@ -424,8 +521,104 @@ export class Renderer {
 	}
 
 	/**
+	 * Maps the material effect settings (rim light, gradient light, specular,
+	 * glitter) onto the model shader's uniforms. Palette-style effect colors
+	 * are snapped to the nearest palette entry here, so the shader receives
+	 * legal palette colors and models can swap palettes freely.
+	 *
+	 * @param settings - The current render settings.
+	 * @param model - The parsed model, for its palette.
+	 * @param resources - The GPU resources, for the model bounds.
+	 */
+	private updateMaterialUniforms(
+		settings: RenderSettings,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+	): void {
+		const u = this.modelUniforms;
+		const palette = model.texture.colors;
+
+		u.u_boundsMinY = resources.bounds.min[1];
+		u.u_boundsSpanY = Math.max(
+			resources.bounds.max[1] - resources.bounds.min[1],
+			1e-6,
+		);
+
+		const rim = settings.rimLight;
+		u.u_rimEnabled = rim?.enabled ?? false;
+		if (rim?.enabled) {
+			writeStyledColor(u.u_rimColor, rim.color, rim.style, palette);
+			u.u_rimWidth = rim.width;
+			u.u_rimSharpness = rim.sharpness;
+			u.u_rimLightAlign = rim.lightAlign;
+			u.u_rimBlend = rim.blend;
+			u.u_rimInvert = rim.invert;
+			u.u_rimSmooth = rim.style === "smooth";
+			u.u_rimMask = packColorMask(rim.maskedColors);
+		}
+
+		const grad = settings.gradientLight;
+		u.u_gradLightEnabled = grad?.enabled ?? false;
+		if (grad?.enabled) {
+			writeStyledColor(u.u_gradLightLit, grad.litColor, grad.style, palette);
+			writeStyledColor(
+				u.u_gradLightShadow,
+				grad.shadowColor,
+				grad.style,
+				palette,
+			);
+			u.u_gradLightSource =
+				grad.source === "light" ? 0 : grad.source === "worldY" ? 1 : 2;
+			u.u_gradLightBlend = grad.blend;
+			u.u_gradLightSmooth = grad.style === "smooth";
+			u.u_gradLightMask = packColorMask(grad.maskedColors);
+		}
+
+		const spec = settings.specular;
+		u.u_specEnabled = spec?.enabled ?? false;
+		if (spec?.enabled) {
+			const env = spec.environment;
+			writeStyledColor(u.u_specColor, spec.color, spec.style, palette);
+			writeStyledColor(u.u_envSky, env.skyColor, spec.style, palette);
+			writeStyledColor(u.u_envGround, env.groundColor, spec.style, palette);
+			u.u_specStrength = spec.strength;
+			u.u_specSmoothness = spec.smoothness;
+			// Capped below 1 so the flattened normal can't collapse to zero
+			// length for faces pointing along the camera's right axis.
+			u.u_specAnisotropy = Math.min(Math.max(spec.anisotropy, 0), 0.98);
+			u.u_envStrength = env.strength;
+			u.u_envHorizon = env.horizon;
+			u.u_envFresnel = env.fresnel;
+			u.u_specSmooth = spec.style === "smooth";
+			u.u_specMask = packColorMask(spec.maskedColors);
+		}
+
+		const glitter = settings.glitter;
+		u.u_glitterEnabled = glitter?.enabled ?? false;
+		if (glitter?.enabled) {
+			writeStyledColor(u.u_glitterColor, glitter.color, glitter.style, palette);
+			u.u_glitterSpace =
+				glitter.space === "uv" ? 0 : glitter.space === "screen" ? 1 : 2;
+			u.u_glitterDensity = glitter.density;
+			u.u_glitterSize = Math.min(Math.max(glitter.size, 0), 1);
+			u.u_glitterHueRange = glitter.randomHue
+				? Math.max(glitter.hueRange, 0) * Math.PI
+				: 0;
+			u.u_glitterBrightness = Math.max(glitter.brightness, 0);
+			u.u_glitterAngleCos = Math.cos(
+				(Math.min(Math.max(glitter.angleRange, 1), 90) * Math.PI) / 180,
+			);
+			u.u_glitterSpeed = glitter.speed;
+			u.u_glitterShape = glitter.shape === "square" ? 0 : 1;
+			u.u_glitterSmooth = glitter.style === "smooth";
+			u.u_glitterMask = packColorMask(glitter.maskedColors);
+		}
+	}
+
+	/**
 	 * Draws specific render groups across all node buffers.
-	 * Model-wide uniforms in {@link modelUniforms} must be set by the caller.
+	 * Model-wide uniforms must already be uploaded by {@link drawModel};
+	 * this only sets the per-node matrices.
 	 *
 	 * @param vpMatrix - The view-projection matrix.
 	 * @param groupIndices - Which render groups to draw.
@@ -449,7 +642,7 @@ export class Renderer {
 			}
 
 			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.worldMatrix);
-			this.modelUniforms.u_worldMatrix = nb.node.worldMatrix;
+			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -464,7 +657,7 @@ export class Renderer {
 				}
 
 				twgl.setBuffersAndAttributes(gl, this.programs.model, group.bufferInfo);
-				twgl.setUniforms(this.programs.model, this.modelUniforms);
+				twgl.setUniforms(this.programs.model, this.nodeUniforms);
 				twgl.drawBufferInfo(gl, group.bufferInfo);
 
 				this.stats.drawCalls++;

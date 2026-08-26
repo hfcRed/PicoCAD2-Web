@@ -2,6 +2,7 @@
 precision highp float;
 
 in vec3 v_normal;
+in vec3 v_worldPos;
 in vec2 v_texCoord;
 in float v_colorIndex;
 in float v_faceFlags;
@@ -14,6 +15,8 @@ uniform float u_transparentColor;
 uniform bool u_shadingEnabled;
 uniform int u_renderMode; // 0 = texture, 1 = color
 uniform int u_cutoutMask;
+
+#include chunks/material-effects.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
@@ -43,15 +46,17 @@ void main() {
         discard;
     }
 
+    vec3 normal = normalize(v_normal);
+    if (gl_FrontFacing) normal = -normal;
+
+    // Headlight amount, shared by the shading and the material effects
+    float rawDot = -dot(normal, u_lightDir);
+    float lightAmount = clamp(1.0 - (1.0 - rawDot) * (1.0 - rawDot), 0.0, 1.0);
+
     // Compute shading level
     int paletteRow = 0;
     if (u_shadingEnabled && !noShade) {
-        vec3 normal = normalize(v_normal);
-        if (gl_FrontFacing) normal = -normal;
-
-        float rawDot = -dot(normal, u_lightDir);
-        float lightFactor = 1.0 - (1.0 - rawDot) * (1.0 - rawDot);
-        lightFactor = clamp(lightFactor, u_ambient, 1.0);
+        float lightFactor = max(lightAmount, u_ambient);
 
         if (lightFactor < 0.4) {
             paletteRow = 2;
@@ -67,6 +72,10 @@ void main() {
     float u = (colorIdx + 0.5) / 16.0;
     float v = (float(paletteRow) + 0.5) / 3.0;
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
+
+    color = applyMaterialEffects(
+        color, colorIdx, normal, v_worldPos, v_texCoord, lightAmount, -u_lightDir
+    );
 
     fragColor = vec4(color, 1.0);
 

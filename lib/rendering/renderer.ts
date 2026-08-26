@@ -16,6 +16,7 @@ import { packColorMask } from "./effects/color-mask.ts";
 import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
+import type { InteriorEffect } from "./effects/interior-effect.ts";
 import { writeStyledColor } from "./effects/material-style.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import type { RimLightEffect } from "./effects/rim-light-effect.ts";
@@ -31,6 +32,7 @@ export interface RenderSettings {
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
 	cutoutMask: number;
+	interior: InteriorEffect | null;
 	rimLight: RimLightEffect | null;
 	gradientLight: GradientLightEffect | null;
 	specular: SpecularEffect | null;
@@ -101,6 +103,17 @@ export class Renderer {
 		u_viewportOrigin: [0, 0] as [number, number],
 		u_boundsMinY: 0,
 		u_boundsSpanY: 1,
+
+		u_interiorEnabled: false,
+		u_interiorPattern: 0,
+		u_interiorDepth: 0,
+		u_interiorLayers: 1,
+		u_interiorScale: 1,
+		u_interiorSpeed: 0,
+		u_interiorColor: [1, 1, 1] as Color3,
+		u_interiorBgColor: [0, 0, 0] as Color3,
+		u_interiorSmooth: false,
+		u_interiorMask: 0,
 
 		u_rimEnabled: false,
 		u_rimColor: [1, 1, 1] as Color3,
@@ -521,8 +534,8 @@ export class Renderer {
 	}
 
 	/**
-	 * Maps the material effect settings (rim light, gradient light, specular,
-	 * glitter) onto the model shader's uniforms. Palette-style effect colors
+	 * Maps the material effect settings (interior, rim light, gradient light,
+	 * specular, glitter) onto the model shader's uniforms. Palette-style effect colors
 	 * are snapped to the nearest palette entry here, so the shader receives
 	 * legal palette colors and models can swap palettes freely.
 	 *
@@ -543,6 +556,42 @@ export class Renderer {
 			resources.bounds.max[1] - resources.bounds.min[1],
 			1e-6,
 		);
+
+		const interior = settings.interior;
+		u.u_interiorEnabled = interior?.enabled ?? false;
+		if (interior?.enabled) {
+			writeStyledColor(
+				u.u_interiorColor,
+				interior.color,
+				interior.style,
+				palette,
+			);
+			writeStyledColor(
+				u.u_interiorBgColor,
+				interior.backgroundColor,
+				interior.style,
+				palette,
+			);
+			u.u_interiorPattern =
+				interior.pattern === "stars"
+					? 0
+					: interior.pattern === "dust"
+						? 1
+						: interior.pattern === "voronoi"
+							? 2
+							: interior.pattern === "lava"
+								? 3
+								: 4;
+			u.u_interiorDepth = Math.max(interior.depth, 0);
+			u.u_interiorLayers = Math.min(
+				Math.max(Math.round(interior.layers), 1),
+				4,
+			);
+			u.u_interiorScale = interior.scale;
+			u.u_interiorSpeed = interior.speed;
+			u.u_interiorSmooth = interior.style === "smooth";
+			u.u_interiorMask = packColorMask(interior.maskedColors);
+		}
 
 		const rim = settings.rimLight;
 		u.u_rimEnabled = rim?.enabled ?? false;

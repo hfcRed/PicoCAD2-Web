@@ -7,6 +7,7 @@ import type {
 } from "../rendering/effects/glitter-effect.ts";
 import type { GradientLightSource } from "../rendering/effects/gradient-light-effect.ts";
 import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
+import type { InteriorPattern } from "../rendering/effects/interior-effect.ts";
 import type { MaterialStyle } from "../rendering/effects/material-style.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
 import type {
@@ -190,6 +191,19 @@ export interface ColorCutoutOptions {
 	maskedColors?: number[];
 }
 
+export interface InteriorOptions {
+	enabled?: boolean;
+	pattern?: InteriorPattern;
+	depth?: number;
+	layers?: number;
+	scale?: number;
+	speed?: number;
+	color?: Color3;
+	backgroundColor?: Color3;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
 export interface RimLightOptions {
 	enabled?: boolean;
 	color?: Color3;
@@ -250,6 +264,7 @@ export interface GlitterOptions {
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
 	colorCutout?: ColorCutoutOptions;
+	interior?: InteriorOptions;
 	rimLight?: RimLightOptions;
 	gradientLight?: GradientLightOptions;
 	specular?: SpecularOptions;

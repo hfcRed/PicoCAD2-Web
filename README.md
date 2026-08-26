@@ -370,6 +370,25 @@ viewer.extras.colorCutout.enabled = true;
 viewer.extras.colorCutout.maskedColors = [3, 7];    // These colors become transparent
 ```
 
+### Interior
+
+Fake depth behind selected palette colors: for masked texels the view ray is marched a few steps into the surface and a procedural 3D field is sampled at each depth, with parallax that tracks the camera.
+
+```typescript
+viewer.extras.interior.enabled = true;
+viewer.extras.interior.maskedColors = [7];              // These colors become windows into the pattern
+viewer.extras.interior.pattern = "stars";               // Pattern behind the surface (default: "stars")
+// Available patterns: "stars" | "dust" | "voronoi" | "lava" | "grid"
+viewer.extras.interior.depth = 2;                       // World units to the deepest layer (default: 2)
+viewer.extras.interior.layers = 3;                      // Pattern layers, 1-4 (default: 3)
+viewer.extras.interior.scale = 4;                       // Pattern cells per world unit (default: 4)
+viewer.extras.interior.speed = 1;                       // Pattern animation rate, 0 = frozen (default: 1)
+viewer.extras.interior.color = [1, 1, 1];               // Pattern color (default: [1, 1, 1])
+viewer.extras.interior.backgroundColor = [0.06, 0.05, 0.13]; // Fill behind the last layer (default: [0.06, 0.05, 0.13])
+```
+
+Unlike the other material effects, the masked texels are replaced entirely by the interior. An empty `maskedColors` array applies it to every color, turning the whole model into a hologram.
+
 ### Rim Light
 
 Fresnel rim on the model's silhouette. On flat-shaded geometry the rim is chunky per-face, like classic sprite edge-lighting.
@@ -688,7 +707,7 @@ When multiple effects are active, they are applied in this fixed order:
 16. Glitch
 17. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, gradient light, specular, rim light, glitter. Scene effects render into the 3D scene after the model. Both happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter. Scene effects render into the 3D scene after the model. Both happen before the outline and any post-processing.
 
 ## Custom Effects
 

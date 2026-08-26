@@ -1,6 +1,6 @@
 /**
- * Material effects applied inside the model shader: rim light, gradient
- * light, specular + environment reflection, and glitter. Self-contained:
+ * Material effects applied inside the model shader: interior, rim light,
+ * gradient light, specular + environment reflection, and glitter. Self-contained:
  * declares its own uniforms and receives all per-fragment inputs as
  * parameters of applyMaterialEffects().
  *
@@ -16,7 +16,7 @@
  * a rim or sparkle is light on a material instead of a material change.
  */
 
-#include hash.glsl;
+#include patterns.glsl;
 
 uniform vec3 u_cameraPos;
 uniform vec3 u_cameraFwd;
@@ -27,6 +27,17 @@ uniform vec2 u_resolution;
 uniform vec2 u_viewportOrigin;
 uniform float u_boundsMinY; // model rest-pose world bounds, for worldY ramps
 uniform float u_boundsSpanY;
+
+uniform bool u_interiorEnabled;
+uniform int u_interiorPattern; // 0 = stars, 1 = dust, 2 = voronoi, 3 = lava, 4 = grid
+uniform float u_interiorDepth;
+uniform int u_interiorLayers;
+uniform float u_interiorScale;
+uniform float u_interiorSpeed;
+uniform vec3 u_interiorColor;
+uniform vec3 u_interiorBgColor;
+uniform bool u_interiorSmooth;
+uniform int u_interiorMask;
 
 uniform bool u_rimEnabled;
 uniform vec3 u_rimColor;
@@ -110,6 +121,30 @@ vec3 hueRotate(vec3 c, float angle) {
 }
 
 /**
+ * Fakes a volume behind the surface. Marches the view ray a few steps into
+ * the surface and samples a 3D pattern field at each depth. The world-space
+ * construction needs no tangent basis and works on untextured faces too.
+ * Layers composite far to near over the background fill, so the nearest
+ * layer wins a contested pixel.
+ */
+vec3 applyInterior(vec3 worldPos, vec3 viewDir) {
+    float t = u_time * u_interiorSpeed;
+    vec3 result = u_interiorBgColor;
+
+    for (int i = 3; i >= 0; i--) {
+        if (i >= u_interiorLayers) continue;
+        float depth = u_interiorDepth * float(i + 1) / float(u_interiorLayers);
+        vec3 p = (worldPos - viewDir * depth) * u_interiorScale;
+        float f = patternField(u_interiorPattern, p, t);
+
+        float fade = 1.0 - 0.15 * float(i);
+        result = applyStyled(result, u_interiorColor, f * fade, u_interiorSmooth);
+    }
+
+    return result;
+}
+
+/**
  * Two-color tint ramp: shadow color at g = 0, lit color at g = 1.
  * Palette style picks one of the two entries with a dithered transition
  * band instead of blending between them.
@@ -119,8 +154,10 @@ vec3 applyGradientLight(vec3 color, float g) {
         vec3 target = mix(u_gradLightShadow, u_gradLightLit, g);
         return mix(color, target, clamp(u_gradLightBlend, 0.0, 1.0));
     }
+
     float sel = smoothstep(0.35, 0.65, g);
     vec3 target = ditherGate(sel) ? u_gradLightLit : u_gradLightShadow;
+
     return applyStyled(color, target, u_gradLightBlend, false);
 }
 
@@ -135,9 +172,11 @@ vec3 applySpecular(vec3 color, vec3 normal, vec3 viewDir, vec3 toLight, float nd
         float skyness = smoothstep(-w, w, r.y);
         float fres = (1.0 - ndv) * (1.0 - ndv);
         float tEnv = u_envStrength * mix(1.0, fres, u_envFresnel);
+
         vec3 envColor = u_specSmooth
             ? mix(u_envGround, u_envSky, skyness)
             : (ditherGate(skyness) ? u_envSky : u_envGround);
+
         color = applyStyled(color, envColor, tEnv, u_specSmooth);
     }
 
@@ -147,8 +186,10 @@ vec3 applySpecular(vec3 color, vec3 normal, vec3 viewDir, vec3 toLight, float nd
     vec3 n = normalize(
         normal - u_specAnisotropy * dot(normal, u_cameraRight) * u_cameraRight
     );
+
     float exponent = exp2(1.0 + u_specSmoothness * 7.0);
     float spec = pow(max(dot(n, h), 0.0), exponent);
+
     return applyStyled(color, u_specColor, spec * u_specStrength, u_specSmooth);
 }
 
@@ -161,9 +202,11 @@ vec3 applyRim(vec3 color, float ndv, float lightAmount) {
     float edge = 1.0 - u_rimWidth;
     float soft = max((1.0 - u_rimSharpness) * 0.5, 0.001);
     float t = smoothstep(edge - soft, edge + soft, signal);
+
     float alignWeight = u_rimLightAlign >= 0.0
         ? mix(1.0, lightAmount, u_rimLightAlign)
         : mix(1.0, 1.0 - lightAmount, -u_rimLightAlign);
+
     return applyStyled(color, u_rimColor, t * alignWeight * u_rimBlend, u_rimSmooth);
 }
 
@@ -175,6 +218,7 @@ vec3 applyRim(vec3 color, float ndv, float lightAmount) {
 vec3 applyGlitter(vec3 color, vec3 worldPos, vec2 texCoord, vec3 viewDir) {
     vec3 p;
     bool is3d = u_glitterSpace == 2;
+    
     if (u_glitterSpace == 0) {
         // Quantize to texel centers so sparkle edges land on texel boundaries
         vec2 uvq = (floor(texCoord * 128.0) + 0.5) / 128.0;
@@ -193,6 +237,7 @@ vec3 applyGlitter(vec3 color, vec3 worldPos, vec2 texCoord, vec3 viewDir) {
     float halfSize = max(u_glitterSize * 0.5, 0.001);
     vec3 center = mix(vec3(halfSize), vec3(1.0 - halfSize), h.xyz);
     vec3 d = abs(local - center) / halfSize;
+
     if (!is3d) d.z = 0.0;
     float dist = u_glitterShape == 0 ? max(d.x, max(d.y, d.z)) : length(d);
     if (dist > 1.0) return color;
@@ -211,6 +256,7 @@ vec3 applyGlitter(vec3 color, vec3 worldPos, vec2 texCoord, vec3 viewDir) {
         float hue = (hash13(cell + 41.41) - 0.5) * 2.0 * u_glitterHueRange;
         sparkleColor = clamp(hueRotate(sparkleColor, hue), 0.0, 1.0);
     }
+    
     return applyStyled(color, sparkleColor, t, u_glitterSmooth);
 }
 
@@ -228,6 +274,10 @@ vec3 applyMaterialEffects(
 ) {
     vec3 viewDir = u_isOrtho ? -u_cameraFwd : normalize(u_cameraPos - worldPos);
     float ndv = clamp(dot(normal, viewDir), 0.0, 1.0);
+
+    if (u_interiorEnabled && inMaterialMask(u_interiorMask, colorIdx)) {
+        color = applyInterior(worldPos, viewDir);
+    }
 
     if (u_gradLightEnabled && inMaterialMask(u_gradLightMask, colorIdx)) {
         float g;

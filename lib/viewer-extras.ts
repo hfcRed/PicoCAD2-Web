@@ -12,6 +12,7 @@ import { GlitterEffect } from "./rendering/effects/glitter-effect.ts";
 import { GradientLightEffect } from "./rendering/effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effect.ts";
 import { HalftoneEffect } from "./rendering/effects/halftone-effect.ts";
+import { InteriorEffect } from "./rendering/effects/interior-effect.ts";
 import { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
 import { NoiseEffect } from "./rendering/effects/noise-effect.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
@@ -27,8 +28,8 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  * Provides access to extra (non-official) effects for the viewer.
  * All effects are pre-instantiated but disabled by default.
  *
- * Material effects (color cutout, gradient light, specular, rim light,
- * glitter) are applied inside the model shader, in that order, before any
+ * Material effects (color cutout, interior, gradient light, specular,
+ * rim light, glitter) are applied inside the model shader, in that order, before any
  * post-processing. Post-process effects are applied in this default order:
  * gradient outline -> depth fog -> edge detection -> color grading ->
  * color tint -> posterization -> sharpen -> bloom -> dithering ->
@@ -38,6 +39,7 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
 	readonly colorCutout: ColorCutoutEffect;
+	readonly interior: InteriorEffect;
 	readonly rimLight: RimLightEffect;
 	readonly gradientLight: GradientLightEffect;
 	readonly specular: SpecularEffect;
@@ -72,6 +74,7 @@ export class ViewerExtras {
 
 		// Applied inside the model shader, not the effect pipeline.
 		this.colorCutout = new ColorCutoutEffect();
+		this.interior = new InteriorEffect();
 		this.rimLight = new RimLightEffect();
 		this.gradientLight = new GradientLightEffect();
 		this.specular = new SpecularEffect();

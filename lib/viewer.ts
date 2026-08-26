@@ -179,6 +179,7 @@ export class PicoCAD2Viewer {
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
 		cutoutMask: 0,
+		interior: null,
 		rimLight: null,
 		gradientLight: null,
 		specular: null,
@@ -471,6 +472,7 @@ export class PicoCAD2Viewer {
 			? packColorMask(cutout.maskedColors)
 			: 0;
 
+		settings.interior = this._extras.interior;
 		settings.rimLight = this._extras.rimLight;
 		settings.gradientLight = this._extras.gradientLight;
 		settings.specular = this._extras.specular;
@@ -1077,6 +1079,18 @@ export class PicoCAD2Viewer {
 				enabled: e.colorCutout.enabled,
 				maskedColors: [...e.colorCutout.maskedColors],
 			},
+			interior: {
+				enabled: e.interior.enabled,
+				pattern: e.interior.pattern,
+				depth: e.interior.depth,
+				layers: e.interior.layers,
+				scale: e.interior.scale,
+				speed: e.interior.speed,
+				color: [...e.interior.color],
+				backgroundColor: [...e.interior.backgroundColor],
+				style: e.interior.style,
+				maskedColors: [...e.interior.maskedColors],
+			},
 			rimLight: {
 				enabled: e.rimLight.enabled,
 				color: [...e.rimLight.color],
@@ -1292,6 +1306,7 @@ export class PicoCAD2Viewer {
 
 		assign(this.extras.wireframe, extras.wireframe);
 		assign(this.extras.colorCutout, extras.colorCutout);
+		assign(this.extras.interior, extras.interior);
 		assign(this.extras.rimLight, extras.rimLight);
 		assign(this.extras.gradientLight, extras.gradientLight);
 		assign(this.extras.glitter, extras.glitter);

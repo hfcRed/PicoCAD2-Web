@@ -32,6 +32,10 @@ export {
 	HalftoneEffect,
 	type HalftoneMode,
 } from "./rendering/effects/halftone-effect.ts";
+export {
+	InteriorEffect,
+	type InteriorPattern,
+} from "./rendering/effects/interior-effect.ts";
 export { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
 export {
 	type MaterialStyle,
@@ -80,6 +84,7 @@ export type {
 	GradientLightOptions,
 	GradientOutlineOptions,
 	HalftoneOptions,
+	InteriorOptions,
 	LensDistortionOptions,
 	ModelInfo,
 	NoiseOptions,

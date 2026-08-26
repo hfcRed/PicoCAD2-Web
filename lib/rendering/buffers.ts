@@ -137,6 +137,7 @@ function computeFaceNormal(mesh: Mesh, face: Face): Float32Array {
 export function buildNodeBuffers(
 	gl: WebGL2RenderingContext,
 	node: SceneNode,
+	triIdCounter: { value: number } = { value: 0 },
 ): NodeBuffers | null {
 	if (!node.mesh) return null;
 
@@ -147,6 +148,8 @@ export function buildNodeBuffers(
 	const groupNormals: number[][] = [[], [], [], []];
 	const groupColorIndices: number[][] = [[], [], [], []];
 	const groupFaceFlags: number[][] = [[], [], [], []];
+	const groupTriIds: number[][] = [[], [], [], []];
+	const groupTriCentroids: number[][] = [[], [], [], []];
 
 	const groupTexCoords = collectGroupTexCoords(mesh);
 
@@ -164,6 +167,19 @@ export function buildNodeBuffers(
 		const numTriangles = face.vertexIndices.length - 2;
 		for (let t = 0; t < numTriangles; t++) {
 			const indices = [0, t + 1, t + 2];
+
+			// Per-triangle attributes for geometry effects
+			const triId = triIdCounter.value++;
+			let cx = 0;
+			let cy = 0;
+			let cz = 0;
+			for (const localIdx of indices) {
+				const vertIdx = face.vertexIndices[localIdx] * 3;
+				cx += mesh.vertices[vertIdx] / 3;
+				cy += mesh.vertices[vertIdx + 1] / 3;
+				cz += mesh.vertices[vertIdx + 2] / 3;
+			}
+
 			for (const localIdx of indices) {
 				const vertIdx = face.vertexIndices[localIdx] * 3;
 				groupPositions[group].push(
@@ -174,6 +190,8 @@ export function buildNodeBuffers(
 				groupNormals[group].push(normal[0], normal[1], normal[2]);
 				groupColorIndices[group].push(face.color);
 				groupFaceFlags[group].push(flags);
+				groupTriIds[group].push(triId);
+				groupTriCentroids[group].push(cx, cy, cz);
 			}
 		}
 
@@ -217,6 +235,14 @@ export function buildNodeBuffers(
 				numComponents: 1,
 				data: new Float32Array(groupFaceFlags[g]),
 			},
+			a_triId: {
+				numComponents: 1,
+				data: new Float32Array(groupTriIds[g]),
+			},
+			a_triCentroid: {
+				numComponents: 3,
+				data: new Float32Array(groupTriCentroids[g]),
+			},
 		});
 
 		groups.push({
@@ -247,10 +273,12 @@ export function buildAllBuffers(
 	root: SceneNode,
 ): NodeBuffers[] {
 	const allBuffers: NodeBuffers[] = [];
+	const triIdCounter = { value: 0 };
 
 	traverseNode(root, (node) => {
 		if (!node.mesh) return;
-		const buffers = buildNodeBuffers(gl, node);
+		const buffers = buildNodeBuffers(gl, node, triIdCounter);
+
 		if (buffers) {
 			allBuffers.push(buffers);
 		}

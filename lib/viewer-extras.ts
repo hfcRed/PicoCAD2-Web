@@ -14,6 +14,7 @@ import { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effe
 import { HalftoneEffect } from "./rendering/effects/halftone-effect.ts";
 import { InteriorEffect } from "./rendering/effects/interior-effect.ts";
 import { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
+import { MeshDeformEffect } from "./rendering/effects/mesh-deform-effect.ts";
 import { NoiseEffect } from "./rendering/effects/noise-effect.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import { PixelationEffect } from "./rendering/effects/pixelation-effect.ts";
@@ -21,6 +22,8 @@ import { PosterizationEffect } from "./rendering/effects/posterization-effect.ts
 import { RimLightEffect } from "./rendering/effects/rim-light-effect.ts";
 import { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
 import { SpecularEffect } from "./rendering/effects/specular-effect.ts";
+import { TriangleFlashEffect } from "./rendering/effects/triangle-flash-effect.ts";
+import { TriangleShatterEffect } from "./rendering/effects/triangle-shatter-effect.ts";
 import { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
 import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 
@@ -44,6 +47,9 @@ export class ViewerExtras {
 	readonly gradientLight: GradientLightEffect;
 	readonly specular: SpecularEffect;
 	readonly glitter: GlitterEffect;
+	readonly meshDeform: MeshDeformEffect;
+	readonly triangleFlash: TriangleFlashEffect;
+	readonly triangleShatter: TriangleShatterEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly colorGrading: ColorGradingEffect;
 	readonly posterization: PosterizationEffect;
@@ -79,6 +85,12 @@ export class ViewerExtras {
 		this.gradientLight = new GradientLightEffect();
 		this.specular = new SpecularEffect();
 		this.glitter = new GlitterEffect();
+
+		// Geometry effects: vertex-stage, applied in the model shader's
+		// vertex stage (flash/shatter mask by face color, deform is unmasked).
+		this.meshDeform = new MeshDeformEffect();
+		this.triangleFlash = new TriangleFlashEffect();
+		this.triangleShatter = new TriangleShatterEffect();
 
 		// Scene reconstruction
 		this.gradientOutline = new GradientOutlineEffect();

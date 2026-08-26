@@ -184,6 +184,9 @@ export class PicoCAD2Viewer {
 		gradientLight: null,
 		specular: null,
 		glitter: null,
+		meshDeform: null,
+		triangleFlash: null,
+		triangleShatter: null,
 	};
 
 	private readonly boundHandlers: {
@@ -477,6 +480,9 @@ export class PicoCAD2Viewer {
 		settings.gradientLight = this._extras.gradientLight;
 		settings.specular = this._extras.specular;
 		settings.glitter = this._extras.glitter;
+		settings.meshDeform = this._extras.meshDeform;
+		settings.triangleFlash = this._extras.triangleFlash;
+		settings.triangleShatter = this._extras.triangleShatter;
 	}
 
 	/**
@@ -1142,6 +1148,36 @@ export class PicoCAD2Viewer {
 				style: e.glitter.style,
 				maskedColors: [...e.glitter.maskedColors],
 			},
+			meshDeform: {
+				enabled: e.meshDeform.enabled,
+				rounding: { ...e.meshDeform.rounding },
+				barrel: { ...e.meshDeform.barrel },
+				spherify: { ...e.meshDeform.spherify },
+				twist: { ...e.meshDeform.twist },
+			},
+			triangleFlash: {
+				enabled: e.triangleFlash.enabled,
+				color: [...e.triangleFlash.color],
+				rate: e.triangleFlash.rate,
+				density: e.triangleFlash.density,
+				duration: e.triangleFlash.duration,
+				softness: e.triangleFlash.softness,
+				mode: e.triangleFlash.mode,
+				style: e.triangleFlash.style,
+				maskedColors: [...e.triangleFlash.maskedColors],
+			},
+			triangleShatter: {
+				enabled: e.triangleShatter.enabled,
+				progress: e.triangleShatter.progress,
+				mode: e.triangleShatter.mode,
+				direction: [...e.triangleShatter.direction],
+				distance: e.triangleShatter.distance,
+				spread: e.triangleShatter.spread,
+				rotation: e.triangleShatter.rotation,
+				gravity: e.triangleShatter.gravity,
+				shrink: e.triangleShatter.shrink,
+				maskedColors: [...e.triangleShatter.maskedColors],
+			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,
 				modelOnly: e.gradientOutline.modelOnly,
@@ -1333,6 +1369,19 @@ export class PicoCAD2Viewer {
 			assign(this.extras.specular, specular);
 			assign(this.extras.specular.environment, environment);
 		}
+
+		if (extras.meshDeform) {
+			const { rounding, barrel, spherify, twist, ...deform } =
+				extras.meshDeform;
+			assign(this.extras.meshDeform, deform);
+			assign(this.extras.meshDeform.rounding, rounding);
+			assign(this.extras.meshDeform.barrel, barrel);
+			assign(this.extras.meshDeform.spherify, spherify);
+			assign(this.extras.meshDeform.twist, twist);
+		}
+
+		assign(this.extras.triangleFlash, extras.triangleFlash);
+		assign(this.extras.triangleShatter, extras.triangleShatter);
 	}
 
 	/**

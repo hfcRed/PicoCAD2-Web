@@ -9,7 +9,10 @@ import type { GradientLightSource } from "../rendering/effects/gradient-light-ef
 import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
 import type { InteriorPattern } from "../rendering/effects/interior-effect.ts";
 import type { MaterialStyle } from "../rendering/effects/material-style.ts";
+import type { DeformAxis } from "../rendering/effects/mesh-deform-effect.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
+import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
+import type { TriangleShatterMode } from "../rendering/effects/triangle-shatter-effect.ts";
 import type {
 	CameraMode,
 	Color3,
@@ -261,6 +264,39 @@ export interface GlitterOptions {
 	maskedColors?: number[];
 }
 
+export interface MeshDeformOptions {
+	enabled?: boolean;
+	rounding?: { amount?: number; gridSize?: number };
+	barrel?: { amount?: number; axis?: DeformAxis };
+	spherify?: { amount?: number };
+	twist?: { amount?: number; axis?: DeformAxis; speed?: number };
+}
+
+export interface TriangleFlashOptions {
+	enabled?: boolean;
+	color?: Color3;
+	rate?: number;
+	density?: number;
+	duration?: number;
+	softness?: number;
+	mode?: TriangleFlashMode;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
+export interface TriangleShatterOptions {
+	enabled?: boolean;
+	progress?: number;
+	mode?: TriangleShatterMode;
+	direction?: [number, number, number];
+	distance?: number;
+	spread?: number;
+	rotation?: number;
+	gravity?: number;
+	shrink?: number;
+	maskedColors?: number[];
+}
+
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
 	colorCutout?: ColorCutoutOptions;
@@ -269,6 +305,9 @@ export interface ExtrasOptions {
 	gradientLight?: GradientLightOptions;
 	specular?: SpecularOptions;
 	glitter?: GlitterOptions;
+	meshDeform?: MeshDeformOptions;
+	triangleFlash?: TriangleFlashOptions;
+	triangleShatter?: TriangleShatterOptions;
 	gradientOutline?: GradientOutlineOptions;
 	colorGrading?: ColorGradingOptions;
 	posterization?: PosterizationOptions;

@@ -1,6 +1,7 @@
 import type { mat4 } from "gl-matrix";
 import type { Color3 } from "../../types/scene.ts";
 import type { ModelResources } from "../renderer.ts";
+import type { MeshDeformEffect } from "./mesh-deform-effect.ts";
 
 export interface EffectContext {
 	gl: WebGL2RenderingContext;
@@ -12,6 +13,8 @@ export interface EffectContext {
 	backgroundColor: Color3;
 	isOrthographic: boolean;
 	bgIsTransparent: boolean;
+	meshDeform: MeshDeformEffect | null;
+	shatterActive: boolean;
 }
 
 export interface PostProcessEffect {

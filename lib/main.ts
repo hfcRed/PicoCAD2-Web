@@ -41,6 +41,10 @@ export {
 	type MaterialStyle,
 	nearestPaletteIndex,
 } from "./rendering/effects/material-style.ts";
+export {
+	type DeformAxis,
+	MeshDeformEffect,
+} from "./rendering/effects/mesh-deform-effect.ts";
 export { NoiseEffect } from "./rendering/effects/noise-effect.ts";
 export { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 export {
@@ -54,6 +58,14 @@ export {
 	SpecularEffect,
 	type SpecularEnvironment,
 } from "./rendering/effects/specular-effect.ts";
+export {
+	TriangleFlashEffect,
+	type TriangleFlashMode,
+} from "./rendering/effects/triangle-flash-effect.ts";
+export {
+	TriangleShatterEffect,
+	type TriangleShatterMode,
+} from "./rendering/effects/triangle-shatter-effect.ts";
 export type {
 	EffectContext,
 	PostProcessEffect,
@@ -86,6 +98,7 @@ export type {
 	HalftoneOptions,
 	InteriorOptions,
 	LensDistortionOptions,
+	MeshDeformOptions,
 	ModelInfo,
 	NoiseOptions,
 	PicoCAD2ViewerOptions,
@@ -97,6 +110,8 @@ export type {
 	SharpenOptions,
 	SpecularEnvironmentOptions,
 	SpecularOptions,
+	TriangleFlashOptions,
+	TriangleShatterOptions,
 	ViewerSettings,
 	VignetteOptions,
 	WireframeOptions,

@@ -70,6 +70,10 @@ uniform float u_envFresnel;
 uniform bool u_specSmooth;
 uniform int u_specMask;
 
+uniform vec3 u_flashColor;
+uniform int u_flashMode; // 0 = replace, 1 = add (smooth style only)
+uniform bool u_flashSmooth;
+
 uniform bool u_glitterEnabled;
 uniform vec3 u_glitterColor;
 uniform int u_glitterSpace; // 0 = uv, 1 = screen, 2 = world
@@ -111,6 +115,19 @@ bool ditherGate(float t) {
 vec3 applyStyled(vec3 base, vec3 effectColor, float t, bool smoothStyle) {
     if (smoothStyle) return mix(base, effectColor, clamp(t, 0.0, 1.0));
     return ditherGate(t) ? effectColor : base;
+}
+
+/**
+ * Applies the triangle flash color by the vertex-computed envelope.
+ * Flash is light on a material, not a material change so the index buffer
+ * keeps the base face index, so a blink never leaves other effects' masks.
+ */
+vec3 applyTriangleFlash(vec3 color, float flash) {
+    if (flash <= 0.0) return color;
+    if (u_flashMode == 1 && u_flashSmooth) {
+        return color + u_flashColor * flash;
+    }
+    return applyStyled(color, u_flashColor, flash, u_flashSmooth);
 }
 
 /** Rotates a color's hue by an angle in radians (around the gray axis). */

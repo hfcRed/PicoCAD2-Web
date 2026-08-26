@@ -6,6 +6,7 @@ in vec3 v_worldPos;
 in vec2 v_texCoord;
 in float v_colorIndex;
 in float v_faceFlags;
+in float v_flash;
 
 uniform sampler2D u_indexTexture;
 uniform sampler2D u_paletteTexture;
@@ -76,6 +77,7 @@ void main() {
     color = applyMaterialEffects(
         color, colorIdx, normal, v_worldPos, v_texCoord, lightAmount, -u_lightDir
     );
+    color = applyTriangleFlash(color, v_flash);
 
     fragColor = vec4(color, 1.0);
 

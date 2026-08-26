@@ -319,9 +319,10 @@ const pixels = viewer.toPixelData();
 
 ## Effects
 
-All effects live on `viewer.extras` and are disabled by default. They fall into three categories depending on where they run:
+All effects live on `viewer.extras` and are disabled by default. They fall into four categories depending on where they run:
 
-- **Material effects** shade the model's surfaces inside the model shader. They use the model's true normals, work in every render path, and render before outlines and post-processing.
+- **Material effects** shade the model's surfaces inside the model shader using the models true normals.
+- **Geometry effects** reshape the model's own geometry.
 - **Scene effects** draw additional geometry into the 3D scene alongside the model.
 - **Post-processing effects** are fullscreen passes over the rendered image, applied in a fixed chain.
 
@@ -341,6 +342,8 @@ Post-processing shaders are compiled lazily, so effects have no GPU cost until f
 Effects that support masking have a `maskedColors` property: an array of base palette indices (0-15) selecting which of the model's colors the effect applies to. An empty array (the default) applies the effect everywhere.
 
 Masks select *materials*, not displayed colors: a color is matched whether it is lit or in shadow, and pixels keep their material identity under warping effects (glitch, pixelation, lens distortion, chromatic aberration, CRT) and under material effects like rim light. Non-empty masks only ever match model pixels, never the background or outline.
+
+Mask granularity follows where the mask is tested. Material and post-processing effects test per pixel, so `maskedColors: [12]` means "texels painted with color 12". Geometry effects run in the vertex stage where texels don't exist yet, so their masks select faces by the face's *assigned* color instead. On textured faces the two can disagree.
 
 ```typescript
 // Make palette color 10 glow
@@ -453,6 +456,60 @@ viewer.extras.glitter.speed = 1;             // Twinkle rate (default: 1)
 viewer.extras.glitter.shape = "square";      // "square" | "circle" (default: "square")
 viewer.extras.glitter.randomHue = false;     // Random per-cell hues, smooth style only (default: false)
 viewer.extras.glitter.hueRange = 0.5;        // Hue spread for randomHue, 0-1 (default: 0.5)
+```
+
+## Geometry Effects
+
+Geometry effects reshape the model's own geometry. Masks select by face color (see Color Masks).
+
+### Mesh Deform
+
+Stackable closed-form deforms, applied in world space after the node transform so hierarchy and animation stay correct. Applied in a fixed order ending with rounding, so voxelation quantizes the other deforms.
+
+```typescript
+viewer.extras.meshDeform.enabled = true;
+viewer.extras.meshDeform.rounding.amount = 1;      // Vertex snap / voxelation, 0-1 (default: 0)
+viewer.extras.meshDeform.rounding.gridSize = 0.25; // World units per voxel cell (default: 0.25)
+viewer.extras.meshDeform.barrel.amount = 0.5;      // Bulge (or pinch when negative) along the axis, -1-1 (default: 0)
+viewer.extras.meshDeform.barrel.axis = "y";        // "x" | "y" | "z" (default: "y")
+viewer.extras.meshDeform.spherify.amount = 0.5;    // Lerp toward the bounding sphere, 0-1 (default: 0)
+viewer.extras.meshDeform.twist.amount = 0.5;       // Rotations across the model height (default: 0)
+viewer.extras.meshDeform.twist.axis = "y";         // "x" | "y" | "z" (default: "y")
+viewer.extras.meshDeform.twist.speed = 1;          // Animates the twist into a tornado (default: 0)
+```
+
+Mesh deform has no `maskedColors` because adjacent faces share positions, so deforming a masked face next to an unmasked face would tear their shared edge open.
+
+### Triangle Flash
+
+Random triangles blink a color for a moment. Flashing triangles keep their base palette index, so a blink does not change the masks of other effects.
+
+```typescript
+viewer.extras.triangleFlash.enabled = true;
+viewer.extras.triangleFlash.color = [1, 1, 1];     // Flash color (default: [1, 1, 1])
+viewer.extras.triangleFlash.rate = 8;              // Flash buckets per second (default: 8)
+viewer.extras.triangleFlash.density = 0.15;        // Fraction of triangles per bucket, 0-1 (default: 0.15)
+viewer.extras.triangleFlash.duration = 0.12;       // Seconds a flash lasts (default: 0.12)
+viewer.extras.triangleFlash.softness = 0;          // 0 = hard on/off, 1 = full fade (default: 0)
+viewer.extras.triangleFlash.mode = "replace";      // "replace" | "add" (add is smooth style only, default: "replace")
+```
+
+### Triangle Shatter
+
+Blows the model apart into its triangles. Rendering is forced double-sided and the wireframe hides while a shatter is in progress.
+
+```typescript
+viewer.extras.triangleShatter.enabled = true;
+viewer.extras.triangleShatter.progress = 0.5;      // 0 = intact, 1 = fully dispersed (default: 0)
+viewer.extras.triangleShatter.mode = "normal";     // Travel direction (default: "normal")
+// Available modes: "normal" (face normals) | "radial" (away from center) | "directional"
+viewer.extras.triangleShatter.direction = [0, 1, 0]; // For "directional" mode (default: [0, 1, 0])
+viewer.extras.triangleShatter.distance = 2;        // World units traveled at progress 1 (default: 2)
+viewer.extras.triangleShatter.spread = 0.3;        // Random cone around the direction, 0-1 (default: 0.3)
+viewer.extras.triangleShatter.rotation = 1;        // Tumble revolutions at progress 1 (default: 1)
+viewer.extras.triangleShatter.gravity = 0;         // Downward pull, scaled by distance (default: 0)
+viewer.extras.triangleShatter.shrink = 0;          // Scale toward 0 at progress 1, 0-1 (default: 0)
+viewer.extras.triangleShatter.maskedColors = [7];  // Only these face colors explode (default: [] = all)
 ```
 
 ## Scene Effects
@@ -707,7 +764,7 @@ When multiple effects are active, they are applied in this fixed order:
 16. Glitch
 17. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter. Scene effects render into the 3D scene after the model. Both happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter, triangle flash. Geometry effects run in the vertex stage before any of that (mesh deform, then triangle shatter). Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

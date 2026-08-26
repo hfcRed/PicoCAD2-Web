@@ -18,9 +18,15 @@ import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
 import type { InteriorEffect } from "./effects/interior-effect.ts";
 import { writeStyledColor } from "./effects/material-style.ts";
+import {
+	type MeshDeformEffect,
+	writeMeshDeformUniforms,
+} from "./effects/mesh-deform-effect.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import type { RimLightEffect } from "./effects/rim-light-effect.ts";
 import type { SpecularEffect } from "./effects/specular-effect.ts";
+import type { TriangleFlashEffect } from "./effects/triangle-flash-effect.ts";
+import type { TriangleShatterEffect } from "./effects/triangle-shatter-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import { createIndexTexture, createPaletteTexture } from "./textures.ts";
@@ -37,6 +43,9 @@ export interface RenderSettings {
 	gradientLight: GradientLightEffect | null;
 	specular: SpecularEffect | null;
 	glitter: GlitterEffect | null;
+	meshDeform: MeshDeformEffect | null;
+	triangleFlash: TriangleFlashEffect | null;
+	triangleShatter: TriangleShatterEffect | null;
 }
 
 /**
@@ -75,16 +84,16 @@ export interface RenderStats {
 export class Renderer {
 	readonly gl: WebGL2RenderingContext;
 	readonly stats: RenderStats = { drawCalls: 0, polyCount: 0 };
-	private readonly mvpMatrix: mat4 = mat4.create();
 	private readonly lightDirWorld: vec3 = vec3.create();
 	private programs: ShaderPrograms;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private readonly effectCtx: EffectContext;
+	private shatterActive = false;
 	private readonly nodeUniforms = {
-		u_mvp: this.mvpMatrix,
-		u_worldMatrix: this.mvpMatrix as mat4,
+		u_worldMatrix: mat4.create() as mat4,
 	};
 	private readonly modelUniforms = {
+		u_vp: mat4.create() as mat4,
 		u_indexTexture: null as WebGLTexture | null,
 		u_paletteTexture: null as WebGLTexture | null,
 		u_lightDir: this.lightDirWorld,
@@ -103,6 +112,39 @@ export class Renderer {
 		u_viewportOrigin: [0, 0] as [number, number],
 		u_boundsMinY: 0,
 		u_boundsSpanY: 1,
+
+		u_deformEnabled: false,
+		u_deformRound: 0,
+		u_deformRoundGrid: 0.25,
+		u_deformBarrel: 0,
+		u_deformBarrelAxis: 1,
+		u_deformSpherify: 0,
+		u_deformTwist: 0,
+		u_deformTwistAxis: 1,
+		u_deformTwistPhase: 0,
+		u_deformCenter: [0, 0, 0] as Color3,
+		u_deformHalfExt: [1, 1, 1] as Color3,
+
+		u_shatterEnabled: false,
+		u_shatterProgress: 0,
+		u_shatterMode: 0,
+		u_shatterDirection: [0, 1, 0] as Color3,
+		u_shatterDistance: 0,
+		u_shatterSpread: 0,
+		u_shatterRotation: 0,
+		u_shatterGravity: 0,
+		u_shatterShrink: 0,
+		u_shatterMask: 0,
+
+		u_flashEnabled: false,
+		u_flashRate: 0,
+		u_flashDensity: 0,
+		u_flashDuration: 0,
+		u_flashSoftness: 0,
+		u_flashColor: [1, 1, 1] as Color3,
+		u_flashMode: 0,
+		u_flashSmooth: false,
+		u_flashMask: 0,
 
 		u_interiorEnabled: false,
 		u_interiorPattern: 0,
@@ -186,6 +228,8 @@ export class Renderer {
 			backgroundColor: [0, 0, 0],
 			isOrthographic: false,
 			bgIsTransparent: false,
+			meshDeform: null,
+			shatterActive: false,
 		};
 	}
 
@@ -279,6 +323,11 @@ export class Renderer {
 
 		mu.u_viewportOrigin[0] = useFbo ? 0 : x;
 		mu.u_viewportOrigin[1] = useFbo ? 0 : y;
+		mat4.copy(mu.u_vp, vpMatrix);
+
+		const shatter = settings.triangleShatter;
+		this.shatterActive =
+			(shatter?.enabled ?? false) && (shatter?.progress ?? 0) > 0;
 
 		updateRenderState(model.root);
 
@@ -326,6 +375,8 @@ export class Renderer {
 		ctx.backgroundColor[1] = bgG;
 		ctx.backgroundColor[2] = bgB;
 		ctx.isOrthographic = camera.projectionMode === "orthographic";
+		ctx.meshDeform = settings.meshDeform;
+		ctx.shatterActive = this.shatterActive;
 
 		if (useFbo) {
 			pipeline.pool.ensure(gl, w, h);
@@ -364,7 +415,7 @@ export class Renderer {
 		}
 
 		if (settings.renderMode < 2) {
-			this.drawModel(vpMatrix, settings, model, resources);
+			this.drawModel(settings, model, resources);
 		}
 
 		// Only the model shader writes the index attachment, later passes
@@ -491,14 +542,13 @@ export class Renderer {
 
 	/**
 	 * Draws the model with the textured/colored shader.
+	 * The view-projection matrix is already uploaded as u_vp by {@link draw}.
 	 *
-	 * @param vpMatrix - The view-projection matrix.
 	 * @param settings - The current render settings.
 	 * @param model - The parsed model.
 	 * @param resources - The GPU resources.
 	 */
 	private drawModel(
-		vpMatrix: mat4,
 		settings: RenderSettings,
 		model: PicoCAD2Model,
 		resources: ModelResources,
@@ -518,16 +568,17 @@ export class Renderer {
 		uniforms.u_renderMode = settings.renderMode;
 		uniforms.u_cutoutMask = settings.cutoutMask;
 		this.updateMaterialUniforms(settings, model, resources);
+		this.updateGeometryUniforms(settings, model, resources);
 		twgl.setUniforms(this.programs.model, uniforms);
 
 		// Draw priority faces
-		this.drawGroups(vpMatrix, PRIORITY_GROUPS, resources);
+		this.drawGroups(PRIORITY_GROUPS, resources);
 
 		// Clear depth buffer
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 
 		// Draw non-priority faces
-		this.drawGroups(vpMatrix, NON_PRIORITY_GROUPS, resources);
+		this.drawGroups(NON_PRIORITY_GROUPS, resources);
 
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);
@@ -665,16 +716,77 @@ export class Renderer {
 	}
 
 	/**
+	 * Maps the geometry effect settings (mesh deform, triangle flash,
+	 * triangle shatter) onto the model shader's vertex-stage uniforms.
+	 * Flash and shatter masks select by face color, deform is unmaskable.
+	 *
+	 * @param settings - The current render settings.
+	 * @param model - The parsed model, for its palette.
+	 * @param resources - The GPU resources, for the model bounds.
+	 */
+	private updateGeometryUniforms(
+		settings: RenderSettings,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+	): void {
+		const u = this.modelUniforms;
+		const palette = model.texture.colors;
+
+		writeMeshDeformUniforms(u, settings.meshDeform, resources.bounds, u.u_time);
+
+		const shatter = settings.triangleShatter;
+		u.u_shatterEnabled = shatter?.enabled ?? false;
+		if (shatter?.enabled) {
+			u.u_shatterProgress = Math.min(Math.max(shatter.progress, 0), 1);
+			u.u_shatterMode =
+				shatter.mode === "normal" ? 0 : shatter.mode === "radial" ? 1 : 2;
+
+			const d = shatter.direction;
+			const len = Math.hypot(d[0], d[1], d[2]);
+
+			if (len > 1e-6) {
+				u.u_shatterDirection[0] = d[0] / len;
+				u.u_shatterDirection[1] = d[1] / len;
+				u.u_shatterDirection[2] = d[2] / len;
+			} else {
+				u.u_shatterDirection[0] = 0;
+				u.u_shatterDirection[1] = 1;
+				u.u_shatterDirection[2] = 0;
+			}
+
+			u.u_shatterDistance = shatter.distance;
+			u.u_shatterSpread = Math.max(shatter.spread, 0);
+			u.u_shatterRotation = shatter.rotation;
+			u.u_shatterGravity = shatter.gravity;
+			u.u_shatterShrink = Math.min(Math.max(shatter.shrink, 0), 1);
+			u.u_shatterMask = packColorMask(shatter.maskedColors);
+		}
+
+		const flash = settings.triangleFlash;
+		u.u_flashEnabled = flash?.enabled ?? false;
+
+		if (flash?.enabled) {
+			writeStyledColor(u.u_flashColor, flash.color, flash.style, palette);
+
+			u.u_flashRate = Math.max(flash.rate, 0);
+			u.u_flashDensity = Math.min(Math.max(flash.density, 0), 1);
+			u.u_flashDuration = Math.max(flash.duration, 0.001);
+			u.u_flashSoftness = Math.min(Math.max(flash.softness, 0), 1);
+			u.u_flashMode = flash.mode === "replace" ? 0 : 1;
+			u.u_flashSmooth = flash.style === "smooth";
+			u.u_flashMask = packColorMask(flash.maskedColors);
+		}
+	}
+
+	/**
 	 * Draws specific render groups across all node buffers.
 	 * Model-wide uniforms must already be uploaded by {@link drawModel};
 	 * this only sets the per-node matrices.
 	 *
-	 * @param vpMatrix - The view-projection matrix.
 	 * @param groupIndices - Which render groups to draw.
 	 * @param resources - The GPU resources.
 	 */
 	private drawGroups(
-		vpMatrix: mat4,
 		groupIndices: readonly number[],
 		resources: ModelResources,
 	): void {
@@ -690,14 +802,13 @@ export class Renderer {
 				nb.node.uvsDirty = false;
 			}
 
-			mat4.multiply(this.mvpMatrix, vpMatrix, nb.node.worldMatrix);
 			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
 				if (!group) continue;
 
-				const isDoubleSided = (groupIdx & 1) !== 0;
+				const isDoubleSided = (groupIdx & 1) !== 0 || this.shatterActive;
 				if (isDoubleSided) {
 					gl.disable(gl.CULL_FACE);
 				} else {

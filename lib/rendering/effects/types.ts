@@ -13,6 +13,9 @@ export interface EffectContext {
 	backgroundColor: Color3;
 	isOrthographic: boolean;
 	bgIsTransparent: boolean;
+	cameraFwd: Color3;
+	cameraRight: Color3;
+	cameraUp: Color3;
 	meshDeform: MeshDeformEffect | null;
 	shatterActive: boolean;
 }

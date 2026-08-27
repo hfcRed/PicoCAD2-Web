@@ -46,12 +46,21 @@ export {
 	MeshDeformEffect,
 } from "./rendering/effects/mesh-deform-effect.ts";
 export { NoiseEffect } from "./rendering/effects/noise-effect.ts";
+export {
+	type ParticleMotion,
+	type ParticleShape,
+	ParticlesEffect,
+} from "./rendering/effects/particles-effect.ts";
 export { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 export {
 	PixelationEffect,
 	type PixelShape,
 } from "./rendering/effects/pixelation-effect.ts";
 export { PosterizationEffect } from "./rendering/effects/posterization-effect.ts";
+export {
+	type BackgroundPattern,
+	ProceduralBackgroundEffect,
+} from "./rendering/effects/procedural-background-effect.ts";
 export { RimLightEffect } from "./rendering/effects/rim-light-effect.ts";
 export { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
 export {
@@ -101,10 +110,12 @@ export type {
 	MeshDeformOptions,
 	ModelInfo,
 	NoiseOptions,
+	ParticlesOptions,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
 	PixelationOptions,
 	PosterizationOptions,
+	ProceduralBackgroundOptions,
 	ResolutionSettings,
 	RimLightOptions,
 	SharpenOptions,

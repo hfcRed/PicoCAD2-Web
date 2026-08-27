@@ -1,8 +1,10 @@
 /**
- * Procedural 3D pattern fields, shared between the interior material
- * effect and future procedural backgrounds. Each field maps a point in a
- * pre-scaled 3D space plus a time value to a 0-1 intensity. Callers decide
- * colors and styling.
+ * Procedural pattern fields, shared between the interior material effect
+ * and the procedural background, both expose the full library through
+ * patternField(id, p, t). Each field maps a point in a pre-scaled 3D
+ * space plus a time value to a 0-1 intensity. Callers decide colors and
+ * styling. The 2D fields (truchet, constellations) read p.xy with the z
+ * cell as a variant/reseed.
  *
  * Includes hash.glsl, so this must be the only path through which the hash
  * chunk enters a compilation unit (vite-plugin-glsl does not dedupe).
@@ -118,12 +120,75 @@ float gridField(vec3 p, float t) {
     return 1.0 - smoothstep(0.03, 0.12, max(mn, mid));
 }
 
+/**
+ * Interlocking quarter-circle tiles. A 2D field reads p.xy, with the z cell selecting the tile-flip variant.
+ */
+float truchetField(vec3 p, float t) {
+    p.xy += t * 0.1;
+
+    vec2 cell = floor(p.xy);
+    vec2 local = fract(p.xy);
+
+    if (hash13(vec3(cell, floor(p.z))) < 0.5) local.x = 1.0 - local.x;
+
+    float d = min(
+        abs(length(local) - 0.5),
+        abs(length(local - 1.0) - 0.5)
+    );
+
+    return 1.0 - smoothstep(0.04, 0.11, d);
+}
+
+/**
+ * Twinkling star points connected to some of their neighbors by faint
+ * lines. A 2D field: reads p.xy, with the z cell reseeding the sky.
+ * The connection gate hashes the unordered cell pair, so both cells a
+ * segment crosses agree on whether it exists.
+ */
+float constellationsField(vec3 p, float t) {
+    vec2 cell = floor(p.xy);
+    vec2 local = fract(p.xy);
+    float z = floor(p.z);
+    float intensity = 0.0;
+
+    vec3 c0 = hash33(vec3(cell, z));
+    vec2 star0 = 0.2 + 0.6 * c0.xy;
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            vec2 off = vec2(float(x), float(y));
+            vec3 h = hash33(vec3(cell + off, z));
+            vec2 star = off + 0.2 + 0.6 * h.xy;
+
+            float d = length(local - star);
+            float twinkle = 0.7 + 0.3 * sin(PATTERN_TAU * (h.z + t));
+            intensity = max(intensity, (1.0 - smoothstep(0.03, 0.09, d)) * twinkle);
+
+            if (x == 0 && y == 0) continue;
+
+            float gate = hash13(vec3(cell * 2.0 + off, z + 7.0));
+            if (gate < 0.5) continue;
+
+            vec2 ab = star - star0;
+            float seg = clamp(
+                dot(local - star0, ab) / max(dot(ab, ab), 1e-5), 0.0, 1.0
+            );
+            float dl = length(local - (star0 + ab * seg));
+            intensity = max(intensity, (1.0 - smoothstep(0.005, 0.03, dl)) * 0.45);
+        }
+    }
+
+    return intensity;
+}
+
 /** Samples a pattern field by id, matching the InteriorPattern order. */
 float patternField(int id, vec3 p, float t) {
     if (id == 0) return starsField(p, t);
     if (id == 1) return dustField(p, t);
     if (id == 2) return voronoiField(p, t);
     if (id == 3) return lavaField(p, t);
-    
-    return gridField(p, t);
+    if (id == 4) return gridField(p, t);
+    if (id == 5) return truchetField(p, t);
+
+    return constellationsField(p, t);
 }

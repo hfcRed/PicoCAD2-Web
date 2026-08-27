@@ -1,7 +1,24 @@
 import type { Color3 } from "../../types/scene.ts";
 import type { MaterialStyle } from "./material-style.ts";
 
-export type InteriorPattern = "stars" | "dust" | "voronoi" | "lava" | "grid";
+export type InteriorPattern =
+	| "stars"
+	| "dust"
+	| "voronoi"
+	| "lava"
+	| "grid"
+	| "truchet"
+	| "constellations";
+
+export const INTERIOR_PATTERN_ID: Record<InteriorPattern, number> = {
+	stars: 0,
+	dust: 1,
+	voronoi: 2,
+	lava: 3,
+	grid: 4,
+	truchet: 5,
+	constellations: 6,
+};
 
 /**
  * Fake depth behind selected palette colors, applied inside the model

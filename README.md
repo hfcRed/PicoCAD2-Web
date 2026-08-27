@@ -381,7 +381,7 @@ Fake depth behind selected palette colors: for masked texels the view ray is mar
 viewer.extras.interior.enabled = true;
 viewer.extras.interior.maskedColors = [7];              // These colors become windows into the pattern
 viewer.extras.interior.pattern = "stars";               // Pattern behind the surface (default: "stars")
-// Available patterns: "stars" | "dust" | "voronoi" | "lava" | "grid"
+// Available patterns: "stars" | "dust" | "voronoi" | "lava" | "grid" | "truchet" | "constellations"
 viewer.extras.interior.depth = 2;                       // World units to the deepest layer (default: 2)
 viewer.extras.interior.layers = 3;                      // Pattern layers, 1-4 (default: 3)
 viewer.extras.interior.scale = 4;                       // Pattern cells per world unit (default: 4)
@@ -391,6 +391,8 @@ viewer.extras.interior.backgroundColor = [0.06, 0.05, 0.13]; // Fill behind the 
 ```
 
 Unlike the other material effects, the masked texels are replaced entirely by the interior. An empty `maskedColors` array applies it to every color, turning the whole model into a hologram.
+
+The pattern library is shared with the Procedural Background effect, both expose all seven patterns. `"truchet"` and `"constellations"` are 2D patterns extruded along the world z axis, so inside the interior they read cleanest on faces looking down that axis.
 
 ### Rim Light
 
@@ -525,7 +527,43 @@ viewer.extras.wireframe.enabled = true;
 viewer.extras.wireframe.color = [0, 1, 0];    // Wireframe color (default: [1, 1, 1])
 ```
 
+### Particles
+
+Snow, rain, embers, sparkles or dust motes around the model. One instanced draw of hashed, stateless, looping particles.
+
+```typescript
+viewer.extras.particles.enabled = true;
+viewer.extras.particles.count = 300;           // Particle count, up to 2000 (default: 300)
+viewer.extras.particles.shape = "pixel";       // "pixel" | "quad" | "cube" | "triangle" (default: "pixel")
+viewer.extras.particles.size = 2;              // Output pixels for "pixel", world units otherwise (default: 2)
+viewer.extras.particles.sizeJitter = 0.5;      // Random per-particle shrink, 0-1 (default: 0.5)
+viewer.extras.particles.motion = "drift";      // "drift" | "rise" | "fall" | "orbit" | "swirl" (default: "drift")
+viewer.extras.particles.speed = 1;             // Motion rate (default: 1)
+viewer.extras.particles.areaScale = 1.5;       // Particle volume as a multiple of the model bounds (default: 1.5)
+viewer.extras.particles.twinkle = 0.3;         // Per-particle brightness flicker, 0-1 (default: 0.3)
+viewer.extras.particles.paletteIndices = [7];  // Color source: particles sample these palette colors (default: [] = white)
+```
+
+Unlike effect masks, `paletteIndices` is a color source, not a mask: particles are painted with the model's palette colors at those indices.
+
 ## Post-Processing Effects
+
+### Procedural Background
+
+Fills background pixels with a procedural pattern, so models stop floating in flat color. Applied at the head of the chain, so fog, outlines and every other effect apply over the pattern. Does nothing over a transparent background. The pattern library is shared with the Interior material effect, both expose all seven patterns.
+
+```typescript
+viewer.extras.proceduralBackground.enabled = true;
+viewer.extras.proceduralBackground.pattern = "stars";        // Pattern (default: "stars")
+// Available patterns: "voronoi" | "truchet" | "stars" | "constellations" | "lava" | "dust" | "grid"
+viewer.extras.proceduralBackground.colorA = [0.02, 0.02, 0.07]; // Base color (default: [0.02, 0.02, 0.07])
+viewer.extras.proceduralBackground.colorB = [1, 1, 1];       // Feature color (default: [1, 1, 1])
+viewer.extras.proceduralBackground.scale = 12;               // Pattern cells across the viewport height (default: 12)
+viewer.extras.proceduralBackground.speed = 1;                // Pattern animation rate, 0 = frozen (default: 1)
+viewer.extras.proceduralBackground.seed = 0;                 // Selects a different slice of the pattern space (default: 0)
+viewer.extras.proceduralBackground.cameraParallax = 0.5;     // 0 = screen-locked, 1 = follows the orbit camera (default: 0.5)
+viewer.extras.proceduralBackground.dither = false;           // Checkerboard-quantize the gradients (default: false)
+```
 
 ### Noise
 
@@ -747,22 +785,23 @@ viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport
 When multiple effects are active, they are applied in this fixed order:
 
 1. Gradient Outline
-2. Depth Fog
-3. Edge Detection
-4. Color Grading
-5. Color Tint
-6. Posterization
-7. Sharpen
-8. Bloom
-9. Dithering
-10. Halftone
-11. CRT
-12. Pixelation
-13. Lens Distortion
-14. Chromatic Aberration
-15. Noise
-16. Glitch
-17. Vignette
+2. Procedural Background
+3. Depth Fog
+4. Edge Detection
+5. Color Grading
+6. Color Tint
+7. Posterization
+8. Sharpen
+9. Bloom
+10. Dithering
+11. Halftone
+12. CRT
+13. Pixelation
+14. Lens Distortion
+15. Chromatic Aberration
+16. Noise
+17. Glitch
+18. Vignette
 
 Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter, triangle flash. Geometry effects run in the vertex stage before any of that (mesh deform, then triangle shatter). Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 

@@ -16,7 +16,10 @@ import { packColorMask } from "./effects/color-mask.ts";
 import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
-import type { InteriorEffect } from "./effects/interior-effect.ts";
+import {
+	INTERIOR_PATTERN_ID,
+	type InteriorEffect,
+} from "./effects/interior-effect.ts";
 import { writeStyledColor } from "./effects/material-style.ts";
 import {
 	type MeshDeformEffect,
@@ -228,6 +231,9 @@ export class Renderer {
 			backgroundColor: [0, 0, 0],
 			isOrthographic: false,
 			bgIsTransparent: false,
+			cameraFwd: [0, 0, -1],
+			cameraRight: [1, 0, 0],
+			cameraUp: [0, 1, 0],
 			meshDeform: null,
 			shatterActive: false,
 		};
@@ -377,6 +383,15 @@ export class Renderer {
 		ctx.isOrthographic = camera.projectionMode === "orthographic";
 		ctx.meshDeform = settings.meshDeform;
 		ctx.shatterActive = this.shatterActive;
+		ctx.cameraFwd[0] = mu.u_cameraFwd[0];
+		ctx.cameraFwd[1] = mu.u_cameraFwd[1];
+		ctx.cameraFwd[2] = mu.u_cameraFwd[2];
+		ctx.cameraRight[0] = mu.u_cameraRight[0];
+		ctx.cameraRight[1] = mu.u_cameraRight[1];
+		ctx.cameraRight[2] = mu.u_cameraRight[2];
+		ctx.cameraUp[0] = v[1];
+		ctx.cameraUp[1] = v[5];
+		ctx.cameraUp[2] = v[9];
 
 		if (useFbo) {
 			pipeline.pool.ensure(gl, w, h);
@@ -623,16 +638,7 @@ export class Renderer {
 				interior.style,
 				palette,
 			);
-			u.u_interiorPattern =
-				interior.pattern === "stars"
-					? 0
-					: interior.pattern === "dust"
-						? 1
-						: interior.pattern === "voronoi"
-							? 2
-							: interior.pattern === "lava"
-								? 3
-								: 4;
+			u.u_interiorPattern = INTERIOR_PATTERN_ID[interior.pattern] ?? 0;
 			u.u_interiorDepth = Math.max(interior.depth, 0);
 			u.u_interiorLayers = Math.min(
 				Math.max(Math.round(interior.layers), 1),

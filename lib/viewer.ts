@@ -1081,6 +1081,18 @@ export class PicoCAD2Viewer {
 				modelOnly: e.wireframe.modelOnly,
 				color: [...e.wireframe.color],
 			},
+			particles: {
+				enabled: e.particles.enabled,
+				count: e.particles.count,
+				shape: e.particles.shape,
+				paletteIndices: [...e.particles.paletteIndices],
+				size: e.particles.size,
+				sizeJitter: e.particles.sizeJitter,
+				motion: e.particles.motion,
+				speed: e.particles.speed,
+				areaScale: e.particles.areaScale,
+				twinkle: e.particles.twinkle,
+			},
 			colorCutout: {
 				enabled: e.colorCutout.enabled,
 				maskedColors: [...e.colorCutout.maskedColors],
@@ -1177,6 +1189,17 @@ export class PicoCAD2Viewer {
 				gravity: e.triangleShatter.gravity,
 				shrink: e.triangleShatter.shrink,
 				maskedColors: [...e.triangleShatter.maskedColors],
+			},
+			proceduralBackground: {
+				enabled: e.proceduralBackground.enabled,
+				pattern: e.proceduralBackground.pattern,
+				colorA: [...e.proceduralBackground.colorA],
+				colorB: [...e.proceduralBackground.colorB],
+				scale: e.proceduralBackground.scale,
+				speed: e.proceduralBackground.speed,
+				seed: e.proceduralBackground.seed,
+				cameraParallax: e.proceduralBackground.cameraParallax,
+				dither: e.proceduralBackground.dither,
 			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,
@@ -1341,6 +1364,8 @@ export class PicoCAD2Viewer {
 		};
 
 		assign(this.extras.wireframe, extras.wireframe);
+		assign(this.extras.particles, extras.particles);
+		assign(this.extras.proceduralBackground, extras.proceduralBackground);
 		assign(this.extras.colorCutout, extras.colorCutout);
 		assign(this.extras.interior, extras.interior);
 		assign(this.extras.rimLight, extras.rimLight);

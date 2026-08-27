@@ -10,7 +10,12 @@ import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
 import type { InteriorPattern } from "../rendering/effects/interior-effect.ts";
 import type { MaterialStyle } from "../rendering/effects/material-style.ts";
 import type { DeformAxis } from "../rendering/effects/mesh-deform-effect.ts";
+import type {
+	ParticleMotion,
+	ParticleShape,
+} from "../rendering/effects/particles-effect.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
+import type { BackgroundPattern } from "../rendering/effects/procedural-background-effect.ts";
 import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
 import type { TriangleShatterMode } from "../rendering/effects/triangle-shatter-effect.ts";
 import type {
@@ -24,6 +29,31 @@ export interface WireframeOptions {
 	enabled?: boolean;
 	modelOnly?: boolean;
 	color?: Color3;
+}
+
+export interface ParticlesOptions {
+	enabled?: boolean;
+	count?: number;
+	shape?: ParticleShape;
+	paletteIndices?: number[];
+	size?: number;
+	sizeJitter?: number;
+	motion?: ParticleMotion;
+	speed?: number;
+	areaScale?: number;
+	twinkle?: number;
+}
+
+export interface ProceduralBackgroundOptions {
+	enabled?: boolean;
+	pattern?: BackgroundPattern;
+	colorA?: Color3;
+	colorB?: Color3;
+	scale?: number;
+	speed?: number;
+	seed?: number;
+	cameraParallax?: number;
+	dither?: boolean;
 }
 
 export interface GradientOutlineOptions {
@@ -299,6 +329,8 @@ export interface TriangleShatterOptions {
 
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
+	particles?: ParticlesOptions;
+	proceduralBackground?: ProceduralBackgroundOptions;
 	colorCutout?: ColorCutoutOptions;
 	interior?: InteriorOptions;
 	rimLight?: RimLightOptions;

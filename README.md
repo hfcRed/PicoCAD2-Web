@@ -341,7 +341,7 @@ Post-processing shaders are compiled lazily, so effects have no GPU cost until f
 
 Effects that support masking have a `maskedColors` property: an array of base palette indices (0-15) selecting which of the model's colors the effect applies to. An empty array (the default) applies the effect everywhere.
 
-Masks select *materials*, not displayed colors: a color is matched whether it is lit or in shadow, and pixels keep their material identity under warping effects (glitch, pixelation, lens distortion, chromatic aberration, CRT) and under material effects like rim light. Non-empty masks only ever match model pixels, never the background or outline.
+Masks select *materials*, not displayed colors: a color is matched whether it is lit or in shadow, and pixels keep their material identity under warping effects (glitch, pixelation, lens distortion, chromatic aberration, video effects) and under material effects like rim light. Non-empty masks only ever match model pixels, never the background or outline.
 
 Mask granularity follows where the mask is tested. Material and post-processing effects test per pixel, so `maskedColors: [12]` means "texels painted with color 12". Geometry effects run in the vertex stage where texels don't exist yet, so their masks select faces by the face's *assigned* color instead. On textured faces the two can disagree.
 
@@ -355,7 +355,7 @@ viewer.extras.glitch.enabled = true;
 viewer.extras.glitch.maskedColors = [12];
 ```
 
-All material effects support masking, per texel. These post-processing effects support it: bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, pixelation, chromatic aberration, CRT, depth fog, edge detection, and sharpen.
+All material effects support masking, per texel. These post-processing effects support it: bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, pixelation, chromatic aberration, depth fog, edge detection, and sharpen. Video effects are unmasked by design (they simulate the entire display), but they carry the palette index through their warps so masked effects later in the chain stay correct.
 
 ## Material Effects
 
@@ -620,15 +620,55 @@ viewer.extras.dithering.blend = 1.0;                   // Blend with original (d
 viewer.extras.dithering.channelAmount = [1, 1, 1];    // Per-channel amount (default: [1, 1, 1])
 ```
 
-### CRT
+### Video Effects
 
-Barrel distortion and scanline effect simulating a CRT monitor.
+Whole-display screen simulation with six screen types behind one `screenType` switch. Shared controls set up the virtual pixel grid and tone, and each screen type adds its own settings on top.
 
 ```typescript
-viewer.extras.crt.enabled = true;
-viewer.extras.crt.curvature = 0.5;           // Barrel distortion amount (default: 0.5)
-viewer.extras.crt.scanlineIntensity = 0.3;   // Scanline opacity (default: 0.3)
+viewer.extras.videoEffects.enabled = true;
+viewer.extras.videoEffects.screenType = "crt";       // Screen to simulate (default: "crt")
+// Available types: "crt" | "lcd" | "tn" | "oled" | "gameboy" | "projector"
+viewer.extras.videoEffects.resolution = 96;          // Virtual pixels along the height, 0 = native (default: 0)
+viewer.extras.videoEffects.brightness = 1.0;         // Brightness multiplier (default: 1.0)
+viewer.extras.videoEffects.saturation = 1.0;         // Saturation multiplier (default: 1.0)
+viewer.extras.videoEffects.contrastBoost = 0.0;      // Extra contrast (default: 0.0)
+viewer.extras.videoEffects.gridStrength = 0.5;       // Subpixel / screen-door / grille visibility (default: 0.5)
 ```
+
+`resolution` defines a virtual pixel grid, color is quantized per virtual pixel while the subpixel and grid structure renders at full output resolution, which is what makes it read as a screen instead of downscaled pixelation. At the default `0` there is no quantization and no grid structure. Because the quantization covers the same ground as pixelation, `videoEffects.resolution` supersedes `pixelation`, prefer it over stacking the two.
+
+Per-type settings:
+
+```typescript
+// CRT: curvature warp, scanlines, rolling flicker, phosphor ghosting
+viewer.extras.videoEffects.crt.curvature = 0.5;           // Barrel distortion amount (default: 0.5)
+viewer.extras.videoEffects.crt.scanlineIntensity = 0.3;   // Scanline opacity (default: 0.3)
+viewer.extras.videoEffects.crt.refreshRate = 0;           // Rolling flicker band sweeps in Hz, 0 = off (default: 0)
+viewer.extras.videoEffects.crt.pixelFadeTime = 0;         // Phosphor ghosting in seconds, 0 = off (default: 0)
+
+// Gameboy: 4-shade quantization with LCD smear
+viewer.extras.videoEffects.gameboy.palette = "dmg";       // "dmg" | "pocket" | "custom" (default: "dmg")
+viewer.extras.videoEffects.gameboy.customColors = [       // 4 shades, darkest to lightest, for "custom"
+  [0.06, 0.22, 0.06], [0.19, 0.38, 0.19], [0.55, 0.67, 0.06], [0.61, 0.74, 0.06],
+];
+viewer.extras.videoEffects.gameboy.ghosting = 0.3;        // LCD response smear, 0-1 (default: 0.3)
+
+// TN panel: viewing-angle shift
+viewer.extras.videoEffects.tn.angleShift = 0.5;           // Darkened top, washed-out bottom (default: 0.5)
+
+// OLED: perfect blacks and pentile layout
+viewer.extras.videoEffects.oled.blackCrush = 0.5;         // Crush near-black to true black (default: 0.5)
+viewer.extras.videoEffects.oled.pentile = false;          // Alternate RG/GB subpixel layout (default: false)
+
+// Projector: keystone, hotspot and lens glow
+viewer.extras.videoEffects.projector.keystone = 0.2;      // Trapezoid warp toward the top (default: 0.2)
+viewer.extras.videoEffects.projector.hotspot = 0.4;       // Radial brightness falloff (default: 0.4)
+viewer.extras.videoEffects.projector.halo = 0.3;          // Light spill around bright content (default: 0.3)
+```
+
+The plain `lcd` type uses only the shared controls: set a `resolution` and the `gridStrength` draws its RGB subpixels and screen-door gaps.
+
+> **Deprecated:** `viewer.extras.crt` is now an alias forwarding to `videoEffects` (enabling it switches `screenType` to `"crt"`) and will be removed in 2.0. States saved by older versions load correctly — their `crt` settings are mapped onto `videoEffects` and render identically; new states save only `videoEffects`. The one exception: the old CRT's `maskedColors` (which restricted scanlines to masked materials) is no longer supported, since the unified effect simulates the whole display.
 
 ### Pixelation
 
@@ -795,7 +835,7 @@ When multiple effects are active, they are applied in this fixed order:
 9. Bloom
 10. Dithering
 11. Halftone
-12. CRT
+12. Video Effects
 13. Pixelation
 14. Lens Distortion
 15. Chromatic Aberration

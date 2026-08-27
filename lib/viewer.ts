@@ -13,6 +13,7 @@ import {
 import type {
 	CameraControlOptions,
 	ExtrasOptions,
+	ExtrasState,
 	ModelInfo,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
@@ -1073,7 +1074,7 @@ export class PicoCAD2Viewer {
 	/**
 	 * Reads current extras effect properties into a plain object.
 	 */
-	private getExtrasState(): Required<ExtrasOptions> {
+	private getExtrasState(): ExtrasState {
 		const e = this.extras;
 		return {
 			wireframe: {
@@ -1244,12 +1245,26 @@ export class PicoCAD2Viewer {
 				channelAmount: [...e.dithering.channelAmount],
 				maskedColors: [...e.dithering.maskedColors],
 			},
-			crt: {
-				enabled: e.crt.enabled,
-				modelOnly: e.crt.modelOnly,
-				curvature: e.crt.curvature,
-				scanlineIntensity: e.crt.scanlineIntensity,
-				maskedColors: [...e.crt.maskedColors],
+			videoEffects: {
+				enabled: e.videoEffects.enabled,
+				modelOnly: e.videoEffects.modelOnly,
+				screenType: e.videoEffects.screenType,
+				resolution: e.videoEffects.resolution,
+				brightness: e.videoEffects.brightness,
+				saturation: e.videoEffects.saturation,
+				contrastBoost: e.videoEffects.contrastBoost,
+				gridStrength: e.videoEffects.gridStrength,
+				crt: { ...e.videoEffects.crt },
+				gameboy: {
+					palette: e.videoEffects.gameboy.palette,
+					customColors: e.videoEffects.gameboy.customColors.map(
+						(c): Color3 => [...c],
+					),
+					ghosting: e.videoEffects.gameboy.ghosting,
+				},
+				tn: { ...e.videoEffects.tn },
+				oled: { ...e.videoEffects.oled },
+				projector: { ...e.videoEffects.projector },
 			},
 			pixelation: {
 				enabled: e.pixelation.enabled,
@@ -1376,7 +1391,6 @@ export class PicoCAD2Viewer {
 		assign(this.extras.posterization, extras.posterization);
 		assign(this.extras.bloom, extras.bloom);
 		assign(this.extras.dithering, extras.dithering);
-		assign(this.extras.crt, extras.crt);
 		assign(this.extras.pixelation, extras.pixelation);
 		assign(this.extras.lensDistortion, extras.lensDistortion);
 		assign(this.extras.noise, extras.noise);
@@ -1407,6 +1421,26 @@ export class PicoCAD2Viewer {
 
 		assign(this.extras.triangleFlash, extras.triangleFlash);
 		assign(this.extras.triangleShatter, extras.triangleShatter);
+
+		if (extras.videoEffects) {
+			const { crt, gameboy, tn, oled, projector, ...video } =
+				extras.videoEffects;
+			assign(this.extras.videoEffects, video);
+			assign(this.extras.videoEffects.crt, crt);
+			assign(this.extras.videoEffects.gameboy, gameboy);
+			assign(this.extras.videoEffects.tn, tn);
+			assign(this.extras.videoEffects.oled, oled);
+			assign(this.extras.videoEffects.projector, projector);
+		} else if (extras.crt) {
+			// Legacy support
+			const video = this.extras.videoEffects;
+			video.enabled = extras.crt.enabled ?? video.enabled;
+			video.modelOnly = extras.crt.modelOnly ?? video.modelOnly;
+			video.screenType = "crt";
+			video.crt.curvature = extras.crt.curvature ?? video.crt.curvature;
+			video.crt.scanlineIntensity =
+				extras.crt.scanlineIntensity ?? video.crt.scanlineIntensity;
+		}
 	}
 
 	/**

@@ -13,4 +13,9 @@ export type { PixelShape } from "./pixelation-effect.ts";
 export { PixelationEffect } from "./pixelation-effect.ts";
 export { PosterizationEffect } from "./posterization-effect.ts";
 export type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
+export {
+	type GameboyPalette,
+	type ScreenType,
+	VideoEffectsEffect,
+} from "./video-effects-effect.ts";
 export { WireframeEffect } from "./wireframe-effect.ts";

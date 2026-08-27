@@ -19,6 +19,10 @@ import type { BackgroundPattern } from "../rendering/effects/procedural-backgrou
 import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
 import type { TriangleShatterMode } from "../rendering/effects/triangle-shatter-effect.ts";
 import type {
+	GameboyPalette,
+	ScreenType,
+} from "../rendering/effects/video-effects-effect.ts";
+import type {
 	CameraMode,
 	Color3,
 	ProjectionMode,
@@ -104,12 +108,42 @@ export interface DitheringOptions {
 	maskedColors?: number[];
 }
 
+/**
+ * @deprecated Use {@link VideoEffectsOptions} (`videoEffects`) instead.
+ * States containing only this key are mapped onto `videoEffects` with
+ * `screenType: "crt"` on load.
+ */
 export interface CRTOptions {
 	enabled?: boolean;
 	modelOnly?: boolean;
 	curvature?: number;
 	scanlineIntensity?: number;
 	maskedColors?: number[];
+}
+
+export interface VideoEffectsOptions {
+	enabled?: boolean;
+	modelOnly?: boolean;
+	screenType?: ScreenType;
+	resolution?: number;
+	brightness?: number;
+	saturation?: number;
+	contrastBoost?: number;
+	gridStrength?: number;
+	crt?: {
+		curvature?: number;
+		scanlineIntensity?: number;
+		refreshRate?: number;
+		pixelFadeTime?: number;
+	};
+	gameboy?: {
+		palette?: GameboyPalette;
+		customColors?: Color3[];
+		ghosting?: number;
+	};
+	tn?: { angleShift?: number };
+	oled?: { blackCrush?: number; pentile?: boolean };
+	projector?: { keystone?: number; hotspot?: number; halo?: number };
 }
 
 export interface PixelationOptions {
@@ -345,6 +379,8 @@ export interface ExtrasOptions {
 	posterization?: PosterizationOptions;
 	bloom?: BloomOptions;
 	dithering?: DitheringOptions;
+	videoEffects?: VideoEffectsOptions;
+	/** @deprecated Use `videoEffects` instead; accepted for legacy states. */
 	crt?: CRTOptions;
 	pixelation?: PixelationOptions;
 	lensDistortion?: LensDistortionOptions;
@@ -431,10 +467,15 @@ export interface ViewerSettings {
 	bookmark: BookmarkSettings;
 }
 
+export type ExtrasState = Omit<Required<ExtrasOptions>, "crt"> & {
+	/** @deprecated Only present in states saved by older versions. */
+	crt?: CRTOptions;
+};
+
 export interface PicoCAD2ViewerState {
 	source: string | null;
 	settings: ViewerSettings;
-	extras: Required<ExtrasOptions>;
+	extras: ExtrasState;
 }
 
 export interface PicoCAD2ViewerOptions {

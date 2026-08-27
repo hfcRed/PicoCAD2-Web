@@ -80,6 +80,11 @@ export type {
 	PostProcessEffect,
 	SceneEffect,
 } from "./rendering/effects/types.ts";
+export {
+	type GameboyPalette,
+	type ScreenType,
+	VideoEffectsEffect,
+} from "./rendering/effects/video-effects-effect.ts";
 export { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
 export { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 export { BitmapFont } from "./rendering/font.ts";
@@ -100,6 +105,7 @@ export type {
 	DitheringOptions,
 	EdgeDetectionOptions,
 	ExtrasOptions,
+	ExtrasState,
 	GlitchOptions,
 	GlitterOptions,
 	GradientLightOptions,
@@ -123,6 +129,7 @@ export type {
 	SpecularOptions,
 	TriangleFlashOptions,
 	TriangleShatterOptions,
+	VideoEffectsOptions,
 	ViewerSettings,
 	VignetteOptions,
 	WireframeOptions,

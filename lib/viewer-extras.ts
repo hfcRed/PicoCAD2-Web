@@ -26,6 +26,7 @@ import { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
 import { SpecularEffect } from "./rendering/effects/specular-effect.ts";
 import { TriangleFlashEffect } from "./rendering/effects/triangle-flash-effect.ts";
 import { TriangleShatterEffect } from "./rendering/effects/triangle-shatter-effect.ts";
+import { VideoEffectsEffect } from "./rendering/effects/video-effects-effect.ts";
 import { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
 import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
 
@@ -39,7 +40,7 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  * scene after the model. Post-process effects are applied in this default order:
  * gradient outline -> procedural background -> depth fog -> edge detection ->
  * color grading -> color tint -> posterization -> sharpen -> bloom ->
- * dithering -> halftone -> CRT -> pixelation -> lens distortion ->
+ * dithering -> halftone -> video effects -> pixelation -> lens distortion ->
  * chromatic aberration -> noise -> glitch -> vignette.
  */
 export class ViewerExtras {
@@ -60,6 +61,8 @@ export class ViewerExtras {
 	readonly posterization: PosterizationEffect;
 	readonly bloom: BloomEffect;
 	readonly dithering: DitheringEffect;
+	readonly videoEffects: VideoEffectsEffect;
+	/** @deprecated Use {@link videoEffects} with `screenType: "crt"` instead. */
 	readonly crt: CRTEffect;
 	readonly pixelation: PixelationEffect;
 	readonly lensDistortion: LensDistortionEffect;
@@ -140,8 +143,9 @@ export class ViewerExtras {
 		pipeline.addPostEffect(this.halftone);
 
 		// Display simulation
-		this.crt = new CRTEffect();
-		pipeline.addPostEffect(this.crt);
+		this.videoEffects = new VideoEffectsEffect();
+		pipeline.addPostEffect(this.videoEffects);
+		this.crt = new CRTEffect(this.videoEffects);
 
 		this.pixelation = new PixelationEffect();
 		pipeline.addPostEffect(this.pixelation);

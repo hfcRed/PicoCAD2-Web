@@ -94,6 +94,7 @@ const viewer = new PicoCAD2Viewer({
   cameraMode: "fixed",            // "fixed" | "spin" | "sway" | "pingpong" (default: "fixed")
   cameraModeSpeed: 5,             // Camera mode cycle duration in seconds (default: 5)
   cameraModeDirection: "left",    // "left" | "right" (default: "left")
+  clampCameraDistance: false,     // Keep the camera outside the model bounds so zooming can't clip into the geometry (default: false)
 
   // Animation
   animationSpeed: 1,              // Animation playback speed multiplier (default: 1)
@@ -150,6 +151,7 @@ viewer.scanlineColor = [0.2, 0, 0.4];
 viewer.cameraMode = "spin";
 viewer.cameraModeSpeed = 10;
 viewer.cameraModeDirection = "right";
+viewer.clampCameraDistance = true;    // Prevent the view from clipping into the model
 
 // Tags (watermark text in viewport corners)
 viewer.leftTag = { text: "picocad2-web", color: [1, 1, 1] };
@@ -356,6 +358,25 @@ viewer.extras.glitch.maskedColors = [12];
 ```
 
 All material effects support masking, per texel. These post-processing effects support it: bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, pixelation, chromatic aberration, depth fog, edge detection, and sharpen. Video effects are unmasked by design (they simulate the entire display), but they carry the palette index through their warps so masked effects later in the chain stay correct.
+
+## Palette Swap & Color Cycling
+
+`extras.paletteSwap` recolors the model PICO-8 `pal()` style, by rewriting the palette lookup table. A swapped index renders with the target's color *and* the target's shade ramp, so recolored materials shade correctly. Everything that reads the palette follows the swap. The model (including shading), particles, and palette-style effects like SSAO. Effect masks keep matching the original palette indices, which the swap does not change.
+
+```typescript
+const swap = viewer.extras.paletteSwap;
+swap.enabled = true;
+
+// Display palette color 7 as color 12 (sparse, unlisted indices stay unchanged)
+swap.map = [];
+swap.map[7] = 12;
+
+// Demoscene color cycling: these indices rotate through each other
+swap.cycleIndices = [8, 9, 10];    // 8 -> 9 -> 10 -> 8 -> ... (default: [])
+swap.cycleSpeed = 2;               // Cycle steps per second, negative reverses (default: 2)
+```
+
+Cycling applies on top of `map`, and the cycle loops perfectly.
 
 ## Material Effects
 
@@ -565,6 +586,21 @@ viewer.extras.proceduralBackground.cameraParallax = 0.5;     // 0 = screen-locke
 viewer.extras.proceduralBackground.dither = false;           // Checkerboard-quantize the gradients (default: false)
 ```
 
+### Ambient Occlusion (SSAO)
+
+Screen-space ambient occlusion. Crevices, corners and contact areas darken based on the surrounding geometry, grounding the model. Runs early in the chain, so fog and color work apply over it.
+
+The default `"palette"` style darkens by stepping each pixel to a deeper shade row of the model's palette, dithered with the same checkerboard the shading system uses. The occlusion looks hand-drawn instead of smeared. `"smooth"` multiplies plain RGB instead. `maskedColors` selects which colors receive occlusion.
+
+```typescript
+viewer.extras.ssao.enabled = true;
+viewer.extras.ssao.radius = 1;             // Sampling radius in world units (default: 1)
+viewer.extras.ssao.intensity = 1;          // Occlusion strength (default: 1)
+viewer.extras.ssao.power = 1;              // Falloff exponent, higher = darkens crevices only (default: 1)
+viewer.extras.ssao.samples = 16;           // Samples per pixel: 8 | 16 | 32 (default: 16)
+viewer.extras.ssao.style = "palette";      // "palette" | "smooth" (default: "palette")
+```
+
 ### Noise
 
 Animated film grain overlay.
@@ -711,13 +747,19 @@ viewer.extras.chromaticAberration.centerY = 0.5;         // Effect center Y (def
 
 A gradient colored outline effect. When enabled, it automatically replaces the built-in solid outline.
 
+The outline can grow directionally. `growthFactor` 0 (the default) grows it evenly on all sides, 1 grows it only toward `growthDirection`, with a smooth falloff to the sides. The `"dropShadow"` mode instead repeats the whole silhouette displaced by `shadowOffset`, for a sticker-style shadow (`size` still fattens the shadow shape; use `size = 0` for an exact copy).
+
 ```typescript
 viewer.extras.gradientOutline.enabled = true;
 viewer.extras.gradientOutline.size = 1;                      // Outline radius (default: 1)
 viewer.extras.gradientOutline.colorFrom = [1, 0.5, 0];       // Gradient start color (default: [1, 1, 1])
 viewer.extras.gradientOutline.colorTo = [0, 0.5, 1];         // Gradient end color (default: [0, 0, 0])
 viewer.extras.gradientOutline.gradient = 1.0;                // Gradient intensity (default: 1.0)
-viewer.extras.gradientOutline.gradientDirection = Math.PI;   // Direction angle in radians (default: 0)
+viewer.extras.gradientOutline.gradientDirection = Math.PI;   // Gradient angle in radians (default: 0)
+viewer.extras.gradientOutline.growthDirection = 90;          // Growth direction in degrees, 0 = right, 90 = up (default: 0)
+viewer.extras.gradientOutline.growthFactor = 0;              // 0 = uniform outline, 1 = one-sided (default: 0)
+viewer.extras.gradientOutline.mode = "outline";              // "outline" | "dropShadow" (default: "outline")
+viewer.extras.gradientOutline.shadowOffset = [2, -2];        // Drop shadow offset in pixels, +x = right, +y = up (default: [2, -2])
 ```
 
 ### Vignette
@@ -826,22 +868,23 @@ When multiple effects are active, they are applied in this fixed order:
 
 1. Gradient Outline
 2. Procedural Background
-3. Depth Fog
-4. Edge Detection
-5. Color Grading
-6. Color Tint
-7. Posterization
-8. Sharpen
-9. Bloom
-10. Dithering
-11. Halftone
-12. Video Effects
-13. Pixelation
-14. Lens Distortion
-15. Chromatic Aberration
-16. Noise
-17. Glitch
-18. Vignette
+3. Ambient Occlusion (SSAO)
+4. Depth Fog
+5. Edge Detection
+6. Color Grading
+7. Color Tint
+8. Posterization
+9. Sharpen
+10. Bloom
+11. Dithering
+12. Halftone
+13. Video Effects
+14. Pixelation
+15. Lens Distortion
+16. Chromatic Aberration
+17. Noise
+18. Glitch
+19. Vignette
 
 Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter, triangle flash. Geometry effects run in the vertex stage before any of that (mesh deform, then triangle shatter). Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 

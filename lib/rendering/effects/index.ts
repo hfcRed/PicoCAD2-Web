@@ -5,13 +5,18 @@ export { CRTEffect } from "./crt-effect.ts";
 export { DitheringEffect } from "./dithering-effect.ts";
 export { FramebufferPool } from "./framebuffer-pool.ts";
 export { FullscreenEffect } from "./fullscreen-effect.ts";
-export { GradientOutlineEffect } from "./gradient-outline-effect.ts";
+export {
+	GradientOutlineEffect,
+	type OutlineMode,
+} from "./gradient-outline-effect.ts";
 export { LensDistortionEffect } from "./lens-distortion-effect.ts";
 export { NoiseEffect } from "./noise-effect.ts";
+export { PaletteSwapEffect } from "./palette-swap-effect.ts";
 export { PostProcessPipeline } from "./pipeline.ts";
 export type { PixelShape } from "./pixelation-effect.ts";
 export { PixelationEffect } from "./pixelation-effect.ts";
 export { PosterizationEffect } from "./posterization-effect.ts";
+export { SSAOEffect, type SSAOSamples } from "./ssao-effect.ts";
 export type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
 export {
 	type GameboyPalette,

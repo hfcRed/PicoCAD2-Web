@@ -47,32 +47,39 @@ export function createIndexTexture(
 }
 
 /**
- * Creates the 16x3 palette texture for color lookup with shading.
+ * Fills the 16x3 palette LUT pixel data.
  * Row 0: regular palette colors.
  * Row 1: shade_pal_1 remapped colors (dark).
  * Row 2: shade_pal_2 remapped colors (darker).
  *
- * @param gl - The WebGL 2 rendering context.
+ * An optional remap substitutes the material for each palette index before
+ * the shade lookup. Index c renders with remap[c]'s color AND remap[c]'s
+ * shade ramp, so swapped colors keep correct shading (palette swap effect).
+ *
  * @param texture - The parsed texture data.
- * @returns The WebGL texture object.
+ * @param remap - Optional 16-entry display remap (identity when omitted).
+ * @returns The 16x3 interleaved RGB byte data.
  */
-export function createPaletteTexture(
-	gl: WebGL2RenderingContext,
+export function buildPaletteData(
 	texture: TextureData,
-): WebGLTexture {
-	const tex = gl.createTexture();
-	if (!tex) throw new Error("Failed to create palette texture");
-
+	remap?: readonly number[],
+): Uint8Array {
 	const data = new Uint8Array(16 * 3 * 3);
 	const colorCount = texture.colors.length / 3;
 
 	for (let row = 0; row < 3; row++) {
 		for (let col = 0; col < 16; col++) {
-			let sourceIndex = col;
-			if (row === 1 && col < colorCount) {
-				sourceIndex = texture.shadePalette1[col];
-			} else if (row === 2 && col < colorCount) {
-				sourceIndex = texture.shadePalette2[col];
+			let mapped = col;
+			if (remap && col < colorCount) {
+				const m = remap[col];
+				if (Number.isInteger(m) && m >= 0 && m < colorCount) mapped = m;
+			}
+
+			let sourceIndex = mapped;
+			if (row === 1 && mapped < colorCount) {
+				sourceIndex = texture.shadePalette1[mapped];
+			} else if (row === 2 && mapped < colorCount) {
+				sourceIndex = texture.shadePalette2[mapped];
 			}
 
 			const pixelOffset = (row * 16 + col) * 3;
@@ -87,6 +94,52 @@ export function createPaletteTexture(
 			}
 		}
 	}
+
+	return data;
+}
+
+/**
+ * Uploads new pixel data into an existing palette texture.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @param tex - The palette texture to update.
+ * @param data - The 16x3 interleaved RGB byte data.
+ */
+export function updatePaletteTexture(
+	gl: WebGL2RenderingContext,
+	tex: WebGLTexture,
+	data: Uint8Array,
+): void {
+	gl.bindTexture(gl.TEXTURE_2D, tex);
+	gl.texSubImage2D(
+		gl.TEXTURE_2D,
+		0,
+		0,
+		0,
+		16,
+		3,
+		gl.RGB,
+		gl.UNSIGNED_BYTE,
+		data,
+	);
+	gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
+/**
+ * Creates the 16x3 palette texture for color lookup with shading.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @param texture - The parsed texture data.
+ * @returns The WebGL texture object.
+ */
+export function createPaletteTexture(
+	gl: WebGL2RenderingContext,
+	texture: TextureData,
+): WebGLTexture {
+	const tex = gl.createTexture();
+	if (!tex) throw new Error("Failed to create palette texture");
+
+	const data = buildPaletteData(texture);
 
 	gl.bindTexture(gl.TEXTURE_2D, tex);
 	gl.texImage2D(

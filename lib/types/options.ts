@@ -6,6 +6,7 @@ import type {
 	GlitterSpace,
 } from "../rendering/effects/glitter-effect.ts";
 import type { GradientLightSource } from "../rendering/effects/gradient-light-effect.ts";
+import type { OutlineMode } from "../rendering/effects/gradient-outline-effect.ts";
 import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
 import type { InteriorPattern } from "../rendering/effects/interior-effect.ts";
 import type { MaterialStyle } from "../rendering/effects/material-style.ts";
@@ -16,6 +17,7 @@ import type {
 } from "../rendering/effects/particles-effect.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
 import type { BackgroundPattern } from "../rendering/effects/procedural-background-effect.ts";
+import type { SSAOSamples } from "../rendering/effects/ssao-effect.ts";
 import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
 import type { TriangleShatterMode } from "../rendering/effects/triangle-shatter-effect.ts";
 import type {
@@ -68,6 +70,20 @@ export interface GradientOutlineOptions {
 	colorTo?: Color3;
 	gradient?: number;
 	gradientDirection?: number;
+	growthDirection?: number;
+	growthFactor?: number;
+	mode?: OutlineMode;
+	shadowOffset?: [number, number];
+}
+
+export interface SSAOOptions {
+	enabled?: boolean;
+	radius?: number;
+	intensity?: number;
+	power?: number;
+	samples?: SSAOSamples;
+	style?: MaterialStyle;
+	maskedColors?: number[];
 }
 
 export interface ColorGradingOptions {
@@ -258,6 +274,13 @@ export interface ColorCutoutOptions {
 	maskedColors?: number[];
 }
 
+export interface PaletteSwapOptions {
+	enabled?: boolean;
+	map?: number[];
+	cycleIndices?: number[];
+	cycleSpeed?: number;
+}
+
 export interface InteriorOptions {
 	enabled?: boolean;
 	pattern?: InteriorPattern;
@@ -366,6 +389,7 @@ export interface ExtrasOptions {
 	particles?: ParticlesOptions;
 	proceduralBackground?: ProceduralBackgroundOptions;
 	colorCutout?: ColorCutoutOptions;
+	paletteSwap?: PaletteSwapOptions;
 	interior?: InteriorOptions;
 	rimLight?: RimLightOptions;
 	gradientLight?: GradientLightOptions;
@@ -375,6 +399,7 @@ export interface ExtrasOptions {
 	triangleFlash?: TriangleFlashOptions;
 	triangleShatter?: TriangleShatterOptions;
 	gradientOutline?: GradientOutlineOptions;
+	ssao?: SSAOOptions;
 	colorGrading?: ColorGradingOptions;
 	posterization?: PosterizationOptions;
 	bloom?: BloomOptions;
@@ -464,6 +489,7 @@ export interface ViewerSettings {
 	camera: CameraSettings;
 	resolution: ResolutionSettings;
 	maxFps: number;
+	clampCameraDistance: boolean;
 	bookmark: BookmarkSettings;
 }
 
@@ -499,6 +525,7 @@ export interface PicoCAD2ViewerOptions {
 		scale?: number;
 	};
 	maxFps?: number;
+	clampCameraDistance?: boolean;
 	extras?: ExtrasOptions;
 	onLoad?: ((info: ModelInfo) => void) | null;
 	onFrame?: ((dt: number) => void) | null;

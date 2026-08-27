@@ -1,5 +1,5 @@
 import { evaluateMotions } from "./animation/animator.ts";
-import { OrbitCamera } from "./camera/orbit-camera.ts";
+import { CAMERA_NEAR, OrbitCamera } from "./camera/orbit-camera.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
 import { packColorMask } from "./rendering/effects/color-mask.ts";
@@ -129,6 +129,7 @@ export class PicoCAD2Viewer {
 	cameraModeSpeed = 5;
 	cameraModeDirection: "left" | "right" = "left";
 	maxFps = 60;
+	clampCameraDistance = false;
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -188,6 +189,7 @@ export class PicoCAD2Viewer {
 		meshDeform: null,
 		triangleFlash: null,
 		triangleShatter: null,
+		paletteSwap: null,
 	};
 
 	private readonly boundHandlers: {
@@ -248,6 +250,9 @@ export class PicoCAD2Viewer {
 			this.cameraModeDirection = options.cameraModeDirection;
 		}
 		if (options?.maxFps !== undefined) this.maxFps = options.maxFps;
+		if (options?.clampCameraDistance !== undefined) {
+			this.clampCameraDistance = options.clampCameraDistance;
+		}
 
 		if (options?.extras) {
 			this.applyExtrasOptions(options.extras);
@@ -484,6 +489,27 @@ export class PicoCAD2Viewer {
 		settings.meshDeform = this._extras.meshDeform;
 		settings.triangleFlash = this._extras.triangleFlash;
 		settings.triangleShatter = this._extras.triangleShatter;
+		settings.paletteSwap = this._extras.paletteSwap;
+
+		if (this.clampCameraDistance && this.resources) {
+			const b = this.resources.bounds;
+			const cx = (b.min[0] + b.max[0]) / 2;
+			const cy = (b.min[1] + b.max[1]) / 2;
+			const cz = (b.min[2] + b.max[2]) / 2;
+			const radius =
+				Math.hypot(
+					b.max[0] - b.min[0],
+					b.max[1] - b.min[1],
+					b.max[2] - b.min[2],
+				) / 2;
+			const t = this.camera.target;
+			const offset = Math.hypot(t[0] - cx, t[1] - cy, t[2] - cz);
+			const minDist = radius + offset + CAMERA_NEAR;
+
+			if (this.camera.distanceToTarget < minDist) {
+				this.camera.zoomBy(minDist - this.camera.distanceToTarget);
+			}
+		}
 	}
 
 	/**
@@ -962,6 +988,7 @@ export class PicoCAD2Viewer {
 					scale: this.renderScale,
 				},
 				maxFps: this.maxFps,
+				clampCameraDistance: this.clampCameraDistance,
 				bookmark: this.model?.bookmark
 					? {
 							omega: this.model.bookmark.omega,
@@ -1025,6 +1052,7 @@ export class PicoCAD2Viewer {
 		// The following properties have fallbacks for backwards compatibility
 		this.animation.loops = s.animation.loops ?? this.animation.loops;
 		this.maxFps = s.maxFps ?? this.maxFps;
+		this.clampCameraDistance = s.clampCameraDistance ?? false;
 
 		if (s.animation.playing) {
 			this.animation.play();
@@ -1097,6 +1125,12 @@ export class PicoCAD2Viewer {
 			colorCutout: {
 				enabled: e.colorCutout.enabled,
 				maskedColors: [...e.colorCutout.maskedColors],
+			},
+			paletteSwap: {
+				enabled: e.paletteSwap.enabled,
+				map: [...e.paletteSwap.map],
+				cycleIndices: [...e.paletteSwap.cycleIndices],
+				cycleSpeed: e.paletteSwap.cycleSpeed,
 			},
 			interior: {
 				enabled: e.interior.enabled,
@@ -1210,6 +1244,19 @@ export class PicoCAD2Viewer {
 				colorTo: [...e.gradientOutline.colorTo],
 				gradient: e.gradientOutline.gradient,
 				gradientDirection: e.gradientOutline.gradientDirection,
+				growthDirection: e.gradientOutline.growthDirection,
+				growthFactor: e.gradientOutline.growthFactor,
+				mode: e.gradientOutline.mode,
+				shadowOffset: [...e.gradientOutline.shadowOffset],
+			},
+			ssao: {
+				enabled: e.ssao.enabled,
+				radius: e.ssao.radius,
+				intensity: e.ssao.intensity,
+				power: e.ssao.power,
+				samples: e.ssao.samples,
+				style: e.ssao.style,
+				maskedColors: [...e.ssao.maskedColors],
 			},
 			colorGrading: {
 				enabled: e.colorGrading.enabled,
@@ -1382,11 +1429,13 @@ export class PicoCAD2Viewer {
 		assign(this.extras.particles, extras.particles);
 		assign(this.extras.proceduralBackground, extras.proceduralBackground);
 		assign(this.extras.colorCutout, extras.colorCutout);
+		assign(this.extras.paletteSwap, extras.paletteSwap);
 		assign(this.extras.interior, extras.interior);
 		assign(this.extras.rimLight, extras.rimLight);
 		assign(this.extras.gradientLight, extras.gradientLight);
 		assign(this.extras.glitter, extras.glitter);
 		assign(this.extras.gradientOutline, extras.gradientOutline);
+		assign(this.extras.ssao, extras.ssao);
 		assign(this.extras.colorGrading, extras.colorGrading);
 		assign(this.extras.posterization, extras.posterization);
 		assign(this.extras.bloom, extras.bloom);

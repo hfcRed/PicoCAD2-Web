@@ -27,7 +27,10 @@ export {
 	GradientLightEffect,
 	type GradientLightSource,
 } from "./rendering/effects/gradient-light-effect.ts";
-export { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effect.ts";
+export {
+	GradientOutlineEffect,
+	type OutlineMode,
+} from "./rendering/effects/gradient-outline-effect.ts";
 export {
 	HalftoneEffect,
 	type HalftoneMode,
@@ -46,6 +49,7 @@ export {
 	MeshDeformEffect,
 } from "./rendering/effects/mesh-deform-effect.ts";
 export { NoiseEffect } from "./rendering/effects/noise-effect.ts";
+export { PaletteSwapEffect } from "./rendering/effects/palette-swap-effect.ts";
 export {
 	type ParticleMotion,
 	type ParticleShape,
@@ -67,6 +71,10 @@ export {
 	SpecularEffect,
 	type SpecularEnvironment,
 } from "./rendering/effects/specular-effect.ts";
+export {
+	SSAOEffect,
+	type SSAOSamples,
+} from "./rendering/effects/ssao-effect.ts";
 export {
 	TriangleFlashEffect,
 	type TriangleFlashMode,

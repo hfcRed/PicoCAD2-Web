@@ -25,6 +25,7 @@ import {
 	type MeshDeformEffect,
 	writeMeshDeformUniforms,
 } from "./effects/mesh-deform-effect.ts";
+import type { PaletteSwapEffect } from "./effects/palette-swap-effect.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import type { RimLightEffect } from "./effects/rim-light-effect.ts";
 import type { SpecularEffect } from "./effects/specular-effect.ts";
@@ -32,7 +33,12 @@ import type { TriangleFlashEffect } from "./effects/triangle-flash-effect.ts";
 import type { TriangleShatterEffect } from "./effects/triangle-shatter-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
-import { createIndexTexture, createPaletteTexture } from "./textures.ts";
+import {
+	buildPaletteData,
+	createIndexTexture,
+	createPaletteTexture,
+	updatePaletteTexture,
+} from "./textures.ts";
 
 export interface RenderSettings {
 	shading: boolean;
@@ -49,6 +55,7 @@ export interface RenderSettings {
 	meshDeform: MeshDeformEffect | null;
 	triangleFlash: TriangleFlashEffect | null;
 	triangleShatter: TriangleShatterEffect | null;
+	paletteSwap: PaletteSwapEffect | null;
 }
 
 /**
@@ -74,8 +81,8 @@ export interface ModelResources {
 	indexTexture: WebGLTexture;
 	paletteTexture: WebGLTexture;
 	nodeBuffers: NodeBuffers[];
-	/** World-space bounds of the rest pose, for effects that need a model frame. */
 	bounds: WorldBounds;
+	paletteKey: string;
 }
 
 export interface RenderStats {
@@ -228,6 +235,9 @@ export class Renderer {
 			time: 0,
 			depthTexture: null,
 			indexTexture: null,
+			paletteTexture: null,
+			projectionMatrix: mat4.create(),
+			invProjectionMatrix: mat4.create(),
 			backgroundColor: [0, 0, 0],
 			isOrthographic: false,
 			bgIsTransparent: false,
@@ -253,6 +263,7 @@ export class Renderer {
 			paletteTexture: createPaletteTexture(this.gl, model.texture),
 			nodeBuffers: buildAllBuffers(this.gl, model.root),
 			bounds: computeWorldBounds(model.root),
+			paletteKey: "",
 		};
 	}
 
@@ -336,6 +347,7 @@ export class Renderer {
 			(shatter?.enabled ?? false) && (shatter?.progress ?? 0) > 0;
 
 		updateRenderState(model.root);
+		this.updatePaletteSwap(settings, model, resources, time);
 
 		let bgR: number;
 		let bgG: number;
@@ -381,6 +393,9 @@ export class Renderer {
 		ctx.backgroundColor[1] = bgG;
 		ctx.backgroundColor[2] = bgB;
 		ctx.isOrthographic = camera.projectionMode === "orthographic";
+		ctx.paletteTexture = resources.paletteTexture;
+		mat4.copy(ctx.projectionMatrix, camera.getProjectionMatrix(aspect));
+		mat4.invert(ctx.invProjectionMatrix, ctx.projectionMatrix);
 		ctx.meshDeform = settings.meshDeform;
 		ctx.shatterActive = this.shatterActive;
 		ctx.cameraFwd[0] = mu.u_cameraFwd[0];
@@ -597,6 +612,48 @@ export class Renderer {
 
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);
+	}
+
+	/**
+	 * Applies the palette swap / color cycling effect by rewriting the model's
+	 * palette LUT on the CPU when its effective remap changes. Restores the
+	 * original palette when the effect turns off.
+	 *
+	 * @param settings - The current render settings.
+	 * @param model - The parsed model, for its texture data.
+	 * @param resources - The GPU resources holding the palette texture.
+	 * @param time - Elapsed time in seconds, driving the color cycle.
+	 */
+	private updatePaletteSwap(
+		settings: RenderSettings,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+		time: number,
+	): void {
+		const swap = settings.paletteSwap;
+
+		if (!swap?.enabled) {
+			if (resources.paletteKey !== "") {
+				updatePaletteTexture(
+					this.gl,
+					resources.paletteTexture,
+					buildPaletteData(model.texture),
+				);
+				resources.paletteKey = "";
+			}
+			return;
+		}
+
+		const remap = swap.resolveRemap(time);
+		const key = remap.join(",");
+		if (key === resources.paletteKey) return;
+
+		updatePaletteTexture(
+			this.gl,
+			resources.paletteTexture,
+			buildPaletteData(model.texture, remap),
+		);
+		resources.paletteKey = key;
 	}
 
 	/**

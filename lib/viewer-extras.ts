@@ -16,6 +16,7 @@ import { InteriorEffect } from "./rendering/effects/interior-effect.ts";
 import { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
 import { MeshDeformEffect } from "./rendering/effects/mesh-deform-effect.ts";
 import { NoiseEffect } from "./rendering/effects/noise-effect.ts";
+import { PaletteSwapEffect } from "./rendering/effects/palette-swap-effect.ts";
 import { ParticlesEffect } from "./rendering/effects/particles-effect.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import { PixelationEffect } from "./rendering/effects/pixelation-effect.ts";
@@ -24,6 +25,7 @@ import { ProceduralBackgroundEffect } from "./rendering/effects/procedural-backg
 import { RimLightEffect } from "./rendering/effects/rim-light-effect.ts";
 import { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
 import { SpecularEffect } from "./rendering/effects/specular-effect.ts";
+import { SSAOEffect } from "./rendering/effects/ssao-effect.ts";
 import { TriangleFlashEffect } from "./rendering/effects/triangle-flash-effect.ts";
 import { TriangleShatterEffect } from "./rendering/effects/triangle-shatter-effect.ts";
 import { VideoEffectsEffect } from "./rendering/effects/video-effects-effect.ts";
@@ -38,7 +40,7 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  * rim light, glitter) are applied inside the model shader, in that order, before any
  * post-processing. Scene effects (wireframe, particles) draw into the 3D
  * scene after the model. Post-process effects are applied in this default order:
- * gradient outline -> procedural background -> depth fog -> edge detection ->
+ * gradient outline -> procedural background -> ssao -> depth fog -> edge detection ->
  * color grading -> color tint -> posterization -> sharpen -> bloom ->
  * dithering -> halftone -> video effects -> pixelation -> lens distortion ->
  * chromatic aberration -> noise -> glitch -> vignette.
@@ -47,6 +49,7 @@ export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
 	readonly particles: ParticlesEffect;
 	readonly colorCutout: ColorCutoutEffect;
+	readonly paletteSwap: PaletteSwapEffect;
 	readonly interior: InteriorEffect;
 	readonly rimLight: RimLightEffect;
 	readonly gradientLight: GradientLightEffect;
@@ -57,6 +60,7 @@ export class ViewerExtras {
 	readonly triangleShatter: TriangleShatterEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly proceduralBackground: ProceduralBackgroundEffect;
+	readonly ssao: SSAOEffect;
 	readonly colorGrading: ColorGradingEffect;
 	readonly posterization: PosterizationEffect;
 	readonly bloom: BloomEffect;
@@ -90,12 +94,16 @@ export class ViewerExtras {
 		pipeline.addSceneEffect(this.particles);
 
 		// Applied inside the model shader, not the effect pipeline.
+		// ---------------
 		this.colorCutout = new ColorCutoutEffect();
+		// CPU-side palette LUT rewrite, applied by the renderer.
+		this.paletteSwap = new PaletteSwapEffect();
 		this.interior = new InteriorEffect();
 		this.rimLight = new RimLightEffect();
 		this.gradientLight = new GradientLightEffect();
 		this.specular = new SpecularEffect();
 		this.glitter = new GlitterEffect();
+		// ---------------
 
 		// Geometry effects. Vertex-stage, applied in the model shader's
 		// vertex stage (flash/shatter mask by face color, deform is unmasked).
@@ -111,6 +119,10 @@ export class ViewerExtras {
 		// before everything else, so later passes apply over the pattern.
 		this.proceduralBackground = new ProceduralBackgroundEffect();
 		pipeline.addPostEffect(this.proceduralBackground);
+
+		// Early in the chain, so fog and color work apply over the occlusion.
+		this.ssao = new SSAOEffect();
+		pipeline.addPostEffect(this.ssao);
 
 		this.depthFog = new DepthFogEffect();
 		pipeline.addPostEffect(this.depthFog);

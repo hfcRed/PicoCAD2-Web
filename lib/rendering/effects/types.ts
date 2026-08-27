@@ -10,6 +10,9 @@ export interface EffectContext {
 	time: number;
 	depthTexture: WebGLTexture | null;
 	indexTexture: WebGLTexture | null;
+	paletteTexture: WebGLTexture | null;
+	projectionMatrix: mat4;
+	invProjectionMatrix: mat4;
 	backgroundColor: Color3;
 	isOrthographic: boolean;
 	bgIsTransparent: boolean;

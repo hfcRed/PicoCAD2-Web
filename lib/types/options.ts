@@ -1,4 +1,5 @@
 import type { PicoCAD2Context } from "../context.ts";
+import type { BillboardMode } from "../rendering/effects/billboard-effect.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
 import type {
@@ -351,6 +352,22 @@ export interface GlitterOptions {
 	maskedColors?: number[];
 }
 
+export interface FurOptions {
+	enabled?: boolean;
+	length?: number;
+	layers?: number;
+	density?: number;
+	gravity?: [number, number, number];
+	rootShade?: number;
+	maskedColors?: number[];
+}
+
+export interface BillboardOptions {
+	enabled?: boolean;
+	nodes?: string[];
+	mode?: BillboardMode;
+}
+
 export interface MeshDeformOptions {
 	enabled?: boolean;
 	rounding?: { amount?: number; gridSize?: number };
@@ -395,9 +412,11 @@ export interface ExtrasOptions {
 	gradientLight?: GradientLightOptions;
 	specular?: SpecularOptions;
 	glitter?: GlitterOptions;
+	fur?: FurOptions;
 	meshDeform?: MeshDeformOptions;
 	triangleFlash?: TriangleFlashOptions;
 	triangleShatter?: TriangleShatterOptions;
+	billboard?: BillboardOptions;
 	gradientOutline?: GradientOutlineOptions;
 	ssao?: SSAOOptions;
 	colorGrading?: ColorGradingOptions;

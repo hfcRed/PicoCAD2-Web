@@ -1,5 +1,9 @@
 export const COMPATIBLE_VERSION = "2.2.0-b16";
 export { PicoCAD2Context } from "./context.ts";
+export {
+	BillboardEffect,
+	type BillboardMode,
+} from "./rendering/effects/billboard-effect.ts";
 export { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
 export { ColorCutoutEffect } from "./rendering/effects/color-cutout-effect.ts";
@@ -17,6 +21,7 @@ export {
 export { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
 export { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
 export { FullscreenEffect } from "./rendering/effects/fullscreen-effect.ts";
+export { FurEffect } from "./rendering/effects/fur-effect.ts";
 export { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
 export {
 	GlitterEffect,
@@ -100,6 +105,7 @@ export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type { WorldBounds } from "./scene/scene-graph.ts";
 export type {
 	AnimationSettings,
+	BillboardOptions,
 	BloomOptions,
 	BookmarkSettings,
 	CameraControlOptions,
@@ -114,6 +120,7 @@ export type {
 	EdgeDetectionOptions,
 	ExtrasOptions,
 	ExtrasState,
+	FurOptions,
 	GlitchOptions,
 	GlitterOptions,
 	GradientLightOptions,

@@ -345,7 +345,7 @@ Effects that support masking have a `maskedColors` property: an array of base pa
 
 Masks select *materials*, not displayed colors: a color is matched whether it is lit or in shadow, and pixels keep their material identity under warping effects (glitch, pixelation, lens distortion, chromatic aberration, video effects) and under material effects like rim light. Non-empty masks only ever match model pixels, never the background or outline.
 
-Mask granularity follows where the mask is tested. Material and post-processing effects test per pixel, so `maskedColors: [12]` means "texels painted with color 12". Geometry effects run in the vertex stage where texels don't exist yet, so their masks select faces by the face's *assigned* color instead. On textured faces the two can disagree.
+Mask granularity follows where the mask is tested. Material and post-processing effects test per pixel, so `maskedColors: [12]` means "texels painted with color 12". Geometry effects run in the vertex stage where texels don't exist yet, so their masks select faces by the face's *assigned* color instead. On textured faces the two can disagree. Fur is the exception, its strand cutout runs per fragment and samples the texture, so its mask is per texel like the material effects. The billboard effect selects whole nodes by name rather than by color.
 
 ```typescript
 // Make palette color 10 glow
@@ -483,7 +483,7 @@ viewer.extras.glitter.hueRange = 0.5;        // Hue spread for randomHue, 0-1 (d
 
 ## Geometry Effects
 
-Geometry effects reshape the model's own geometry. Masks select by face color (see Color Masks).
+Geometry effects reshape or grow the model's own geometry. Masks select by face color (see Color Masks), except fur's, which is per texel.
 
 ### Mesh Deform
 
@@ -533,6 +533,32 @@ viewer.extras.triangleShatter.rotation = 1;        // Tumble revolutions at prog
 viewer.extras.triangleShatter.gravity = 0;         // Downward pull, scaled by distance (default: 0)
 viewer.extras.triangleShatter.shrink = 0;          // Scale toward 0 at progress 1, 0-1 (default: 0)
 viewer.extras.triangleShatter.maskedColors = [7];  // Only these face colors explode (default: [] = all)
+```
+
+### Fur
+
+Shell-textured fur grown from the model's surfaces. The model is drawn again as a stack of instanced shells into strands of varying height. Strand roots darken through the palette's shade rows with checkerboard dithering. The fur stays palette-pure. Fur follows the mesh deform and hides while a triangle shatter is in progress.
+
+```typescript
+viewer.extras.fur.enabled = true;
+viewer.extras.fur.length = 0.1;            // Fur length in world units (default: 0.1)
+viewer.extras.fur.layers = 8;              // Shell count, 1-16 (default: 8)
+viewer.extras.fur.density = 40;            // Strand cells per world unit (default: 40)
+viewer.extras.fur.gravity = [0, -0.5, 0];  // Comb/droop vector, in fur lengths at the tip (default: [0, 0, 0])
+viewer.extras.fur.rootShade = 1;           // How hard roots darken through the shade rows, 0-1 (default: 1)
+viewer.extras.fur.maskedColors = [9];      // Fur only grows from these colors (default: [] = everywhere)
+```
+
+Unlike the other geometry effects, fur's mask is per texel. The strand cutout samples the texture, so `maskedColors: [9]` grows fur exactly where the surface is painted with color 9.
+
+### Billboard
+
+Turns selected nodes toward the camera, keeping translation and scale. Children inherit the billboarded frame, billboard wins over animated rotation on the same node. The wireframe follows automatically.
+
+```typescript
+viewer.extras.billboard.enabled = true;
+viewer.extras.billboard.nodes = ["sign"];  // Node names (default: [] = all top-level mesh nodes)
+viewer.extras.billboard.mode = "full";     // "full" (face the camera on all axes) | "yaw" (spin around world Y, default: "full")
 ```
 
 ## Scene Effects
@@ -886,7 +912,7 @@ When multiple effects are active, they are applied in this fixed order:
 18. Glitch
 19. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter, triangle flash. Geometry effects run in the vertex stage before any of that (mesh deform, then triangle shatter). Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter, triangle flash. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

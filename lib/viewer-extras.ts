@@ -1,3 +1,4 @@
+import { BillboardEffect } from "./rendering/effects/billboard-effect.ts";
 import { BloomEffect } from "./rendering/effects/bloom-effect.ts";
 import { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
 import { ColorCutoutEffect } from "./rendering/effects/color-cutout-effect.ts";
@@ -7,6 +8,7 @@ import { CRTEffect } from "./rendering/effects/crt-effect.ts";
 import { DepthFogEffect } from "./rendering/effects/depth-fog-effect.ts";
 import { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
 import { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
+import { FurEffect } from "./rendering/effects/fur-effect.ts";
 import { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
 import { GlitterEffect } from "./rendering/effects/glitter-effect.ts";
 import { GradientLightEffect } from "./rendering/effects/gradient-light-effect.ts";
@@ -38,7 +40,9 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  *
  * Material effects (color cutout, interior, gradient light, specular,
  * rim light, glitter) are applied inside the model shader, in that order, before any
- * post-processing. Scene effects (wireframe, particles) draw into the 3D
+ * post-processing. Fur shells and the billboard node exclusion are applied
+ * by the renderer alongside the model draw. Scene effects (wireframe,
+ * particles) draw into the 3D
  * scene after the model. Post-process effects are applied in this default order:
  * gradient outline -> procedural background -> ssao -> depth fog -> edge detection ->
  * color grading -> color tint -> posterization -> sharpen -> bloom ->
@@ -55,9 +59,11 @@ export class ViewerExtras {
 	readonly gradientLight: GradientLightEffect;
 	readonly specular: SpecularEffect;
 	readonly glitter: GlitterEffect;
+	readonly fur: FurEffect;
 	readonly meshDeform: MeshDeformEffect;
 	readonly triangleFlash: TriangleFlashEffect;
 	readonly triangleShatter: TriangleShatterEffect;
+	readonly billboard: BillboardEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly proceduralBackground: ProceduralBackgroundEffect;
 	readonly ssao: SSAOEffect;
@@ -105,11 +111,18 @@ export class ViewerExtras {
 		this.glitter = new GlitterEffect();
 		// ---------------
 
+		// Instanced shell pass drawn by the renderer with the model.
+		this.fur = new FurEffect();
+
 		// Geometry effects. Vertex-stage, applied in the model shader's
 		// vertex stage (flash/shatter mask by face color, deform is unmasked).
 		this.meshDeform = new MeshDeformEffect();
 		this.triangleFlash = new TriangleFlashEffect();
 		this.triangleShatter = new TriangleShatterEffect();
+
+		// CPU matrix exclusion, applied by the renderer after the scene
+		// graph update.
+		this.billboard = new BillboardEffect();
 
 		// Scene reconstruction
 		this.gradientOutline = new GradientOutlineEffect();

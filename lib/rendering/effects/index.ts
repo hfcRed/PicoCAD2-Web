@@ -1,3 +1,7 @@
+export {
+	BillboardEffect,
+	type BillboardMode,
+} from "./billboard-effect.ts";
 export { BloomEffect } from "./bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./chromatic-aberration-effect.ts";
 export { ColorGradingEffect } from "./color-grading-effect.ts";
@@ -5,6 +9,7 @@ export { CRTEffect } from "./crt-effect.ts";
 export { DitheringEffect } from "./dithering-effect.ts";
 export { FramebufferPool } from "./framebuffer-pool.ts";
 export { FullscreenEffect } from "./fullscreen-effect.ts";
+export { FurEffect } from "./fur-effect.ts";
 export {
 	GradientOutlineEffect,
 	type OutlineMode,

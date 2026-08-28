@@ -127,6 +127,52 @@ function computeFaceNormal(mesh: Mesh, face: Face): Float32Array {
 }
 
 /**
+ * Computes position-averaged smoothed normals for a mesh. The buffers are
+ * unwelded (per-corner face normals), so fur shells offset along face
+ * normals would crack apart at edges. Averaging the face normals of
+ * all faces sharing a position gives a continuous offset direction.
+ *
+ * Vertices are keyed by position, so seams where the source data has
+ * duplicate vertices at the same spot are welded as well.
+ *
+ * @param mesh - The mesh to average.
+ * @param faceNormals - Precomputed per-face normals, aligned to mesh.faces.
+ * @returns A map from "x,y,z" position key to the summed (unnormalized) normal.
+ */
+function computeSmoothedNormals(
+	mesh: Mesh,
+	faceNormals: (Float32Array | null)[],
+): Map<string, [number, number, number]> {
+	const sums = new Map<string, [number, number, number]>();
+	const v = mesh.vertices;
+
+	for (let f = 0; f < mesh.faces.length; f++) {
+		const normal = faceNormals[f];
+		if (!normal) continue;
+
+		// Each face contributes once per distinct position it touches.
+		const seen = new Set<string>();
+		for (const vertIdx of mesh.faces[f].vertexIndices) {
+			const i = vertIdx * 3;
+			const key = `${v[i]},${v[i + 1]},${v[i + 2]}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+
+			const sum = sums.get(key);
+			if (sum) {
+				sum[0] += normal[0];
+				sum[1] += normal[1];
+				sum[2] += normal[2];
+			} else {
+				sums.set(key, [normal[0], normal[1], normal[2]]);
+			}
+		}
+	}
+
+	return sums;
+}
+
+/**
  * Builds GPU buffers for a single mesh by fan-triangulating its faces
  * and sorting them into render groups.
  *
@@ -146,6 +192,7 @@ export function buildNodeBuffers(
 	// Collect triangulated vertex data per group
 	const groupPositions: number[][] = [[], [], [], []];
 	const groupNormals: number[][] = [[], [], [], []];
+	const groupSmoothNormals: number[][] = [[], [], [], []];
 	const groupColorIndices: number[][] = [[], [], [], []];
 	const groupFaceFlags: number[][] = [[], [], [], []];
 	const groupTriIds: number[][] = [[], [], [], []];
@@ -153,14 +200,20 @@ export function buildNodeBuffers(
 
 	const groupTexCoords = collectGroupTexCoords(mesh);
 
+	const faceNormals = mesh.faces.map((face) =>
+		face.vertexIndices.length < 3 ? null : computeFaceNormal(mesh, face),
+	);
+	const smoothedNormals = computeSmoothedNormals(mesh, faceNormals);
+
 	// Wireframe line positions
 	const wirePositions: number[] = [];
 
-	for (const face of mesh.faces) {
-		if (face.vertexIndices.length < 3) continue;
+	for (let f = 0; f < mesh.faces.length; f++) {
+		const face = mesh.faces[f];
+		const normal = faceNormals[f];
+		if (!normal) continue;
 
 		const group = getFaceGroup(face);
-		const normal = computeFaceNormal(mesh, face);
 		const flags = (face.noShading ? 1 : 0) | (face.noTexture ? 2 : 0);
 
 		// Fan triangulation of the face into triangles
@@ -182,16 +235,29 @@ export function buildNodeBuffers(
 
 			for (const localIdx of indices) {
 				const vertIdx = face.vertexIndices[localIdx] * 3;
-				groupPositions[group].push(
-					mesh.vertices[vertIdx],
-					mesh.vertices[vertIdx + 1],
-					mesh.vertices[vertIdx + 2],
-				);
+				const px = mesh.vertices[vertIdx];
+				const py = mesh.vertices[vertIdx + 1];
+				const pz = mesh.vertices[vertIdx + 2];
+				groupPositions[group].push(px, py, pz);
 				groupNormals[group].push(normal[0], normal[1], normal[2]);
 				groupColorIndices[group].push(face.color);
 				groupFaceFlags[group].push(flags);
 				groupTriIds[group].push(triId);
 				groupTriCentroids[group].push(cx, cy, cz);
+
+				// Opposing faces can cancel the averaged normal out. Fall
+				// back to the face normal so the offset direction persists.
+				const sum = smoothedNormals.get(`${px},${py},${pz}`);
+				const len = sum ? Math.hypot(sum[0], sum[1], sum[2]) : 0;
+				if (sum && len > 1e-5) {
+					groupSmoothNormals[group].push(
+						sum[0] / len,
+						sum[1] / len,
+						sum[2] / len,
+					);
+				} else {
+					groupSmoothNormals[group].push(normal[0], normal[1], normal[2]);
+				}
 			}
 		}
 
@@ -223,6 +289,10 @@ export function buildNodeBuffers(
 				data: new Float32Array(groupPositions[g]),
 			},
 			a_normal: { numComponents: 3, data: new Float32Array(groupNormals[g]) },
+			a_smoothNormal: {
+				numComponents: 3,
+				data: new Float32Array(groupSmoothNormals[g]),
+			},
 			a_texCoord: {
 				numComponents: 2,
 				data: new Float32Array(groupTexCoords[g]),

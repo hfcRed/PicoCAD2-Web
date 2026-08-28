@@ -3,16 +3,19 @@ import * as twgl from "twgl.js";
 import type { OrbitCamera } from "../camera/orbit-camera.ts";
 import {
 	computeWorldBounds,
+	traverseNode,
 	updateRenderState,
 	type WorldBounds,
 } from "../scene/scene-graph.ts";
-import type { Color3, PicoCAD2Model } from "../types/scene.ts";
+import type { Color3, PicoCAD2Model, SceneNode } from "../types/scene.ts";
 import {
 	buildAllBuffers,
 	type NodeBuffers,
 	updateNodeTexCoords,
 } from "./buffers.ts";
+import type { BillboardEffect } from "./effects/billboard-effect.ts";
 import { packColorMask } from "./effects/color-mask.ts";
+import type { FurEffect } from "./effects/fur-effect.ts";
 import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
@@ -56,6 +59,8 @@ export interface RenderSettings {
 	triangleFlash: TriangleFlashEffect | null;
 	triangleShatter: TriangleShatterEffect | null;
 	paletteSwap: PaletteSwapEffect | null;
+	fur: FurEffect | null;
+	billboard: BillboardEffect | null;
 }
 
 /**
@@ -211,6 +216,38 @@ export class Renderer {
 		u_glitterSmooth: false,
 		u_glitterMask: 0,
 	};
+	private readonly furUniforms = {
+		u_vp: mat4.create() as mat4,
+		u_indexTexture: null as WebGLTexture | null,
+		u_paletteTexture: null as WebGLTexture | null,
+		u_lightDir: this.lightDirWorld,
+		u_ambient: AMBIENT,
+		u_transparentColor: 0,
+		u_shadingEnabled: true,
+		u_renderMode: 0,
+		u_cutoutMask: 0,
+
+		u_furLength: 0,
+		u_furLayers: 1,
+		u_furGravity: [0, 0, 0] as Color3,
+		u_furDensity: 1,
+		u_furRootShade: 0,
+		u_furMask: 0,
+
+		u_deformEnabled: false,
+		u_deformRound: 0,
+		u_deformRoundGrid: 0.25,
+		u_deformBarrel: 0,
+		u_deformBarrelAxis: 1,
+		u_deformSpherify: 0,
+		u_deformTwist: 0,
+		u_deformTwistAxis: 1,
+		u_deformTwistPhase: 0,
+		u_deformCenter: [0, 0, 0] as Color3,
+		u_deformHalfExt: [1, 1, 1] as Color3,
+	};
+	/** Camera-facing rotation basis for the billboard effect, as columns. */
+	private readonly billboardBasis = new Float32Array(9);
 	private readonly outlineUniforms = {
 		u_texture: null as WebGLTexture | null,
 		u_outlineSize: 0,
@@ -347,6 +384,7 @@ export class Renderer {
 			(shatter?.enabled ?? false) && (shatter?.progress ?? 0) > 0;
 
 		updateRenderState(model.root);
+		this.applyBillboard(settings, model.root, v);
 		this.updatePaletteSwap(settings, model, resources, time);
 
 		let bgR: number;
@@ -512,6 +550,7 @@ export class Renderer {
 		const gl = this.gl;
 		gl.deleteProgram(this.programs.model.program);
 		gl.deleteProgram(this.programs.outline.program);
+		gl.deleteProgram(this.programs.fur.program);
 
 		if (this.emptyVao) {
 			gl.deleteVertexArray(this.emptyVao);
@@ -601,14 +640,25 @@ export class Renderer {
 		this.updateGeometryUniforms(settings, model, resources);
 		twgl.setUniforms(this.programs.model, uniforms);
 
+		const fur = settings.fur;
+		const furLayers =
+			fur?.enabled && !this.shatterActive && fur.length > 0
+				? Math.min(Math.max(Math.round(fur.layers), 1), 16)
+				: 0;
+		if (furLayers > 0 && fur) {
+			this.updateFurUniforms(fur, settings, resources, furLayers);
+		}
+
 		// Draw priority faces
 		this.drawGroups(PRIORITY_GROUPS, resources);
+		if (furLayers > 0) this.drawFur(PRIORITY_GROUPS, resources, furLayers);
 
 		// Clear depth buffer
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 
 		// Draw non-priority faces
 		this.drawGroups(NON_PRIORITY_GROUPS, resources);
+		if (furLayers > 0) this.drawFur(NON_PRIORITY_GROUPS, resources, furLayers);
 
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);
@@ -886,6 +936,211 @@ export class Renderer {
 				this.stats.drawCalls++;
 				this.stats.polyCount += (group.bufferInfo.numElements ?? 0) / 3;
 			}
+		}
+	}
+
+	/**
+	 * Maps the fur settings onto the fur program's uniforms. The shared
+	 * model-state uniforms are copied from the already-updated model
+	 * uniforms so the two programs always agree.
+	 *
+	 * @param fur - The enabled fur settings.
+	 * @param settings - The current render settings, for the mesh deform.
+	 * @param resources - The GPU resources, for textures and bounds.
+	 * @param layers - The clamped shell count.
+	 */
+	private updateFurUniforms(
+		fur: FurEffect,
+		settings: RenderSettings,
+		resources: ModelResources,
+		layers: number,
+	): void {
+		const mu = this.modelUniforms;
+		const u = this.furUniforms;
+
+		mat4.copy(u.u_vp, mu.u_vp);
+		u.u_indexTexture = mu.u_indexTexture;
+		u.u_paletteTexture = mu.u_paletteTexture;
+		u.u_transparentColor = mu.u_transparentColor;
+		u.u_shadingEnabled = mu.u_shadingEnabled;
+		u.u_renderMode = mu.u_renderMode;
+		u.u_cutoutMask = mu.u_cutoutMask;
+
+		u.u_furLength = fur.length;
+		u.u_furLayers = layers;
+		u.u_furGravity[0] = fur.gravity[0];
+		u.u_furGravity[1] = fur.gravity[1];
+		u.u_furGravity[2] = fur.gravity[2];
+		u.u_furDensity = Math.max(fur.density, 0.01);
+		u.u_furRootShade = Math.min(Math.max(fur.rootShade, 0), 1);
+		u.u_furMask = packColorMask(fur.maskedColors);
+
+		writeMeshDeformUniforms(
+			u,
+			settings.meshDeform,
+			resources.bounds,
+			mu.u_time,
+		);
+	}
+
+	/**
+	 * Draws the fur shells for specific render groups as one instanced
+	 * draw per group (gl_InstanceID = shell index). Runs while the index
+	 * attachment is still bound, so strands write their base palette index
+	 * like the model does. Rebinds the model program afterwards.
+	 *
+	 * @param groupIndices - Which render groups to draw shells for.
+	 * @param resources - The GPU resources.
+	 * @param layers - The shell count per strand.
+	 */
+	private drawFur(
+		groupIndices: readonly number[],
+		resources: ModelResources,
+		layers: number,
+	): void {
+		const gl = this.gl;
+		const program = this.programs.fur;
+
+		gl.useProgram(program.program);
+		twgl.setUniforms(program, this.furUniforms);
+
+		for (const nb of resources.nodeBuffers) {
+			if (!nb.node.renderVisible || nb.node.ghost) continue;
+
+			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
+
+			for (const groupIdx of groupIndices) {
+				const group = nb.groups[groupIdx];
+				if (!group) continue;
+
+				const isDoubleSided = (groupIdx & 1) !== 0;
+				if (isDoubleSided) {
+					gl.disable(gl.CULL_FACE);
+				} else {
+					gl.enable(gl.CULL_FACE);
+					gl.cullFace(gl.FRONT);
+				}
+
+				twgl.setBuffersAndAttributes(gl, program, group.bufferInfo);
+				twgl.setUniforms(program, this.nodeUniforms);
+				twgl.drawBufferInfo(
+					gl,
+					group.bufferInfo,
+					gl.TRIANGLES,
+					undefined,
+					undefined,
+					layers,
+				);
+
+				this.stats.drawCalls++;
+				this.stats.polyCount +=
+					((group.bufferInfo.numElements ?? 0) / 3) * layers;
+			}
+		}
+
+		gl.useProgram(this.programs.model.program);
+	}
+
+	/**
+	 * Applies the billboard effect. Replaces the rotation basis of the
+	 * selected nodes' world matrices with a camera-facing one, keeping
+	 * translation and scale. Runs right after the scene graph update, so
+	 * billboard wins over animated rotation and children inherit the
+	 * billboarded frame.
+	 *
+	 * @param settings - The current render settings.
+	 * @param root - The scene graph root.
+	 * @param view - The camera view matrix, for the camera basis.
+	 */
+	private applyBillboard(
+		settings: RenderSettings,
+		root: SceneNode,
+		view: mat4,
+	): void {
+		const bb = settings.billboard;
+		if (!bb?.enabled) return;
+
+		const b = this.billboardBasis;
+		b[0] = view[0];
+		b[1] = view[4];
+		b[2] = view[8];
+		b[3] = view[1];
+		b[4] = view[5];
+		b[5] = view[9];
+		b[6] = view[2];
+		b[7] = view[6];
+		b[8] = view[10];
+
+		if (bb.mode === "yaw") {
+			const len = Math.hypot(b[6], b[8]);
+			if (len > 1e-5) {
+				b[6] /= len;
+				b[8] /= len;
+			} else {
+				b[6] = 0;
+				b[8] = 1;
+			}
+			b[7] = 0;
+			b[3] = 0;
+			b[4] = 1;
+			b[5] = 0;
+			b[0] = b[8];
+			b[1] = 0;
+			b[2] = -b[6];
+		}
+
+		if (bb.nodes.length > 0) {
+			const names = new Set(bb.nodes);
+			traverseNode(root, (node) => {
+				if (names.has(node.name)) this.billboardNode(node);
+			});
+		} else {
+			for (const node of root.children) {
+				if (node.mesh) this.billboardNode(node);
+			}
+		}
+	}
+
+	/**
+	 * Replaces one node's world rotation with the prepared camera-facing
+	 * basis and recomputes its descendants' world matrices from it.
+	 *
+	 * @param node - The node to billboard.
+	 */
+	private billboardNode(node: SceneNode): void {
+		if (!node.renderVisible) return;
+
+		const b = this.billboardBasis;
+		const w = node.worldMatrix;
+		const sx = Math.hypot(w[0], w[1], w[2]);
+		const sy = Math.hypot(w[4], w[5], w[6]);
+		const sz = Math.hypot(w[8], w[9], w[10]);
+
+		w[0] = b[0] * sx;
+		w[1] = b[1] * sx;
+		w[2] = b[2] * sx;
+		w[4] = b[3] * sy;
+		w[5] = b[4] * sy;
+		w[6] = b[5] * sy;
+		w[8] = b[6] * sz;
+		w[9] = b[7] * sz;
+		w[10] = b[8] * sz;
+
+		node.dirty = true;
+		this.refreshDescendants(node);
+	}
+
+	/**
+	 * Recomputes the world matrices of a node's visible descendants after
+	 * its own world matrix was replaced.
+	 *
+	 * @param node - The node whose subtree to refresh.
+	 */
+	private refreshDescendants(node: SceneNode): void {
+		for (const child of node.children) {
+			if (!child.renderVisible) continue;
+			mat4.multiply(child.worldMatrix, node.worldMatrix, child.localMatrix);
+			this.refreshDescendants(child);
 		}
 	}
 }

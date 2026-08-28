@@ -190,6 +190,8 @@ export class PicoCAD2Viewer {
 		triangleFlash: null,
 		triangleShatter: null,
 		paletteSwap: null,
+		fur: null,
+		billboard: null,
 	};
 
 	private readonly boundHandlers: {
@@ -490,6 +492,8 @@ export class PicoCAD2Viewer {
 		settings.triangleFlash = this._extras.triangleFlash;
 		settings.triangleShatter = this._extras.triangleShatter;
 		settings.paletteSwap = this._extras.paletteSwap;
+		settings.fur = this._extras.fur;
+		settings.billboard = this._extras.billboard;
 
 		if (this.clampCameraDistance && this.resources) {
 			const b = this.resources.bounds;
@@ -1225,6 +1229,20 @@ export class PicoCAD2Viewer {
 				shrink: e.triangleShatter.shrink,
 				maskedColors: [...e.triangleShatter.maskedColors],
 			},
+			fur: {
+				enabled: e.fur.enabled,
+				length: e.fur.length,
+				layers: e.fur.layers,
+				density: e.fur.density,
+				gravity: [...e.fur.gravity],
+				rootShade: e.fur.rootShade,
+				maskedColors: [...e.fur.maskedColors],
+			},
+			billboard: {
+				enabled: e.billboard.enabled,
+				nodes: [...e.billboard.nodes],
+				mode: e.billboard.mode,
+			},
 			proceduralBackground: {
 				enabled: e.proceduralBackground.enabled,
 				pattern: e.proceduralBackground.pattern,
@@ -1470,6 +1488,8 @@ export class PicoCAD2Viewer {
 
 		assign(this.extras.triangleFlash, extras.triangleFlash);
 		assign(this.extras.triangleShatter, extras.triangleShatter);
+		assign(this.extras.fur, extras.fur);
+		assign(this.extras.billboard, extras.billboard);
 
 		if (extras.videoEffects) {
 			const { crt, gameboy, tn, oled, projector, ...video } =

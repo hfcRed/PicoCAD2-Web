@@ -18,6 +18,7 @@ uniform float u_furLayers;
 uniform vec3 u_furGravity;
 
 out vec3 v_normal;
+out vec3 v_worldPos;
 out vec3 v_meshPos;
 out vec2 v_texCoord;
 out float v_colorIndex;
@@ -38,6 +39,7 @@ void main() {
     gl_Position = u_vp * vec4(worldPos, 1.0);
 
     v_normal = mat3(u_worldMatrix) * a_normal;
+    v_worldPos = worldPos;
     v_meshPos = a_position;
     v_texCoord = a_texCoord;
     v_colorIndex = a_colorIndex;

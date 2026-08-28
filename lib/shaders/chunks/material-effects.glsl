@@ -1,8 +1,10 @@
 /**
  * Material effects applied inside the model shader: interior, rim light,
- * gradient light, specular + environment reflection, and glitter. Self-contained:
- * declares its own uniforms and receives all per-fragment inputs as
- * parameters of applyMaterialEffects().
+ * gradient light, specular + environment reflection, glitter, and the
+ * emission envelope. Self-contained. Declares its own uniforms and
+ * receives all per-fragment inputs as parameters of
+ * applyMaterialEffects(). The dissolve chunk rides along here so the
+ * model shader gets it with the same include.
  *
  * Every effect supports two styles. Palette style (u_*Smooth = false) only
  * ever outputs the effect color passed from the CPU (which is snapped to a
@@ -17,6 +19,7 @@
  */
 
 #include patterns.glsl;
+#include dissolve.glsl;
 
 uniform vec3 u_cameraPos;
 uniform vec3 u_cameraFwd;
@@ -87,6 +90,18 @@ uniform int u_glitterShape; // 0 = square, 1 = circle
 uniform bool u_glitterSmooth;
 uniform int u_glitterMask;
 
+uniform bool u_emissionEnabled;
+uniform float u_emissionStrength;
+uniform int u_emissionBlinkMode; // 0 = smooth, 1 = pulse
+uniform float u_emissionBlinkRate;
+uniform float u_emissionBlinkMin;
+uniform vec3 u_emissionScrollDir;
+uniform float u_emissionScrollWidth;
+uniform float u_emissionScrollGap;
+uniform float u_emissionScrollSpeed;
+uniform bool u_emissionSmooth;
+uniform int u_emissionMask;
+
 /**
  * Returns true if the fragment's base palette index is selected by the
  * mask bitmask. A mask of 0 means no colors are selected, which applies
@@ -115,6 +130,41 @@ bool ditherGate(float t) {
 vec3 applyStyled(vec3 base, vec3 effectColor, float t, bool smoothStyle) {
     if (smoothStyle) return mix(base, effectColor, clamp(t, 0.0, 1.0));
     return ditherGate(t) ? effectColor : base;
+}
+
+/**
+ * How fully the fragment ignores shading. 0-1: the emission strength
+ * modulated by the blink envelope and the world-space scrolling band
+ * wave. The model shader turns this into a shade-row claim (palette
+ * style, dithered) or a mix toward the lit color
+ * (smooth style).
+ */
+float emissionAmount(float colorIdx, vec3 worldPos) {
+    if (!u_emissionEnabled || !inMaterialMask(u_emissionMask, colorIdx)) {
+        return 0.0;
+    }
+
+    float e = clamp(u_emissionStrength, 0.0, 1.0);
+
+    if (u_emissionBlinkRate > 0.0) {
+        float phase = fract(u_time * u_emissionBlinkRate);
+        float w = u_emissionBlinkMode == 0
+            ? 0.5 + 0.5 * sin(6.2831853 * phase)
+            : (phase < 0.5 ? 1.0 : 0.0);
+        e *= mix(clamp(u_emissionBlinkMin, 0.0, 1.0), 1.0, w);
+    }
+
+    if (u_emissionScrollGap > 0.0) {
+        float period = u_emissionScrollWidth + u_emissionScrollGap;
+        float x = dot(worldPos, u_emissionScrollDir)
+            - u_time * u_emissionScrollSpeed;
+        float px = mod(x, period);
+        e *= px < u_emissionScrollWidth
+            ? sin(3.14159265 * px / u_emissionScrollWidth)
+            : 0.0;
+    }
+
+    return e;
 }
 
 /**

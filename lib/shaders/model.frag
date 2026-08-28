@@ -3,6 +3,7 @@ precision highp float;
 
 in vec3 v_normal;
 in vec3 v_worldPos;
+in vec3 v_meshPos;
 in vec2 v_texCoord;
 in float v_colorIndex;
 in float v_faceFlags;
@@ -47,6 +48,8 @@ void main() {
         discard;
     }
 
+    float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos);
+
     vec3 normal = normalize(v_normal);
     if (gl_FrontFacing) normal = -normal;
 
@@ -70,14 +73,25 @@ void main() {
         }
     }
 
+    float emission = emissionAmount(colorIdx, v_worldPos);
+    if (emission > 0.0 && !u_emissionSmooth && ditherGate(emission)) {
+        paletteRow = 0;
+    }
+
     float u = (colorIdx + 0.5) / 16.0;
     float v = (float(paletteRow) + 0.5) / 3.0;
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
+
+    if (emission > 0.0 && u_emissionSmooth) {
+        vec3 lit = texture(u_paletteTexture, vec2(u, 0.5 / 3.0)).rgb;
+        color = mix(color, lit, emission);
+    }
 
     color = applyMaterialEffects(
         color, colorIdx, normal, v_worldPos, v_texCoord, lightAmount, -u_lightDir
     );
     color = applyTriangleFlash(color, v_flash);
+    color = applyDissolveEdge(color, dissolveEdge);
 
     fragColor = vec4(color, 1.0);
 

@@ -394,6 +394,28 @@ viewer.extras.colorCutout.enabled = true;
 viewer.extras.colorCutout.maskedColors = [3, 7];    // These colors become transparent
 ```
 
+### Dissolve
+
+Dissolves the model texel by texel as `progress` runs from 0 (intact) to 1 (gone), punching holes into the mesh. Survivors near the cut show a dithered edge. Fur strands dissolve with their base surface. Drive `progress` from the host for spawn and despawn animations, and combine with the triangle shatter for layered destruction.
+
+```typescript
+viewer.extras.dissolve.enabled = true;
+viewer.extras.dissolve.progress = 0.5;             // 0 = intact, 1 = fully dissolved (default: 0)
+viewer.extras.dissolve.mode = "noise";             // Dissolve order (default: "noise")
+// Available modes: "noise" (random cells) | "directional" (world-space sweep) |
+// "point" (sphere growing from a world point) | "proximity" (front-to-back from the camera)
+viewer.extras.dissolve.scale = 8;                  // Noise cells per mesh unit (default: 8)
+viewer.extras.dissolve.direction = [0, 1, 0];      // Sweep direction for "directional" (default: [0, 1, 0])
+viewer.extras.dissolve.point = [0, 0, 0];          // World center for "point" (default: [0, 0, 0])
+viewer.extras.dissolve.invert = false;             // Reverse the sweep (default: false)
+viewer.extras.dissolve.softness = 0.15;            // Dithered boundary band width, 0-1 (default: 0.15)
+viewer.extras.dissolve.edgeWidth = 0.1;            // Ember edge band width, 0 = no edge (default: 0.1)
+viewer.extras.dissolve.edgeColor = [1, 0.65, 0.2]; // Edge color (default: [1, 0.65, 0.2])
+viewer.extras.dissolve.maskedColors = [7];         // Only these colors dissolve (default: [] = all)
+```
+
+The directional, point and proximity sweeps are normalized to the model's bounds, so `progress` always spans the whole model. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
+
 ### Interior
 
 Fake depth behind selected palette colors: for masked texels the view ray is marched a few steps into the surface and a procedural 3D field is sampled at each depth, with parallax that tracks the camera.
@@ -479,6 +501,27 @@ viewer.extras.glitter.speed = 1;             // Twinkle rate (default: 1)
 viewer.extras.glitter.shape = "square";      // "square" | "circle" (default: "square")
 viewer.extras.glitter.randomHue = false;     // Random per-cell hues, smooth style only (default: false)
 viewer.extras.glitter.hueRange = 0.5;        // Hue spread for randomHue, 0-1 (default: 0.5)
+```
+
+### Emission
+
+Makes the masked palette colors emissive. Their texels ignore shading and render fullbright. In palette style the lit shade row is claimed through the checkerboard dither gate (and the index buffer's shade row follows), so the render stays palette-pure. Smooth style blends toward the lit color instead. Combine with `bloom.maskedColors` on the same indices for a glow halo.
+
+```typescript
+viewer.extras.emission.enabled = true;
+viewer.extras.emission.maskedColors = [10];         // Emissive colors (default: [] = all)
+viewer.extras.emission.strength = 1;                // How fully shading is ignored, 0-1 (default: 1)
+
+// Blinking (off by default)
+viewer.extras.emission.blinkRate = 2;               // Blinks per second, 0 = steady (default: 0)
+viewer.extras.emission.blinkMode = "smooth";        // "smooth" sine | hard "pulse" (default: "smooth")
+viewer.extras.emission.blinkMin = 0;                // Strength floor while blinking, 0-1 (default: 0)
+
+// Scrolling band waves (off by default)
+viewer.extras.emission.scrollGap = 2;               // World units between bands, 0 = no bands (default: 0)
+viewer.extras.emission.scrollWidth = 0.25;          // Band width in world units (default: 0.25)
+viewer.extras.emission.scrollDirection = [0, 1, 0]; // World travel direction (default: [0, 1, 0])
+viewer.extras.emission.scrollSpeed = 1;             // World units per second, negative reverses (default: 1)
 ```
 
 ## Geometry Effects
@@ -912,7 +955,7 @@ When multiple effects are active, they are applied in this fixed order:
 18. Glitch
 19. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, interior, gradient light, specular, rim light, glitter, triangle flash. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

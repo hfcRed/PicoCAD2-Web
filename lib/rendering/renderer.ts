@@ -15,6 +15,8 @@ import {
 } from "./buffers.ts";
 import type { BillboardEffect } from "./effects/billboard-effect.ts";
 import { packColorMask } from "./effects/color-mask.ts";
+import type { DissolveEffect } from "./effects/dissolve-effect.ts";
+import type { EmissionEffect } from "./effects/emission-effect.ts";
 import type { FurEffect } from "./effects/fur-effect.ts";
 import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
@@ -50,6 +52,8 @@ export interface RenderSettings {
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
 	cutoutMask: number;
+	dissolve: DissolveEffect | null;
+	emission: EmissionEffect | null;
 	interior: InteriorEffect | null;
 	rimLight: RimLightEffect | null;
 	gradientLight: GradientLightEffect | null;
@@ -215,6 +219,35 @@ export class Renderer {
 		u_glitterShape: 0,
 		u_glitterSmooth: false,
 		u_glitterMask: 0,
+
+		u_dissolveEnabled: false,
+		u_dissolveProgress: 0,
+		u_dissolveMode: 0,
+		u_dissolveScale: 8,
+		u_dissolveAxis: [0, 1, 0] as Color3,
+		u_dissolveAxisOffset: 0,
+		u_dissolvePoint: [0, 0, 0] as Color3,
+		u_dissolveInvRange: 1,
+		u_dissolveRangeBias: 0,
+		u_dissolveFlipScale: 1,
+		u_dissolveFlipOffset: 0,
+		u_dissolveSoftness: 0.15,
+		u_dissolveEdgeWidth: 0,
+		u_dissolveEdgeColor: [1, 1, 1] as Color3,
+		u_dissolveSmooth: false,
+		u_dissolveMask: 0,
+
+		u_emissionEnabled: false,
+		u_emissionStrength: 0,
+		u_emissionBlinkMode: 0,
+		u_emissionBlinkRate: 0,
+		u_emissionBlinkMin: 0,
+		u_emissionScrollDir: [0, 1, 0] as Color3,
+		u_emissionScrollWidth: 0.25,
+		u_emissionScrollGap: 0,
+		u_emissionScrollSpeed: 0,
+		u_emissionSmooth: false,
+		u_emissionMask: 0,
 	};
 	private readonly furUniforms = {
 		u_vp: mat4.create() as mat4,
@@ -233,6 +266,23 @@ export class Renderer {
 		u_furDensity: 1,
 		u_furRootShade: 0,
 		u_furMask: 0,
+
+		u_dissolveEnabled: false,
+		u_dissolveProgress: 0,
+		u_dissolveMode: 0,
+		u_dissolveScale: 8,
+		u_dissolveAxis: [0, 1, 0] as Color3,
+		u_dissolveAxisOffset: 0,
+		u_dissolvePoint: [0, 0, 0] as Color3,
+		u_dissolveInvRange: 1,
+		u_dissolveRangeBias: 0,
+		u_dissolveFlipScale: 1,
+		u_dissolveFlipOffset: 0,
+		u_dissolveSoftness: 0.15,
+		u_dissolveEdgeWidth: 0,
+		u_dissolveEdgeColor: [1, 1, 1] as Color3,
+		u_dissolveSmooth: false,
+		u_dissolveMask: 0,
 
 		u_deformEnabled: false,
 		u_deformRound: 0,
@@ -707,8 +757,9 @@ export class Renderer {
 	}
 
 	/**
-	 * Maps the material effect settings (interior, rim light, gradient light,
-	 * specular, glitter) onto the model shader's uniforms. Palette-style effect colors
+	 * Maps the material effect settings (dissolve, emission, interior, rim
+	 * light, gradient light, specular, glitter) onto the model shader's
+	 * uniforms. Palette-style effect colors
 	 * are snapped to the nearest palette entry here, so the shader receives
 	 * legal palette colors and models can swap palettes freely.
 	 *
@@ -825,6 +876,126 @@ export class Renderer {
 			u.u_glitterShape = glitter.shape === "square" ? 0 : 1;
 			u.u_glitterSmooth = glitter.style === "smooth";
 			u.u_glitterMask = packColorMask(glitter.maskedColors);
+		}
+
+		const dissolve = settings.dissolve;
+		const dissolveOn = dissolve
+			? dissolve.enabled && dissolve.progress > 0
+			: false;
+		u.u_dissolveEnabled = dissolveOn;
+		if (dissolve && dissolveOn) {
+			const b = resources.bounds;
+			const cx = (b.min[0] + b.max[0]) / 2;
+			const cy = (b.min[1] + b.max[1]) / 2;
+			const cz = (b.min[2] + b.max[2]) / 2;
+			const hx = Math.max((b.max[0] - b.min[0]) / 2, 0);
+			const hy = Math.max((b.max[1] - b.min[1]) / 2, 0);
+			const hz = Math.max((b.max[2] - b.min[2]) / 2, 0);
+
+			u.u_dissolveProgress = Math.min(Math.max(dissolve.progress, 0), 1);
+			u.u_dissolveScale = Math.max(dissolve.scale, 0.01);
+			u.u_dissolveSoftness = Math.max(dissolve.softness, 0);
+			u.u_dissolveEdgeWidth = Math.max(dissolve.edgeWidth, 0);
+			writeStyledColor(
+				u.u_dissolveEdgeColor,
+				dissolve.edgeColor,
+				dissolve.style,
+				palette,
+			);
+			u.u_dissolveSmooth = dissolve.style === "smooth";
+			u.u_dissolveMask = packColorMask(dissolve.maskedColors);
+			u.u_dissolveFlipScale = dissolve.invert ? -1 : 1;
+			u.u_dissolveFlipOffset = dissolve.invert ? 1 : 0;
+
+			if (dissolve.mode === "noise") {
+				u.u_dissolveMode = 0;
+			} else if (dissolve.mode === "directional") {
+				// Remap the world-space sweep to 0-1 across the bounds'
+				// projection onto the direction.
+				u.u_dissolveMode = 1;
+				let [dx, dy, dz] = dissolve.direction;
+				const len = Math.hypot(dx, dy, dz);
+				if (len < 1e-6) {
+					dx = 0;
+					dy = 1;
+					dz = 0;
+				} else {
+					dx /= len;
+					dy /= len;
+					dz /= len;
+				}
+				const centerDot = dx * cx + dy * cy + dz * cz;
+				const halfSpan =
+					Math.abs(dx) * hx + Math.abs(dy) * hy + Math.abs(dz) * hz;
+				const span = Math.max(halfSpan * 2, 1e-6);
+				u.u_dissolveAxis[0] = dx / span;
+				u.u_dissolveAxis[1] = dy / span;
+				u.u_dissolveAxis[2] = dz / span;
+				u.u_dissolveAxisOffset = -(centerDot - halfSpan) / span;
+			} else {
+				// Point and proximity share the distance form. The sweep is
+				// the normalized distance to a world point (the camera for
+				// proximity, refreshed every frame).
+				u.u_dissolveMode = 2;
+				let px: number;
+				let py: number;
+				let pz: number;
+				let minDist = 0;
+				let maxDist: number;
+				if (dissolve.mode === "point") {
+					[px, py, pz] = dissolve.point;
+					let maxSq = 0;
+					for (let corner = 0; corner < 8; corner++) {
+						const ex = (corner & 1 ? b.max : b.min)[0] - px;
+						const ey = (corner & 2 ? b.max : b.min)[1] - py;
+						const ez = (corner & 4 ? b.max : b.min)[2] - pz;
+						maxSq = Math.max(maxSq, ex * ex + ey * ey + ez * ez);
+					}
+					maxDist = Math.sqrt(maxSq);
+				} else {
+					px = u.u_cameraPos[0];
+					py = u.u_cameraPos[1];
+					pz = u.u_cameraPos[2];
+					const r = Math.hypot(hx, hy, hz);
+					const c = Math.hypot(px - cx, py - cy, pz - cz);
+					minDist = Math.max(c - r, 0);
+					maxDist = c + r;
+				}
+				const range = Math.max(maxDist - minDist, 1e-6);
+				u.u_dissolvePoint[0] = px;
+				u.u_dissolvePoint[1] = py;
+				u.u_dissolvePoint[2] = pz;
+				u.u_dissolveInvRange = 1 / range;
+				u.u_dissolveRangeBias = -minDist / range;
+			}
+		}
+
+		const emission = settings.emission;
+		u.u_emissionEnabled = emission?.enabled ?? false;
+		if (emission?.enabled) {
+			u.u_emissionStrength = Math.min(Math.max(emission.strength, 0), 1);
+			u.u_emissionBlinkMode = emission.blinkMode === "smooth" ? 0 : 1;
+			u.u_emissionBlinkRate = Math.max(emission.blinkRate, 0);
+			u.u_emissionBlinkMin = Math.min(Math.max(emission.blinkMin, 0), 1);
+			let [sx, sy, sz] = emission.scrollDirection;
+			const slen = Math.hypot(sx, sy, sz);
+			if (slen < 1e-6) {
+				sx = 0;
+				sy = 1;
+				sz = 0;
+			} else {
+				sx /= slen;
+				sy /= slen;
+				sz /= slen;
+			}
+			u.u_emissionScrollDir[0] = sx;
+			u.u_emissionScrollDir[1] = sy;
+			u.u_emissionScrollDir[2] = sz;
+			u.u_emissionScrollWidth = Math.max(emission.scrollWidth, 0.001);
+			u.u_emissionScrollGap = Math.max(emission.scrollGap, 0);
+			u.u_emissionScrollSpeed = emission.scrollSpeed;
+			u.u_emissionSmooth = emission.style === "smooth";
+			u.u_emissionMask = packColorMask(emission.maskedColors);
 		}
 	}
 
@@ -974,6 +1145,25 @@ export class Renderer {
 		u.u_furDensity = Math.max(fur.density, 0.01);
 		u.u_furRootShade = Math.min(Math.max(fur.rootShade, 0), 1);
 		u.u_furMask = packColorMask(fur.maskedColors);
+
+		// Fur follows the model's dissolve, so the shells reuse the already
+		// resolved model uniforms verbatim (the vec3s share references).
+		u.u_dissolveEnabled = mu.u_dissolveEnabled;
+		u.u_dissolveProgress = mu.u_dissolveProgress;
+		u.u_dissolveMode = mu.u_dissolveMode;
+		u.u_dissolveScale = mu.u_dissolveScale;
+		u.u_dissolveAxis = mu.u_dissolveAxis;
+		u.u_dissolveAxisOffset = mu.u_dissolveAxisOffset;
+		u.u_dissolvePoint = mu.u_dissolvePoint;
+		u.u_dissolveInvRange = mu.u_dissolveInvRange;
+		u.u_dissolveRangeBias = mu.u_dissolveRangeBias;
+		u.u_dissolveFlipScale = mu.u_dissolveFlipScale;
+		u.u_dissolveFlipOffset = mu.u_dissolveFlipOffset;
+		u.u_dissolveSoftness = mu.u_dissolveSoftness;
+		u.u_dissolveEdgeWidth = mu.u_dissolveEdgeWidth;
+		u.u_dissolveEdgeColor = mu.u_dissolveEdgeColor;
+		u.u_dissolveSmooth = mu.u_dissolveSmooth;
+		u.u_dissolveMask = mu.u_dissolveMask;
 
 		writeMeshDeformUniforms(
 			u,

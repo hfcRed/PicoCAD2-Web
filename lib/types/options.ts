@@ -2,6 +2,8 @@ import type { PicoCAD2Context } from "../context.ts";
 import type { BillboardMode } from "../rendering/effects/billboard-effect.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
+import type { DissolveMode } from "../rendering/effects/dissolve-effect.ts";
+import type { EmissionBlinkMode } from "../rendering/effects/emission-effect.ts";
 import type {
 	GlitterShape,
 	GlitterSpace,
@@ -275,6 +277,35 @@ export interface ColorCutoutOptions {
 	maskedColors?: number[];
 }
 
+export interface DissolveOptions {
+	enabled?: boolean;
+	progress?: number;
+	mode?: DissolveMode;
+	scale?: number;
+	direction?: [number, number, number];
+	point?: [number, number, number];
+	invert?: boolean;
+	softness?: number;
+	edgeWidth?: number;
+	edgeColor?: Color3;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
+export interface EmissionOptions {
+	enabled?: boolean;
+	strength?: number;
+	blinkMode?: EmissionBlinkMode;
+	blinkRate?: number;
+	blinkMin?: number;
+	scrollDirection?: [number, number, number];
+	scrollWidth?: number;
+	scrollGap?: number;
+	scrollSpeed?: number;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
 export interface PaletteSwapOptions {
 	enabled?: boolean;
 	map?: number[];
@@ -406,12 +437,14 @@ export interface ExtrasOptions {
 	particles?: ParticlesOptions;
 	proceduralBackground?: ProceduralBackgroundOptions;
 	colorCutout?: ColorCutoutOptions;
+	dissolve?: DissolveOptions;
 	paletteSwap?: PaletteSwapOptions;
 	interior?: InteriorOptions;
 	rimLight?: RimLightOptions;
 	gradientLight?: GradientLightOptions;
 	specular?: SpecularOptions;
 	glitter?: GlitterOptions;
+	emission?: EmissionOptions;
 	fur?: FurOptions;
 	meshDeform?: MeshDeformOptions;
 	triangleFlash?: TriangleFlashOptions;

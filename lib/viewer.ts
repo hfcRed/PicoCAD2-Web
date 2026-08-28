@@ -181,6 +181,8 @@ export class PicoCAD2Viewer {
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
 		cutoutMask: 0,
+		dissolve: null,
+		emission: null,
 		interior: null,
 		rimLight: null,
 		gradientLight: null,
@@ -483,6 +485,8 @@ export class PicoCAD2Viewer {
 			? packColorMask(cutout.maskedColors)
 			: 0;
 
+		settings.dissolve = this._extras.dissolve;
+		settings.emission = this._extras.emission;
 		settings.interior = this._extras.interior;
 		settings.rimLight = this._extras.rimLight;
 		settings.gradientLight = this._extras.gradientLight;
@@ -1130,6 +1134,20 @@ export class PicoCAD2Viewer {
 				enabled: e.colorCutout.enabled,
 				maskedColors: [...e.colorCutout.maskedColors],
 			},
+			dissolve: {
+				enabled: e.dissolve.enabled,
+				progress: e.dissolve.progress,
+				mode: e.dissolve.mode,
+				scale: e.dissolve.scale,
+				direction: [...e.dissolve.direction],
+				point: [...e.dissolve.point],
+				invert: e.dissolve.invert,
+				softness: e.dissolve.softness,
+				edgeWidth: e.dissolve.edgeWidth,
+				edgeColor: [...e.dissolve.edgeColor],
+				style: e.dissolve.style,
+				maskedColors: [...e.dissolve.maskedColors],
+			},
 			paletteSwap: {
 				enabled: e.paletteSwap.enabled,
 				map: [...e.paletteSwap.map],
@@ -1198,6 +1216,19 @@ export class PicoCAD2Viewer {
 				shape: e.glitter.shape,
 				style: e.glitter.style,
 				maskedColors: [...e.glitter.maskedColors],
+			},
+			emission: {
+				enabled: e.emission.enabled,
+				strength: e.emission.strength,
+				blinkMode: e.emission.blinkMode,
+				blinkRate: e.emission.blinkRate,
+				blinkMin: e.emission.blinkMin,
+				scrollDirection: [...e.emission.scrollDirection],
+				scrollWidth: e.emission.scrollWidth,
+				scrollGap: e.emission.scrollGap,
+				scrollSpeed: e.emission.scrollSpeed,
+				style: e.emission.style,
+				maskedColors: [...e.emission.maskedColors],
 			},
 			meshDeform: {
 				enabled: e.meshDeform.enabled,
@@ -1447,11 +1478,13 @@ export class PicoCAD2Viewer {
 		assign(this.extras.particles, extras.particles);
 		assign(this.extras.proceduralBackground, extras.proceduralBackground);
 		assign(this.extras.colorCutout, extras.colorCutout);
+		assign(this.extras.dissolve, extras.dissolve);
 		assign(this.extras.paletteSwap, extras.paletteSwap);
 		assign(this.extras.interior, extras.interior);
 		assign(this.extras.rimLight, extras.rimLight);
 		assign(this.extras.gradientLight, extras.gradientLight);
 		assign(this.extras.glitter, extras.glitter);
+		assign(this.extras.emission, extras.emission);
 		assign(this.extras.gradientOutline, extras.gradientOutline);
 		assign(this.extras.ssao, extras.ssao);
 		assign(this.extras.colorGrading, extras.colorGrading);

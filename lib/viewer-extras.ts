@@ -6,8 +6,10 @@ import { ColorGradingEffect } from "./rendering/effects/color-grading-effect.ts"
 import { ColorTintEffect } from "./rendering/effects/color-tint-effect.ts";
 import { CRTEffect } from "./rendering/effects/crt-effect.ts";
 import { DepthFogEffect } from "./rendering/effects/depth-fog-effect.ts";
+import { DissolveEffect } from "./rendering/effects/dissolve-effect.ts";
 import { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
 import { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
+import { EmissionEffect } from "./rendering/effects/emission-effect.ts";
 import { FurEffect } from "./rendering/effects/fur-effect.ts";
 import { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
 import { GlitterEffect } from "./rendering/effects/glitter-effect.ts";
@@ -38,8 +40,9 @@ import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
  * Provides access to extra (non-official) effects for the viewer.
  * All effects are pre-instantiated but disabled by default.
  *
- * Material effects (color cutout, interior, gradient light, specular,
- * rim light, glitter) are applied inside the model shader, in that order, before any
+ * Material effects (color cutout, dissolve, emission, interior, gradient
+ * light, specular, rim light, glitter) are applied inside the model
+ * shader, in that order, before any
  * post-processing. Fur shells and the billboard node exclusion are applied
  * by the renderer alongside the model draw. Scene effects (wireframe,
  * particles) draw into the 3D
@@ -53,12 +56,14 @@ export class ViewerExtras {
 	readonly wireframe: WireframeEffect;
 	readonly particles: ParticlesEffect;
 	readonly colorCutout: ColorCutoutEffect;
+	readonly dissolve: DissolveEffect;
 	readonly paletteSwap: PaletteSwapEffect;
 	readonly interior: InteriorEffect;
 	readonly rimLight: RimLightEffect;
 	readonly gradientLight: GradientLightEffect;
 	readonly specular: SpecularEffect;
 	readonly glitter: GlitterEffect;
+	readonly emission: EmissionEffect;
 	readonly fur: FurEffect;
 	readonly meshDeform: MeshDeformEffect;
 	readonly triangleFlash: TriangleFlashEffect;
@@ -102,6 +107,7 @@ export class ViewerExtras {
 		// Applied inside the model shader, not the effect pipeline.
 		// ---------------
 		this.colorCutout = new ColorCutoutEffect();
+		this.dissolve = new DissolveEffect();
 		// CPU-side palette LUT rewrite, applied by the renderer.
 		this.paletteSwap = new PaletteSwapEffect();
 		this.interior = new InteriorEffect();
@@ -109,6 +115,7 @@ export class ViewerExtras {
 		this.gradientLight = new GradientLightEffect();
 		this.specular = new SpecularEffect();
 		this.glitter = new GlitterEffect();
+		this.emission = new EmissionEffect();
 		// ---------------
 
 		// Instanced shell pass drawn by the renderer with the model.

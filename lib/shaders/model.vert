@@ -36,6 +36,7 @@ uniform int u_flashMask;
 
 out vec3 v_normal;
 out vec3 v_worldPos;
+out vec3 v_meshPos;
 out vec2 v_texCoord;
 out float v_colorIndex;
 out float v_faceFlags;
@@ -124,6 +125,7 @@ void main() {
 
     v_normal = worldNormal;
     v_worldPos = worldPos;
+    v_meshPos = a_position;
     v_texCoord = a_texCoord;
     v_colorIndex = a_colorIndex;
     v_faceFlags = a_faceFlags;

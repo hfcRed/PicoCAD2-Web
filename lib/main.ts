@@ -18,8 +18,16 @@ export {
 	DepthFogEffect,
 	type FogMode,
 } from "./rendering/effects/depth-fog-effect.ts";
+export {
+	DissolveEffect,
+	type DissolveMode,
+} from "./rendering/effects/dissolve-effect.ts";
 export { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
 export { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
+export {
+	type EmissionBlinkMode,
+	EmissionEffect,
+} from "./rendering/effects/emission-effect.ts";
 export { FullscreenEffect } from "./rendering/effects/fullscreen-effect.ts";
 export { FurEffect } from "./rendering/effects/fur-effect.ts";
 export { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
@@ -116,8 +124,10 @@ export type {
 	ColorTintOptions,
 	CRTOptions,
 	DepthFogOptions,
+	DissolveOptions,
 	DitheringOptions,
 	EdgeDetectionOptions,
+	EmissionOptions,
 	ExtrasOptions,
 	ExtrasState,
 	FurOptions,

@@ -2,6 +2,7 @@
 precision highp float;
 
 in vec3 v_normal;
+in vec3 v_worldPos;
 in vec3 v_meshPos;
 in vec2 v_texCoord;
 in float v_colorIndex;
@@ -21,6 +22,7 @@ uniform float u_furDensity;
 uniform float u_furRootShade;
 
 #include chunks/hash.glsl;
+#include chunks/dissolve.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
@@ -51,6 +53,8 @@ void main() {
     if (u_furMask != 0 && !(idx < 16 && ((u_furMask >> idx) & 1) != 0)) {
         discard;
     }
+    
+    float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos);
 
     // Strand cutout
     vec3 cell = floor(v_meshPos * u_furDensity) + 17.17;
@@ -88,6 +92,8 @@ void main() {
     float u = (colorIdx + 0.5) / 16.0;
     float v = (float(paletteRow) + 0.5) / 3.0;
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
+
+    color = applyDissolveEdge(color, dissolveEdge);
 
     fragColor = vec4(color, 1.0);
 

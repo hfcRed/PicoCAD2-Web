@@ -33,6 +33,10 @@
 - **Palette index buffer for custom effects** — The scene pass now writes a screen-space palette index buffer (R = base palette index, 255 = no model pixel, G = shade row) available to post-process effects as `EffectContext.indexTexture`. `FullscreenEffect` passes it to shaders as `u_indexTexture` together with a `u_colorMask` bitmask packed from the effect's `maskedColors` (helper exported as `packColorMask`).
 - **`modelInfo.palette`** — The model's full color palette as an array of `Color3` values in palette index order, at the full precision of the model source.
 
+### Changed
+
+- **Render statistics count the whole frame** — `context.stats` now includes every draw a frame issues, not just the base model. Fur shells, wireframe lines, particles, the outline, every post-processing pass and the final composite. `polyCount` includes effect geometry. Fur shells multiply the model's triangles by the layer count and particles add their shapes, while fullscreen passes and wireframe lines add draw calls only. Custom effects can add their own draws through the new `EffectContext.stats`.
+
 ### Deprecated
 
 - **`extras.crt`** — Superseded by `extras.videoEffects` with `screenType: "crt"`. The property remains as a forwarding alias. Old saved states load unchanged (their `crt` settings map onto `videoEffects` and render identically). New states save only `videoEffects`. The old CRT's `maskedColors` is no longer supported.

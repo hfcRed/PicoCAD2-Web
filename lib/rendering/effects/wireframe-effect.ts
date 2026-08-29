@@ -87,6 +87,8 @@ export class WireframeEffect implements SceneEffect {
 			twgl.setBuffersAndAttributes(gl, this.program!, nb.wireframe);
 			twgl.setUniforms(this.program!, uniforms);
 			twgl.drawBufferInfo(gl, nb.wireframe, gl.LINES);
+
+			ctx.stats.drawCalls++;
 		}
 
 		gl.disable(gl.DEPTH_TEST);

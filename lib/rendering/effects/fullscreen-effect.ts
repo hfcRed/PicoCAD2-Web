@@ -82,6 +82,8 @@ export class FullscreenEffect implements PostProcessEffect {
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.bindVertexArray(null);
+
+		ctx.stats.drawCalls++;
 	}
 
 	/**

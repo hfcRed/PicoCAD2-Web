@@ -1,6 +1,7 @@
 import * as twgl from "twgl.js";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
 import type { Color3 } from "../../types/scene.ts";
+import type { RenderStats } from "../renderer.ts";
 import { FramebufferPool } from "./framebuffer-pool.ts";
 import type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
 
@@ -177,6 +178,7 @@ export class PostProcessPipeline {
 			ctx.height,
 			backgroundColor,
 			bgIsTransparent,
+			ctx.stats,
 		);
 	}
 
@@ -190,6 +192,7 @@ export class PostProcessPipeline {
 	 * @param w - The render width.
 	 * @param h - The render height.
 	 * @param backgroundColor - The background color for compositing.
+	 * @param stats - Render stats to count the composite draw against.
 	 */
 	blit(
 		gl: WebGL2RenderingContext,
@@ -199,6 +202,7 @@ export class PostProcessPipeline {
 		h: number,
 		backgroundColor: Color3,
 		bgIsTransparent = false,
+		stats?: RenderStats,
 	): void {
 		if (!this.blitProgram) {
 			this.blitProgram = twgl.createProgramInfo(gl, [
@@ -222,6 +226,8 @@ export class PostProcessPipeline {
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.bindVertexArray(null);
+
+		if (stats) stats.drawCalls++;
 	}
 
 	/**

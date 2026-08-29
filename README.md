@@ -1052,7 +1052,9 @@ const stats = context.stats;
 console.log(`Draw calls: ${stats.drawCalls}, Polygons: ${stats.polyCount}`);
 ```
 
-When sharing a context, `stats` reflects the most recent `draw()` call on any viewer.
+The stats count everything a frame actually draws. `drawCalls` includes the model's draws, fur shells, wireframe lines, particles, the outline, every post-processing pass (bloom runs four passes internally) and the final composite. `polyCount` counts the triangles of scene geometry. The model, fur shells multiply that by the layer count, and particles add their shapes. Fullscreen passes and wireframe lines add draw calls but no polygons.
+
+When sharing a context, `stats` reflects the most recent `draw()` call on any viewer. Custom effects should add the draw calls (and any triangles) they issue to `ctx.stats`.
 
 ## Cleanup
 

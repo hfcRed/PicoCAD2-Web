@@ -97,6 +97,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_colorMask: packColorMask(this.maskedColors),
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		ctx.stats.drawCalls++;
 
 		// Pass 2:
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB);
@@ -108,6 +109,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_direction: [1.0, 0.0],
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		ctx.stats.drawCalls++;
 
 		// Pass 3: Vertical blur
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA);
@@ -119,6 +121,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_direction: [0.0, 1.0],
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		ctx.stats.drawCalls++;
 
 		// Pass 4: Composite
 		gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
@@ -132,6 +135,7 @@ export class BloomEffect implements PostProcessEffect {
 			u_bgIsTransparent: ctx.bgIsTransparent,
 		});
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		ctx.stats.drawCalls++;
 
 		gl.bindVertexArray(null);
 	}

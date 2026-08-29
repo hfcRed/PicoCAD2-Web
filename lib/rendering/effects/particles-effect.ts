@@ -138,6 +138,9 @@ export class ParticlesEffect implements SceneEffect {
 		gl.drawArraysInstanced(gl.TRIANGLES, 0, verts, count);
 		gl.bindVertexArray(null);
 
+		ctx.stats.drawCalls++;
+		ctx.stats.polyCount += (verts / 3) * count;
+
 		gl.depthMask(true);
 		gl.disable(gl.DEPTH_TEST);
 	}

@@ -1,6 +1,6 @@
 import type { mat4 } from "gl-matrix";
 import type { Color3 } from "../../types/scene.ts";
-import type { ModelResources } from "../renderer.ts";
+import type { ModelResources, RenderStats } from "../renderer.ts";
 import type { MeshDeformEffect } from "./mesh-deform-effect.ts";
 
 export interface EffectContext {
@@ -8,6 +8,7 @@ export interface EffectContext {
 	width: number;
 	height: number;
 	time: number;
+	stats: RenderStats;
 	depthTexture: WebGLTexture | null;
 	indexTexture: WebGLTexture | null;
 	paletteTexture: WebGLTexture | null;

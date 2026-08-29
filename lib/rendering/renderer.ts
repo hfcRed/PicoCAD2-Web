@@ -320,6 +320,7 @@ export class Renderer {
 			width: 0,
 			height: 0,
 			time: 0,
+			stats: this.stats,
 			depthTexture: null,
 			indexTexture: null,
 			paletteTexture: null,
@@ -577,7 +578,16 @@ export class Renderer {
 			ctx.indexTexture = pipeline.pool.getIndexTexture();
 			pipeline.execute(ctx, ctx.backgroundColor, bgIsTransparent, x, y);
 		} else {
-			pipeline.blit(gl, x, y, w, h, ctx.backgroundColor, bgIsTransparent);
+			pipeline.blit(
+				gl,
+				x,
+				y,
+				w,
+				h,
+				ctx.backgroundColor,
+				bgIsTransparent,
+				this.stats,
+			);
 		}
 	}
 
@@ -657,6 +667,8 @@ export class Renderer {
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.bindVertexArray(null);
+
+		this.stats.drawCalls++;
 	}
 
 	/**

@@ -1,6 +1,7 @@
 import proceduralBackgroundFrag from "../../shaders/effects/procedural-background.frag";
 import type { Color3 } from "../../types/scene.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
+import { type MaterialStyle, writeStyledColor } from "./material-style.ts";
 import type { EffectContext } from "./types.ts";
 
 export type BackgroundPattern =
@@ -28,6 +29,12 @@ const PATTERN_FIELD_ID: Record<BackgroundPattern, number> = {
  * screen simulations apply over the pattern. `cameraParallax` rotates
  * the pattern with the orbit camera, turning it into a skybox.
  *
+ * The `style` follows the material effects. `"palette"` snaps `colorA`
+ * and `colorB` to the model's palette and binarizes the field through
+ * the checkerboard, so every background pixel is one of two palette
+ * entries. `"dithered"` binarizes with the configured colors as-is.
+ * `"smooth"` (the default) blends the two colors continuously.
+ *
  * Does nothing over a transparent background. There is nothing to paint
  * on. Painted pixels count as content for later `modelOnly` passes.
  */
@@ -39,7 +46,10 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 	speed = 1;
 	seed = 0;
 	cameraParallax = 0.5;
-	dither = false;
+	style: MaterialStyle = "smooth";
+
+	private readonly styledA: Color3 = [0, 0, 0];
+	private readonly styledB: Color3 = [0, 0, 0];
 
 	/**
 	 * Creates a new procedural background effect.
@@ -58,17 +68,21 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 	 * @returns The uniform values.
 	 */
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
+		const snap = this.style === "palette" && ctx.palette.length >= 3;
+		writeStyledColor(this.styledA, this.colorA, snap ? "palette" : "smooth", ctx.palette);
+		writeStyledColor(this.styledB, this.colorB, snap ? "palette" : "smooth", ctx.palette);
+
 		return {
 			u_resolution: [ctx.width, ctx.height],
 			u_time: ctx.time,
 			u_pattern: PATTERN_FIELD_ID[this.pattern] ?? 0,
-			u_colorA: this.colorA,
-			u_colorB: this.colorB,
+			u_colorA: this.styledA,
+			u_colorB: this.styledB,
 			u_scale: this.scale,
 			u_speed: this.speed,
 			u_seed: this.seed,
 			u_parallax: this.cameraParallax,
-			u_dither: this.dither,
+			u_dither: this.style !== "smooth",
 			u_camAzimuth: ctx.cameraAzimuth,
 			u_camElevation: ctx.cameraElevation,
 		};

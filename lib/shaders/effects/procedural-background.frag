@@ -73,7 +73,7 @@ void main() {
         vec3 right = vec3(sa, 0.0, -ca);
         vec3 up = vec3(-se * ca, ce, -se * sa);
         vec3 ray = normalize(fwd + 1.2 * (-c.x * right + c.y * up));
-        
+
         p = ray * u_scale + vec3(u_seed * 43.7);
     }
 

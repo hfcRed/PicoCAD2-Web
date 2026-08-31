@@ -6,9 +6,16 @@ import type { Color3 } from "../../types/scene.ts";
  * `"palette"` keeps every output pixel a palette entry: effect colors are
  * snapped to the nearest palette color on the CPU and soft intensities are
  * checkerboard-dithered in the shader, the same implementation the shading
- * system uses. `"smooth"` does plain RGB blending instead.
+ * system uses. `"dithered"` keeps the checkerboard but skips the
+ * palette snapping, so effects can dither with out-of-palette colors.
+ * `"smooth"` does plain RGB blending instead.
+ *
+ * Effects whose palette style is structural rather than color-based treat
+ * `"dithered"` accordingly. Emission has no free color, so it behaves like
+ * `"palette"`. SSAO darkens RGB in the same dithered shade-row steps
+ * instead of re-indexing the palette.
  */
-export type MaterialStyle = "palette" | "smooth";
+export type MaterialStyle = "palette" | "dithered" | "smooth";
 
 /**
  * Finds the palette entry closest to a color, using luma-weighted distance.
@@ -39,7 +46,8 @@ export function nearestPaletteIndex(
 
 /**
  * Writes an effect color into a uniform array: snapped to the nearest
- * palette entry for the palette style, passed through for smooth.
+ * palette entry for the palette style, passed through for dithered and
+ * smooth.
  *
  * @param out - The uniform array to write into.
  * @param color - The configured effect color.

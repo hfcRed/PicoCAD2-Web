@@ -12,7 +12,7 @@ uniform float u_radius;
 uniform float u_intensity;
 uniform float u_power;
 uniform int u_samples;
-uniform bool u_smooth;
+uniform int u_style; // 0 = palette, 1 = dithered, 2 = smooth
 uniform bool u_orthographic;
 uniform bool u_bgIsTransparent;
 
@@ -93,21 +93,32 @@ void main() {
 
     float ao = clamp(pow(occlusion / max(count, 1.0), u_power) * u_intensity, 0.0, 1.0);
 
-    if (u_smooth) {
+    if (u_style == 2) {
         fragColor = vec4(col.rgb * (1.0 - ao), col.a);
         return;
     }
 
-    // Palette style AO picks a deeper shade row for the pixel's base index,
-    // dithering fractional levels with the shading system's checkerboard, so
-    // every output pixel stays a legal palette entry.
-    int row = int(idx.g * 255.0 + 0.5);
+    // Palette and dithered style AO quantize the darkening to shade-row
+    // steps, dithering fractional levels with the shading system's checkerboard.
     float shift = ao * 2.0;
     int darken = int(floor(shift));
     float frac = shift - float(darken);
     float checker = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);
     if (frac >= 0.75 || (frac >= 0.25 && checker < 0.5)) darken += 1;
 
+    if (u_style == 1) {
+        // Dithered style darkens RGB by the palette ramp's ~0.6 per step
+        // instead of re-indexing, keeping non-palette content's colors
+        // while staying crunchy.
+        fragColor = darken == 0
+            ? col
+            : vec4(col.rgb * pow(0.6, float(darken)), col.a);
+        return;
+    }
+
+    // Palette style picks a deeper shade row for the pixel's base index,
+    // so every output pixel stays a legal palette entry.
+    int row = int(idx.g * 255.0 + 0.5);
     int newRow = clamp(row + darken, 0, 2);
     if (newRow == row) {
         fragColor = col;

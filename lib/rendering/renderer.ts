@@ -334,6 +334,7 @@ export class Renderer {
 			cameraUp: [0, 1, 0],
 			cameraAzimuth: 0,
 			cameraElevation: 0,
+			palette: new Float32Array(0),
 			meshDeform: null,
 			shatterActive: false,
 		};
@@ -500,6 +501,7 @@ export class Renderer {
 		ctx.cameraUp[2] = v[9];
 		ctx.cameraAzimuth = camera.omega + camera.omegaOffset;
 		ctx.cameraElevation = camera.theta;
+		ctx.palette = model.texture.colors;
 
 		if (useFbo) {
 			pipeline.pool.ensure(gl, w, h);
@@ -881,9 +883,10 @@ export class Renderer {
 				glitter.space === "uv" ? 0 : glitter.space === "screen" ? 1 : 2;
 			u.u_glitterDensity = glitter.density;
 			u.u_glitterSize = Math.min(Math.max(glitter.size, 0), 1);
-			u.u_glitterHueRange = glitter.randomHue
-				? Math.max(glitter.hueRange, 0) * Math.PI
-				: 0;
+			u.u_glitterHueRange =
+				glitter.randomHue && glitter.style !== "palette"
+					? Math.max(glitter.hueRange, 0) * Math.PI
+					: 0;
 			u.u_glitterBrightness = Math.max(glitter.brightness, 0);
 			u.u_glitterAngleCos = Math.cos(
 				(Math.min(Math.max(glitter.angleRange, 1), 90) * Math.PI) / 180,

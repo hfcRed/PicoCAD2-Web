@@ -1283,7 +1283,7 @@ export class PicoCAD2Viewer {
 				speed: e.proceduralBackground.speed,
 				seed: e.proceduralBackground.seed,
 				cameraParallax: e.proceduralBackground.cameraParallax,
-				dither: e.proceduralBackground.dither,
+				style: e.proceduralBackground.style,
 			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,

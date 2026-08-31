@@ -6,11 +6,14 @@
  * applyMaterialEffects(). The dissolve chunk rides along here so the
  * model shader gets it with the same include.
  *
- * Every effect supports two styles. Palette style (u_*Smooth = false) only
- * ever outputs the effect color passed from the CPU (which is snapped to a
- * palette entry there) and converts soft intensities into the same 2x2
- * checkerboard dithering the shading system uses, so the render stays made
- * of palette entries. Smooth style does plain RGB blending.
+ * Every effect supports three styles. Palette and dithered style
+ * (u_*Smooth = false) only ever output the effect color passed from the
+ * CPU and convert soft intensities into the same 2x2 checkerboard
+ * dithering the shading system uses. For palette style the CPU snaps the
+ * color to a palette entry so the render stays made of palette entries,
+ * while dithered style keeps the configured color. The shader cannot tell
+ * the two apart. Smooth style does plain RGB blending. Emission has no
+ * free color, so its dithered style behaves like palette.
  *
  * Masks test the base palette index before the shade-row lookup, so they
  * select materials whether lit or in shadow, mirroring the post-effect
@@ -342,7 +345,7 @@ vec3 applyGlitter(vec3 color, vec3 worldPos, vec2 texCoord, vec3 viewDir) {
     float t = angleFactor * twinkle * u_glitterBrightness;
 
     vec3 sparkleColor = u_glitterColor;
-    if (u_glitterSmooth && u_glitterHueRange > 0.0) {
+    if (u_glitterHueRange > 0.0) {
         float hue = (hash13(cell + 41.41) - 0.5) * 2.0 * u_glitterHueRange;
         sparkleColor = clamp(hueRotate(sparkleColor, hue), 0.0, 1.0);
     }

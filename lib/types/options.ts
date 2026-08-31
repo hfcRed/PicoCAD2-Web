@@ -62,7 +62,7 @@ export interface ProceduralBackgroundOptions {
 	speed?: number;
 	seed?: number;
 	cameraParallax?: number;
-	dither?: boolean;
+	style?: MaterialStyle;
 }
 
 export interface GradientOutlineOptions {

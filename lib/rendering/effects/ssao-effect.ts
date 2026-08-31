@@ -13,7 +13,10 @@ export type SSAOSamples = 8 | 16 | 32;
  * model pixel is. The `"palette"` style (default) darkens by re-indexing
  * the pixel to a deeper shade row of the palette LUT, dithering fractional
  * levels with the shading system's checkerboard, so crevice darkening stays
- * within the model's 16 colors. `"smooth"` multiplies plain RGB instead.
+ * within the model's 16 colors. `"dithered"` quantizes to the same stepped
+ * checkerboard but darkens RGB (matching the ramp's ~0.6 per step) instead
+ * of re-indexing, keeping non-palette content's colors. `"smooth"`
+ * multiplies plain RGB continuously.
  *
  * `maskedColors` acts as a receive-AO mask. Only the selected base palette
  * colors are darkened (empty = all). Only model pixels are ever affected.
@@ -48,7 +51,8 @@ export class SSAOEffect extends FullscreenEffect {
 			u_intensity: Math.max(this.intensity, 0),
 			u_power: Math.max(this.power, 1e-3),
 			u_samples: this.samples === 8 || this.samples === 32 ? this.samples : 16,
-			u_smooth: this.style === "smooth",
+			u_style:
+				this.style === "palette" ? 0 : this.style === "dithered" ? 1 : 2,
 			u_orthographic: ctx.isOrthographic,
 		};
 	}

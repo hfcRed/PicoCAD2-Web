@@ -426,7 +426,7 @@ viewer.extras.interior.maskedColors = [7];              // These colors become w
 viewer.extras.interior.pattern = "stars";               // Pattern behind the surface (default: "stars")
 // Available patterns: "stars" | "dust" | "voronoi" | "lava" | "grid" | "truchet" | "constellations"
 viewer.extras.interior.depth = 2;                       // World units to the deepest layer (default: 2)
-viewer.extras.interior.layers = 3;                      // Pattern layers, 1-4 (default: 3)
+viewer.extras.interior.layers = 3;                      // Pattern layers, 1-5 (default: 3)
 viewer.extras.interior.scale = 4;                       // Pattern cells per world unit (default: 4)
 viewer.extras.interior.speed = 1;                       // Pattern animation rate, 0 = frozen (default: 1)
 viewer.extras.interior.color = [1, 1, 1];               // Pattern color (default: [1, 1, 1])

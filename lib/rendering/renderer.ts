@@ -816,7 +816,7 @@ export class Renderer {
 			u.u_interiorDepth = Math.max(interior.depth, 0);
 			u.u_interiorLayers = Math.min(
 				Math.max(Math.round(interior.layers), 1),
-				4,
+				5,
 			);
 			u.u_interiorScale = interior.scale;
 			u.u_interiorSpeed = interior.speed;

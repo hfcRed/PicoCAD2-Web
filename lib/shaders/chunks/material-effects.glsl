@@ -209,7 +209,7 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
     vec3 an = abs(normal);
     int axis = an.x >= an.y && an.x >= an.z ? 0 : (an.y >= an.z ? 1 : 2);
 
-    for (int i = 3; i >= 0; i--) {
+    for (int i = 4; i >= 0; i--) {
         if (i >= u_interiorLayers) continue;
         float depth = u_interiorDepth * float(i + 1) / float(u_interiorLayers);
         vec3 q = worldPos - viewDir * depth;
@@ -227,7 +227,7 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
         }
         float f = patternField(u_interiorPattern, p, t);
 
-        float fade = 1.0 - 0.15 * float(i);
+        float fade = 1.0 - 0.18 * float(i);
         result = applyStyled(result, u_interiorColor, f * fade, u_interiorSmooth);
     }
 

@@ -51,6 +51,8 @@ export interface ParticlesOptions {
 	speed?: number;
 	areaScale?: number;
 	twinkle?: number;
+	randomHue?: boolean;
+	hueRange?: number;
 }
 
 export interface ProceduralBackgroundOptions {

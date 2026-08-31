@@ -33,7 +33,9 @@ const MOTION_INDEX: Record<ParticleMotion, number> = {
  * looping. Depth writes stay off so particles never punch holes in each other.
  *
  * `paletteIndices` is a color source and not a mask. Particles sample the
- * model's palette at those indices (empty = plain white). For the
+ * model's palette at those indices (empty = plain white). `randomHue`
+ * shifts each particle's hue by a stable random amount within `hueRange`,
+ * and `twinkle` fades particles in and out through alpha. For the
  * `"pixel"` shape, `size` is in output pixels. For the world-space shapes
  * it is in world units.
  */
@@ -51,6 +53,8 @@ export class ParticlesEffect implements SceneEffect {
 	speed = 1;
 	areaScale = 1.5;
 	twinkle = 0.3;
+	randomHue = false;
+	hueRange = 0.5;
 
 	private program: twgl.ProgramInfo | null = null;
 	private gl: WebGL2RenderingContext | null = null;
@@ -69,6 +73,7 @@ export class ParticlesEffect implements SceneEffect {
 		u_motion: 0,
 		u_speed: 1,
 		u_twinkle: 0,
+		u_hueRange: 0,
 		u_paletteTexture: null as WebGLTexture | null,
 		u_paletteIndices: new Float32Array(16),
 		u_paletteCount: 0,
@@ -105,6 +110,12 @@ export class ParticlesEffect implements SceneEffect {
 		gl.depthMask(false);
 		gl.disable(gl.CULL_FACE);
 
+		// Twinkle fades particles through alpha. The shader outputs
+		// premultiplied color, so this blend composites correctly over
+		// both the opaque scene and the premultiplied transparent chain.
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
 		const u = this.uniforms;
 		const b = resources.bounds;
 		for (let axis = 0; axis < 3; axis++) {
@@ -125,6 +136,9 @@ export class ParticlesEffect implements SceneEffect {
 		u.u_motion = MOTION_INDEX[this.motion] ?? 0;
 		u.u_speed = this.speed;
 		u.u_twinkle = Math.min(Math.max(this.twinkle, 0), 1);
+		u.u_hueRange = this.randomHue
+			? Math.max(this.hueRange, 0) * Math.PI
+			: 0;
 		u.u_paletteTexture = resources.paletteTexture;
 		u.u_paletteCount = Math.min(this.paletteIndices.length, 16);
 		for (let i = 0; i < u.u_paletteCount; i++) {
@@ -141,6 +155,7 @@ export class ParticlesEffect implements SceneEffect {
 		ctx.stats.drawCalls++;
 		ctx.stats.polyCount += (verts / 3) * count;
 
+		gl.disable(gl.BLEND);
 		gl.depthMask(true);
 		gl.disable(gl.DEPTH_TEST);
 	}

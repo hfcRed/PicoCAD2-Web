@@ -22,13 +22,16 @@ uniform float u_sizeJitter;
 uniform int u_motion; // 0 = drift, 1 = rise, 2 = fall, 3 = orbit, 4 = swirl
 uniform float u_speed;
 uniform float u_twinkle;
+uniform float u_hueRange;
 uniform sampler2D u_paletteTexture;
 uniform float u_paletteIndices[16];
 uniform int u_paletteCount;
 
 #include chunks/hash.glsl;
+#include chunks/color.glsl;
 
 out vec3 v_color;
+out float v_alpha;
 
 const float TAU = 6.28318530718;
 
@@ -116,7 +119,13 @@ void main() {
         ).rgb;
     }
 
+    if (u_hueRange > 0.0) {
+        float hue = (hash13(vec3(id * 0.7919, 63.1, 17.9)) - 0.5) * 2.0 * u_hueRange;
+        color = clamp(hueRotate(color, hue), 0.0, 1.0);
+    }
+
     float twinkle =
         1.0 - u_twinkle * (0.5 + 0.5 * sin(TAU * (h.w + u_time * (0.5 + h2.y))));
-    v_color = color * twinkle;
+    v_color = color;
+    v_alpha = twinkle;
 }

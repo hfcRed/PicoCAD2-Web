@@ -1129,6 +1129,8 @@ export class PicoCAD2Viewer {
 				speed: e.particles.speed,
 				areaScale: e.particles.areaScale,
 				twinkle: e.particles.twinkle,
+				randomHue: e.particles.randomHue,
+				hueRange: e.particles.hueRange,
 			},
 			colorCutout: {
 				enabled: e.colorCutout.enabled,

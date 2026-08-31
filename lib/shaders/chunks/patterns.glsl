@@ -99,13 +99,18 @@ float lavaField(vec3 p, float t) {
                     off + 0.5 + 0.35 * sin(PATTERN_TAU * h + t * (1.0 + h.x));
                 float r = mix(0.2, 0.45, h.y);
                 float d2 = dot(center - local, center - local);
-                
-                field += (r * r) / max(d2, 1e-4);
+
+                // Wyvill kernel with compact support. Reaches exactly 0 at
+                // 2.44r <= 1.10, inside the scanned neighborhood's
+                // guaranteed 1.15 coverage radius, so the field stays
+                // continuous across cells.
+                float s = 1.0 - min(d2 / (5.97 * r * r), 1.0);
+                field += s * s * s;
             }
         }
     }
 
-    return smoothstep(2.2, 3.2, field);
+    return smoothstep(0.36, 0.83, field);
 }
 
 /** Glowing edges of a scrolling cubic lattice. */

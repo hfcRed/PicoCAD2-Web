@@ -15,9 +15,6 @@ uniform float u_speed;
 uniform float u_seed;
 uniform float u_parallax;
 uniform bool u_dither;
-uniform vec3 u_cameraFwd;
-uniform vec3 u_cameraRight;
-uniform vec3 u_cameraUp;
 uniform float u_camAzimuth;
 uniform float u_camElevation;
 
@@ -68,12 +65,16 @@ void main() {
     } else {
         // Volumetric fields. Screen-locked slice vs view-direction sampling
         // (skybox), blended by the parallax amount to follow the orbit.
-        vec3 pScreen = vec3(c * u_scale, u_seed * 43.7);
-        vec3 ray = normalize(
-            u_cameraFwd + 1.2 * (-c.x * u_cameraRight + c.y * u_cameraUp)
-        );
-        vec3 pView = ray * u_scale + vec3(u_seed * 43.7);
-        p = mix(pScreen, pView, parallax);
+        float az = u_camAzimuth * parallax;
+        float el = u_camElevation * parallax;
+        float ca = cos(az), sa = sin(az), ce = cos(el), se = sin(el);
+
+        vec3 fwd = -vec3(ca * ce, se, sa * ce);
+        vec3 right = vec3(sa, 0.0, -ca);
+        vec3 up = vec3(-se * ca, ce, -se * sa);
+        vec3 ray = normalize(fwd + 1.2 * (-c.x * right + c.y * up));
+        
+        p = ray * u_scale + vec3(u_seed * 43.7);
     }
 
     float f = clamp(patternField(u_pattern, p, ft, period), 0.0, 1.0);

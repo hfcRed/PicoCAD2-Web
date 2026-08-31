@@ -69,9 +69,6 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 			u_seed: this.seed,
 			u_parallax: this.cameraParallax,
 			u_dither: this.dither,
-			u_cameraFwd: ctx.cameraFwd,
-			u_cameraRight: ctx.cameraRight,
-			u_cameraUp: ctx.cameraUp,
 			u_camAzimuth: ctx.cameraAzimuth,
 			u_camElevation: ctx.cameraElevation,
 		};

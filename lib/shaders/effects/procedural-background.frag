@@ -15,6 +15,7 @@ uniform float u_speed;
 uniform float u_seed;
 uniform float u_parallax;
 uniform bool u_dither;
+uniform float u_hueRange;
 uniform float u_camAzimuth;
 uniform float u_camElevation;
 
@@ -77,14 +78,23 @@ void main() {
         p = ray * u_scale + vec3(u_seed * 43.7);
     }
 
-    float f = clamp(patternField(u_pattern, p, ft, period), 0.0, 1.0);
+    float rand;
+    float f = clamp(patternField(u_pattern, p, ft, period, rand), 0.0, 1.0);
 
     if (u_dither) {
         float checker = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);
         f = f > (checker < 0.5 ? 0.25 : 0.75) ? 1.0 : 0.0;
     }
 
-    vec3 pattern = mix(u_colorA, u_colorB, f);
+    // Per-feature hue variation on the pattern color. The CPU zeroes the
+    // range for the palette style, since rotation would leave the palette.
+    vec3 colorB = u_colorB;
+    if (u_hueRange > 0.0) {
+        float hue = (rand - 0.5) * 2.0 * u_hueRange;
+        colorB = clamp(hueRotate(colorB, hue), 0.0, 1.0);
+    }
+
+    vec3 pattern = mix(u_colorA, colorB, f);
 
     // Composite the scene's fractional coverage (outline edges) over the
     // pattern, and promote alpha so later passes treat it as content.

@@ -46,6 +46,8 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 	speed = 1;
 	seed = 0;
 	cameraParallax = 0.5;
+	randomHue = false;
+	hueRange = 0.5;
 	style: MaterialStyle = "smooth";
 
 	private readonly styledA: Color3 = [0, 0, 0];
@@ -69,8 +71,18 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 	 */
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
 		const snap = this.style === "palette" && ctx.palette.length >= 3;
-		writeStyledColor(this.styledA, this.colorA, snap ? "palette" : "smooth", ctx.palette);
-		writeStyledColor(this.styledB, this.colorB, snap ? "palette" : "smooth", ctx.palette);
+		writeStyledColor(
+			this.styledA,
+			this.colorA,
+			snap ? "palette" : "smooth",
+			ctx.palette,
+		);
+		writeStyledColor(
+			this.styledB,
+			this.colorB,
+			snap ? "palette" : "smooth",
+			ctx.palette,
+		);
 
 		return {
 			u_resolution: [ctx.width, ctx.height],
@@ -83,6 +95,10 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 			u_seed: this.seed,
 			u_parallax: this.cameraParallax,
 			u_dither: this.style !== "smooth",
+			u_hueRange:
+				this.randomHue && this.style !== "palette"
+					? Math.max(this.hueRange, 0) * Math.PI
+					: 0,
 			u_camAzimuth: ctx.cameraAzimuth,
 			u_camElevation: ctx.cameraElevation,
 		};

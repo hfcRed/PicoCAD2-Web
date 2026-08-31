@@ -173,6 +173,7 @@ export class Renderer {
 		u_interiorSpeed: 0,
 		u_interiorColor: [1, 1, 1] as Color3,
 		u_interiorBgColor: [0, 0, 0] as Color3,
+		u_interiorHueRange: 0,
 		u_interiorSmooth: false,
 		u_interiorMask: 0,
 
@@ -822,6 +823,10 @@ export class Renderer {
 			);
 			u.u_interiorScale = interior.scale;
 			u.u_interiorSpeed = interior.speed;
+			u.u_interiorHueRange =
+				interior.randomHue && interior.style !== "palette"
+					? Math.max(interior.hueRange, 0) * Math.PI
+					: 0;
 			u.u_interiorSmooth = interior.style === "smooth";
 			u.u_interiorMask = packColorMask(interior.maskedColors);
 		}

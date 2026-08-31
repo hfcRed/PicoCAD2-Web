@@ -1163,6 +1163,8 @@ export class PicoCAD2Viewer {
 				speed: e.interior.speed,
 				color: [...e.interior.color],
 				backgroundColor: [...e.interior.backgroundColor],
+				randomHue: e.interior.randomHue,
+				hueRange: e.interior.hueRange,
 				style: e.interior.style,
 				maskedColors: [...e.interior.maskedColors],
 			},
@@ -1283,6 +1285,8 @@ export class PicoCAD2Viewer {
 				speed: e.proceduralBackground.speed,
 				seed: e.proceduralBackground.seed,
 				cameraParallax: e.proceduralBackground.cameraParallax,
+				randomHue: e.proceduralBackground.randomHue,
+				hueRange: e.proceduralBackground.hueRange,
 				style: e.proceduralBackground.style,
 			},
 			gradientOutline: {

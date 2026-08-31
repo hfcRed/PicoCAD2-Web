@@ -42,6 +42,7 @@ uniform float u_interiorScale;
 uniform float u_interiorSpeed;
 uniform vec3 u_interiorColor;
 uniform vec3 u_interiorBgColor;
+uniform float u_interiorHueRange;
 uniform bool u_interiorSmooth;
 uniform int u_interiorMask;
 
@@ -183,13 +184,6 @@ vec3 applyTriangleFlash(vec3 color, float flash) {
     return applyStyled(color, u_flashColor, flash, u_flashSmooth);
 }
 
-/** Rotates a color's hue by an angle in radians (around the gray axis). */
-vec3 hueRotate(vec3 c, float angle) {
-    const vec3 k = vec3(0.57735026919);
-    float cosA = cos(angle);
-    return c * cosA + cross(k, c) * sin(angle) + k * dot(k, c) * (1.0 - cosA);
-}
-
 /**
  * Fakes a volume behind the surface. Marches the view ray a few steps into
  * the surface and samples a 3D pattern field at each depth. The world-space
@@ -228,10 +222,17 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
         } else {
             p = q * u_interiorScale;
         }
-        float f = patternField(u_interiorPattern, p, t);
+        float rand;
+        float f = patternField(u_interiorPattern, p, t, 0.0, rand);
+
+        vec3 layerColor = u_interiorColor;
+        if (u_interiorHueRange > 0.0) {
+            float hue = (rand - 0.5) * 2.0 * u_interiorHueRange;
+            layerColor = clamp(hueRotate(layerColor, hue), 0.0, 1.0);
+        }
 
         float fade = 1.0 - 0.18 * float(i);
-        result = applyStyled(result, u_interiorColor, f * fade, u_interiorSmooth);
+        result = applyStyled(result, layerColor, f * fade, u_interiorSmooth);
     }
 
     return result;

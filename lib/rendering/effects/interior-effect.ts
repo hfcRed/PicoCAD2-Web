@@ -36,6 +36,8 @@ export class InteriorEffect {
 	speed = 1;
 	color: Color3 = [1, 1, 1];
 	backgroundColor: Color3 = [0.06, 0.05, 0.13];
+	randomHue = false;
+	hueRange = 0.5;
 	style: MaterialStyle = "palette";
 	maskedColors: number[] = [];
 }

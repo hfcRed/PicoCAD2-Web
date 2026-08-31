@@ -62,6 +62,8 @@ export interface ProceduralBackgroundOptions {
 	speed?: number;
 	seed?: number;
 	cameraParallax?: number;
+	randomHue?: boolean;
+	hueRange?: number;
 	style?: MaterialStyle;
 }
 
@@ -322,6 +324,8 @@ export interface InteriorOptions {
 	speed?: number;
 	color?: Color3;
 	backgroundColor?: Color3;
+	randomHue?: boolean;
+	hueRange?: number;
 	style?: MaterialStyle;
 	maskedColors?: number[];
 }

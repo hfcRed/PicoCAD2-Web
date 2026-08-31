@@ -184,7 +184,10 @@ void main() {
     }
 
     if (u_decay > 0.0) {
-        outColor = mix(outColor, texture(u_history, v_texCoord), u_decay);
+        // Prevent permanent ghosting by ensuring a minimum per-frame step for each channel
+        vec4 diff = texture(u_history, v_texCoord) - outColor;
+        vec4 dist = max(min(abs(diff) * u_decay, abs(diff) - 1.0 / 255.0), 0.0);
+        outColor += sign(diff) * dist;
     }
 
     fragColor = outColor;

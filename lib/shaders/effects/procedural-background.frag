@@ -18,6 +18,8 @@ uniform bool u_dither;
 uniform vec3 u_cameraFwd;
 uniform vec3 u_cameraRight;
 uniform vec3 u_cameraUp;
+uniform float u_camAzimuth;
+uniform float u_camElevation;
 
 #include ../chunks/patterns.glsl;
 
@@ -33,17 +35,48 @@ void main() {
 
     float aspect = u_resolution.x / u_resolution.y;
     vec2 c = (v_texCoord - 0.5) * vec2(aspect, 1.0);
+    float ft = u_time * u_speed;
+    float parallax = clamp(u_parallax, 0.0, 1.0);
 
-    // Screen-locked slice vs view-direction sampling (skybox),
-    // blended by the parallax amount so the pattern can follow the orbit.
-    vec3 pScreen = vec3(c * u_scale, u_seed * 43.7);
-    vec3 ray = normalize(
-        u_cameraFwd + 1.2 * (c.x * u_cameraRight + c.y * u_cameraUp)
-    );
-    vec3 pView = ray * u_scale + vec3(u_seed * 43.7);
-    vec3 p = mix(pScreen, pView, clamp(u_parallax, 0.0, 1.0));
+    vec3 p;
+    float period = 0.0;
+    if (u_pattern >= 4) {
+        // grid / truchet / constellations are planar line patterns. The 3D
+        // ray domain below slices them into bands (floor(p.z) variant seams
+        // for the 2D fields, lattice cross-sections for the grid). Keep them
+        // on the screen plane and scroll with the orbit angles instead,
+        // matching world-fixed motion at the screen center.
+        float turnCells = parallax * PATTERN_TAU * u_scale / 1.2;
+        float visCells = u_scale * aspect;
+        float snapped = floor(turnCells + 0.5);
+        bool wrap = snapped >= visCells + 1.0;
 
-    float f = clamp(patternField(u_pattern, p, u_time * u_speed), 0.0, 1.0);
+        float az = wrap ? mod(u_camAzimuth, PATTERN_TAU) : u_camAzimuth;
+        vec2 q = c * u_scale;
+        q.x += az * (wrap ? snapped : turnCells) / PATTERN_TAU;
+        q.y -= u_camElevation * parallax * u_scale / 1.2;
+        if (wrap) {
+            q.x = mod(q.x, snapped);
+            period = snapped;
+        }
+
+        if (u_pattern == 4) {
+            p = vec3(q + ft * 0.1, -0.3 * ft);
+        } else {
+            p = vec3(q, u_seed * 43.7);
+        }
+    } else {
+        // Volumetric fields. Screen-locked slice vs view-direction sampling
+        // (skybox), blended by the parallax amount to follow the orbit.
+        vec3 pScreen = vec3(c * u_scale, u_seed * 43.7);
+        vec3 ray = normalize(
+            u_cameraFwd + 1.2 * (c.x * u_cameraRight + c.y * u_cameraUp)
+        );
+        vec3 pView = ray * u_scale + vec3(u_seed * 43.7);
+        p = mix(pScreen, pView, parallax);
+    }
+
+    float f = clamp(patternField(u_pattern, p, ft, period), 0.0, 1.0);
 
     if (u_dither) {
         float checker = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);

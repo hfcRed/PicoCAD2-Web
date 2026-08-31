@@ -144,8 +144,13 @@ float truchetField(vec3 p, float t) {
  * lines. A 2D field: reads p.xy, with the z cell reseeding the sky.
  * The connection gate hashes the unordered cell pair, so both cells a
  * segment crosses agree on whether it exists.
+ *
+ * A period > 0 makes the field periodic every that many whole cells
+ * along x. Neighbor cells are hashed modulo the period, so a caller
+ * wrapping p.x with mod(p.x, period) gets a seamless cylinder (stars
+ * and lines connect across the wrap). 0 = non-periodic.
  */
-float constellationsField(vec3 p, float t) {
+float constellationsField(vec3 p, float t, float period) {
     vec2 cell = floor(p.xy);
     vec2 local = fract(p.xy);
     float z = floor(p.z);
@@ -157,7 +162,9 @@ float constellationsField(vec3 p, float t) {
     for (int x = -1; x <= 1; x++) {
         for (int y = -1; y <= 1; y++) {
             vec2 off = vec2(float(x), float(y));
-            vec3 h = hash33(vec3(cell + off, z));
+            vec2 nc = cell + off;
+            if (period > 0.0) nc.x = mod(nc.x, period);
+            vec3 h = hash33(vec3(nc, z));
             vec2 star = off + 0.2 + 0.6 * h.xy;
 
             float d = length(local - star);
@@ -166,7 +173,9 @@ float constellationsField(vec3 p, float t) {
 
             if (x == 0 && y == 0) continue;
 
-            float gate = hash13(vec3(cell * 2.0 + off, z + 7.0));
+            vec2 pair = cell * 2.0 + off;
+            if (period > 0.0) pair.x = mod(pair.x, period * 2.0);
+            float gate = hash13(vec3(pair, z + 7.0));
             if (gate < 0.5) continue;
 
             vec2 ab = star - star0;
@@ -181,8 +190,13 @@ float constellationsField(vec3 p, float t) {
     return intensity;
 }
 
-/** Samples a pattern field by id, matching the InteriorPattern order. */
-float patternField(int id, vec3 p, float t) {
+/**
+ * Samples a pattern field by id, matching the InteriorPattern order.
+ * A period > 0 makes the hashed 2D fields periodic every that many whole
+ * cells along x (see constellationsField). Grid is 1-periodic and truchet
+ * hashes only its own cell, so a caller wrapping p.x needs no help there.
+ */
+float patternField(int id, vec3 p, float t, float period) {
     if (id == 0) return starsField(p, t);
     if (id == 1) return dustField(p, t);
     if (id == 2) return voronoiField(p, t);
@@ -190,5 +204,10 @@ float patternField(int id, vec3 p, float t) {
     if (id == 4) return gridField(p, t);
     if (id == 5) return truchetField(p, t);
 
-    return constellationsField(p, t);
+    return constellationsField(p, t, period);
+}
+
+/** Samples a non-periodic pattern field by id. */
+float patternField(int id, vec3 p, float t) {
+    return patternField(id, p, t, 0.0);
 }

@@ -193,15 +193,38 @@ vec3 hueRotate(vec3 c, float angle) {
  * construction needs no tangent basis and works on untextured faces too.
  * Layers composite far to near over the background fill, so the nearest
  * layer wins a contested pixel.
+ *
+ * The planar line patterns (grid, truchet, constellations) sample the
+ * face's dominant world plane instead of raw 3D space. A fixed plane
+ * smears into streaks on faces seen edge-on, and the fields' depth
+ * coordinate cuts them into bands mid-face. Flat shading keeps the
+ * chosen plane constant per face, and the 2D fields reseed per layer
+ * and per axis rather than by position, so faces stay band-free.
  */
-vec3 applyInterior(vec3 worldPos, vec3 viewDir) {
+vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
     float t = u_time * u_interiorSpeed;
     vec3 result = u_interiorBgColor;
+
+    bool planar = u_interiorPattern >= 4;
+    vec3 an = abs(normal);
+    int axis = an.x >= an.y && an.x >= an.z ? 0 : (an.y >= an.z ? 1 : 2);
 
     for (int i = 3; i >= 0; i--) {
         if (i >= u_interiorLayers) continue;
         float depth = u_interiorDepth * float(i + 1) / float(u_interiorLayers);
-        vec3 p = (worldPos - viewDir * depth) * u_interiorScale;
+        vec3 q = worldPos - viewDir * depth;
+        vec3 p;
+        if (planar) {
+            vec2 uv = (axis == 0 ? q.zy : (axis == 1 ? q.xz : q.xy))
+                * u_interiorScale;
+            p = u_interiorPattern == 4
+                // pin the grid slice to the lattice plane (its time scroll
+                // along z pulses a fixed slice) and drift in-plane instead
+                ? vec3(uv + t * 0.1, -0.3 * t)
+                : vec3(uv, float(i) + float(axis) * 37.0);
+        } else {
+            p = q * u_interiorScale;
+        }
         float f = patternField(u_interiorPattern, p, t);
 
         float fade = 1.0 - 0.15 * float(i);
@@ -343,7 +366,7 @@ vec3 applyMaterialEffects(
     float ndv = clamp(dot(normal, viewDir), 0.0, 1.0);
 
     if (u_interiorEnabled && inMaterialMask(u_interiorMask, colorIdx)) {
-        color = applyInterior(worldPos, viewDir);
+        color = applyInterior(worldPos, viewDir, normal);
     }
 
     if (u_gradLightEnabled && inMaterialMask(u_gradLightMask, colorIdx)) {

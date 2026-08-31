@@ -20,6 +20,8 @@ export interface EffectContext {
 	cameraFwd: Color3;
 	cameraRight: Color3;
 	cameraUp: Color3;
+	cameraAzimuth: number;
+	cameraElevation: number;
 	meshDeform: MeshDeformEffect | null;
 	shatterActive: boolean;
 }

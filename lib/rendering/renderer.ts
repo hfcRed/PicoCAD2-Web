@@ -332,6 +332,8 @@ export class Renderer {
 			cameraFwd: [0, 0, -1],
 			cameraRight: [1, 0, 0],
 			cameraUp: [0, 1, 0],
+			cameraAzimuth: 0,
+			cameraElevation: 0,
 			meshDeform: null,
 			shatterActive: false,
 		};
@@ -496,6 +498,8 @@ export class Renderer {
 		ctx.cameraUp[0] = v[1];
 		ctx.cameraUp[1] = v[5];
 		ctx.cameraUp[2] = v[9];
+		ctx.cameraAzimuth = camera.omega + camera.omegaOffset;
+		ctx.cameraElevation = camera.theta;
 
 		if (useFbo) {
 			pipeline.pool.ensure(gl, w, h);

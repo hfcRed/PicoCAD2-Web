@@ -53,7 +53,7 @@ void main() {
 
         float az = wrap ? mod(u_camAzimuth, PATTERN_TAU) : u_camAzimuth;
         vec2 q = c * u_scale;
-        q.x += az * (wrap ? snapped : turnCells) / PATTERN_TAU;
+        q.x -= az * (wrap ? snapped : turnCells) / PATTERN_TAU;
         q.y -= u_camElevation * parallax * u_scale / 1.2;
         if (wrap) {
             q.x = mod(q.x, snapped);
@@ -70,7 +70,7 @@ void main() {
         // (skybox), blended by the parallax amount to follow the orbit.
         vec3 pScreen = vec3(c * u_scale, u_seed * 43.7);
         vec3 ray = normalize(
-            u_cameraFwd + 1.2 * (c.x * u_cameraRight + c.y * u_cameraUp)
+            u_cameraFwd + 1.2 * (-c.x * u_cameraRight + c.y * u_cameraUp)
         );
         vec3 pView = ray * u_scale + vec3(u_seed * 43.7);
         p = mix(pScreen, pView, parallax);

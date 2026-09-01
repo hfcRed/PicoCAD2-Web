@@ -1,5 +1,11 @@
 import gradientOutlineFrag from "../../shaders/effects/gradient-outline.frag";
+import type { GradientOutlineOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
 
@@ -23,16 +29,6 @@ const OUTLINE_MODE_MAP: Record<OutlineMode, number> = {
  * the renderer skips the official outline pass.
  */
 export class GradientOutlineEffect extends FullscreenEffect {
-	size = 1;
-	colorFrom: Color3 = [1, 1, 1];
-	colorTo: Color3 = [0, 0, 0];
-	gradient = 1.0;
-	gradientDirection = 0;
-	growthDirection = 0;
-	growthFactor = 0;
-	mode: OutlineMode = "outline";
-	shadowOffset: [number, number] = [2, -2];
-
 	/**
 	 * Background color, set by the renderer before applying.
 	 * Not user configurable, derived from the model's background color.
@@ -46,6 +42,12 @@ export class GradientOutlineEffect extends FullscreenEffect {
 		super("gradientOutline", gradientOutlineFrag, (ctx: EffectContext) =>
 			this.getUniforms(ctx),
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, GRADIENT_OUTLINE_DEFAULTS);
 	}
 
 	/**
@@ -70,3 +72,22 @@ export class GradientOutlineEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface GradientOutlineEffect
+	extends Required<GradientOutlineOptions> {}
+
+/** Default settings for {@link GradientOutlineEffect}. */
+export const GRADIENT_OUTLINE_DEFAULTS = deepFreeze<
+	DeepRequired<GradientOutlineOptions>
+>({
+	enabled: false,
+	size: 1,
+	colorFrom: [1, 1, 1],
+	colorTo: [0, 0, 0],
+	gradient: 1,
+	gradientDirection: 0,
+	growthDirection: 0,
+	growthFactor: 0,
+	mode: "outline",
+	shadowOffset: [2, -2],
+});

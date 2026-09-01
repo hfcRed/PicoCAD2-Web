@@ -6,7 +6,13 @@ import {
 } from "../../camera/orbit-camera.ts";
 import depthFogFrag from "../../shaders/effects/depth-fog.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import type { DepthFogOptions } from "../../types/options.ts";
 import { packColorMask } from "./color-mask.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
 
 /** Fog falloff mode. */
@@ -28,16 +34,16 @@ export class DepthFogEffect implements PostProcessEffect {
 	private emptyVao: WebGLVertexArrayObject | null = null;
 
 	readonly id = "depthFog";
-	enabled = false;
 	initialized = false;
-	modelOnly = true;
-	maskedColors: number[] = [];
 
-	color: [number, number, number] = [0.8, 0.85, 0.9];
-	near = 0.1;
-	far = 50.0;
-	density = 0.05;
-	mode: FogMode = "linear";
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, DEPTH_FOG_DEFAULTS);
+	}
 
 	/**
 	 * Compiles the shader program and creates the empty VAO.
@@ -106,3 +112,17 @@ export class DepthFogEffect implements PostProcessEffect {
 		this.gl = null;
 	}
 }
+
+export interface DepthFogEffect extends Required<DepthFogOptions> {}
+
+/** Default settings for {@link DepthFogEffect}. */
+export const DEPTH_FOG_DEFAULTS = deepFreeze<DeepRequired<DepthFogOptions>>({
+	enabled: false,
+	modelOnly: true,
+	color: [0.8, 0.85, 0.9],
+	near: 0.1,
+	far: 50,
+	density: 0.05,
+	mode: "linear",
+	maskedColors: [],
+});

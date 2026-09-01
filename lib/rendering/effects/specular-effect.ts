@@ -1,5 +1,10 @@
+import type { SpecularOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
-import type { MaterialStyle } from "./material-style.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 /**
  * The environment reflection half of the specular effect: a two-color
@@ -22,18 +27,34 @@ export interface SpecularEnvironment {
  * camera, so highlights track the camera like the shading does.
  */
 export class SpecularEffect {
-	enabled = false;
-	strength = 0.5;
-	smoothness = 0.5;
-	color: Color3 = [1, 1, 1];
-	anisotropy = 0;
-	environment: SpecularEnvironment = {
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, SPECULAR_DEFAULTS);
+	}
+}
+
+export interface SpecularEffect extends Required<SpecularOptions> {
+	environment: SpecularEnvironment;
+}
+
+/** Default settings for {@link SpecularEffect}. */
+export const SPECULAR_DEFAULTS = deepFreeze<DeepRequired<SpecularOptions>>({
+	enabled: false,
+	strength: 0.5,
+	smoothness: 0.5,
+	color: [1, 1, 1],
+	anisotropy: 0,
+	environment: {
 		strength: 0,
 		skyColor: [0.62, 0.87, 1],
 		groundColor: [0.42, 0.28, 0.2],
 		horizon: 0.5,
 		fresnel: 0.5,
-	};
-	style: MaterialStyle = "palette";
-	maskedColors: number[] = [];
-}
+	},
+	style: "palette",
+	maskedColors: [],
+});

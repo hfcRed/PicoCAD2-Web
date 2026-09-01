@@ -1,4 +1,10 @@
 import glitchFrag from "../../shaders/effects/glitch.frag";
+import type { GlitchOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
 
@@ -7,12 +13,6 @@ import type { EffectContext } from "./types.ts";
  * and block corruption. Animated over time.
  */
 export class GlitchEffect extends FullscreenEffect {
-	intensity = 0.5;
-	speed = 1.0;
-	blockSize = 30.0;
-	rgbSplit = true;
-	lineShift = true;
-
 	/**
 	 * Creates a new glitch effect.
 	 */
@@ -23,6 +23,12 @@ export class GlitchEffect extends FullscreenEffect {
 			(ctx: EffectContext) => this.getUniforms(ctx),
 			true,
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, GLITCH_DEFAULTS);
 	}
 
 	/**
@@ -43,3 +49,17 @@ export class GlitchEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface GlitchEffect extends Required<GlitchOptions> {}
+
+/** Default settings for {@link GlitchEffect}. */
+export const GLITCH_DEFAULTS = deepFreeze<DeepRequired<GlitchOptions>>({
+	enabled: false,
+	modelOnly: true,
+	intensity: 0.5,
+	speed: 1,
+	blockSize: 30,
+	rgbSplit: true,
+	lineShift: true,
+	maskedColors: [],
+});

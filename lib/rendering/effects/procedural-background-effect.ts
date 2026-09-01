@@ -1,7 +1,13 @@
 import proceduralBackgroundFrag from "../../shaders/effects/procedural-background.frag";
+import type { ProceduralBackgroundOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
-import { type MaterialStyle, writeStyledColor } from "./material-style.ts";
+import { writeStyledColor } from "./material-style.ts";
 import type { EffectContext } from "./types.ts";
 
 export type BackgroundPattern =
@@ -39,17 +45,6 @@ const PATTERN_FIELD_ID: Record<BackgroundPattern, number> = {
  * on. Painted pixels count as content for later `modelOnly` passes.
  */
 export class ProceduralBackgroundEffect extends FullscreenEffect {
-	pattern: BackgroundPattern = "stars";
-	colorA: Color3 = [0.02, 0.02, 0.07];
-	colorB: Color3 = [1, 1, 1];
-	scale = 12;
-	speed = 1;
-	seed = 0;
-	cameraParallax = 0.5;
-	randomHue = false;
-	hueRange = 0.5;
-	style: MaterialStyle = "smooth";
-
 	private readonly styledA: Color3 = [0, 0, 0];
 	private readonly styledB: Color3 = [0, 0, 0];
 
@@ -60,7 +55,13 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 		super("proceduralBackground", proceduralBackgroundFrag, (ctx) =>
 			this.getUniforms(ctx),
 		);
+		this.reset();
 		this.modelOnly = false;
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, PROCEDURAL_BACKGROUND_DEFAULTS);
 	}
 
 	/**
@@ -104,3 +105,23 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface ProceduralBackgroundEffect
+	extends Required<ProceduralBackgroundOptions> {}
+
+/** Default settings for {@link ProceduralBackgroundEffect}. */
+export const PROCEDURAL_BACKGROUND_DEFAULTS = deepFreeze<
+	DeepRequired<ProceduralBackgroundOptions>
+>({
+	enabled: false,
+	pattern: "stars",
+	colorA: [0.02, 0.02, 0.07],
+	colorB: [1, 1, 1],
+	scale: 12,
+	speed: 1,
+	seed: 0,
+	cameraParallax: 0.5,
+	randomHue: false,
+	hueRange: 0.5,
+	style: "smooth",
+});

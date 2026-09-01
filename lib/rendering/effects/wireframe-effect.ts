@@ -2,8 +2,14 @@ import { mat4 } from "gl-matrix";
 import * as twgl from "twgl.js";
 import wireframeFrag from "../../shaders/wireframe.frag";
 import wireframeVert from "../../shaders/wireframe.vert";
+import type { WireframeOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
 import type { ModelResources } from "../renderer.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { writeMeshDeformUniforms } from "./mesh-deform-effect.ts";
 import type { EffectContext, SceneEffect } from "./types.ts";
 
@@ -15,9 +21,7 @@ import type { EffectContext, SceneEffect } from "./types.ts";
  */
 export class WireframeEffect implements SceneEffect {
 	readonly id = "wireframe";
-	enabled = false;
 	initialized = false;
-	color: Color3 = [1, 1, 1];
 
 	private program: twgl.ProgramInfo | null = null;
 	private gl: WebGL2RenderingContext | null = null;
@@ -36,6 +40,15 @@ export class WireframeEffect implements SceneEffect {
 		u_deformCenter: [0, 0, 0] as Color3,
 		u_deformHalfExt: [1, 1, 1] as Color3,
 	};
+
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, WIREFRAME_DEFAULTS);
+	}
 
 	/**
 	 * Compiles the wireframe shader program.
@@ -106,3 +119,11 @@ export class WireframeEffect implements SceneEffect {
 		this.gl = null;
 	}
 }
+
+export interface WireframeEffect extends Required<WireframeOptions> {}
+
+/** Default settings for {@link WireframeEffect}. */
+export const WIREFRAME_DEFAULTS = deepFreeze<DeepRequired<WireframeOptions>>({
+	enabled: false,
+	color: [1, 1, 1],
+});

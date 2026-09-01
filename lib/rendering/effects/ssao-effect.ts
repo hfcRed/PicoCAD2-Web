@@ -1,6 +1,11 @@
 import ssaoFrag from "../../shaders/effects/ssao.frag";
+import type { SSAOOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
-import type { MaterialStyle } from "./material-style.ts";
 import type { EffectContext } from "./types.ts";
 
 /** Allowed hemisphere kernel sizes. */
@@ -22,17 +27,17 @@ export type SSAOSamples = 8 | 16 | 32;
  * colors are darkened (empty = all). Only model pixels are ever affected.
  */
 export class SSAOEffect extends FullscreenEffect {
-	radius = 1;
-	intensity = 1;
-	power = 1;
-	samples: SSAOSamples = 16;
-	style: MaterialStyle = "palette";
-
 	/**
 	 * Creates a new SSAO effect.
 	 */
 	constructor() {
 		super("ssao", ssaoFrag, (ctx: EffectContext) => this.getUniforms(ctx));
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, SSAO_DEFAULTS);
 	}
 
 	/**
@@ -57,3 +62,16 @@ export class SSAOEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface SSAOEffect extends Required<SSAOOptions> {}
+
+/** Default settings for {@link SSAOEffect}. */
+export const SSAO_DEFAULTS = deepFreeze<DeepRequired<SSAOOptions>>({
+	enabled: false,
+	radius: 1,
+	intensity: 1,
+	power: 1,
+	samples: 16,
+	style: "palette",
+	maskedColors: [],
+});

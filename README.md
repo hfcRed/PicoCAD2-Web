@@ -931,6 +931,21 @@ All post-processing effects except the gradient outline have a `modelOnly` prope
 viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport
 ```
 
+### Defaults and Reset
+
+Every effect exports its default settings as a deep-frozen constant, and every effect instance has a `reset()` method that restores those defaults, keeping the effect's enabled state:
+
+```typescript
+import { DISSOLVE_DEFAULTS, EXTRAS_DEFAULTS, getDefaultExtras } from "picocad2-web";
+
+DISSOLVE_DEFAULTS.scale;             // 8
+EXTRAS_DEFAULTS.bloom.threshold;     // 0.8
+const extras = getDefaultExtras();   // fresh mutable ExtrasState copy
+
+viewer.extras.dissolve.reset();      // restore one effect's defaults
+viewer.extras.reset();               // restore every effect
+```
+
 ### Effect Chain Order
 
 When multiple effects are active, they are applied in this fixed order:

@@ -1,5 +1,9 @@
-import type { Color3 } from "../../types/scene.ts";
-import type { MaterialStyle } from "./material-style.ts";
+import type { GlitterOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 /**
  * The space sparkle cells live in. `"uv"` quantizes sparkles to the
@@ -19,17 +23,31 @@ export type GlitterShape = "square" | "circle";
  * twinkle over time.
  */
 export class GlitterEffect {
-	enabled = false;
-	space: GlitterSpace = "uv";
-	density = 48;
-	size = 0.6;
-	color: Color3 = [1, 1, 1];
-	randomHue = false;
-	hueRange = 0.5;
-	brightness = 1;
-	angleRange = 40;
-	speed = 1;
-	shape: GlitterShape = "square";
-	style: MaterialStyle = "palette";
-	maskedColors: number[] = [];
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, GLITTER_DEFAULTS);
+	}
 }
+
+export interface GlitterEffect extends Required<GlitterOptions> {}
+
+/** Default settings for {@link GlitterEffect}. */
+export const GLITTER_DEFAULTS = deepFreeze<DeepRequired<GlitterOptions>>({
+	enabled: false,
+	space: "uv",
+	density: 48,
+	size: 0.6,
+	color: [1, 1, 1],
+	randomHue: false,
+	hueRange: 0.5,
+	brightness: 1,
+	angleRange: 40,
+	speed: 1,
+	shape: "square",
+	style: "palette",
+	maskedColors: [],
+});

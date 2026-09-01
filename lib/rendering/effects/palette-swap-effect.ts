@@ -1,4 +1,9 @@
-import type { MaterialStyle } from "./material-style.ts";
+import type { PaletteSwapOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 /**
  * Palette swap and color cycling, PICO-8 `pal()` style.
@@ -25,12 +30,14 @@ import type { MaterialStyle } from "./material-style.ts";
  * This is a CPU-side effect applied by the renderer, not a shader pass.
  */
 export class PaletteSwapEffect {
-	enabled = false;
-	map: number[] = [];
-	cycleIndices: number[] = [];
-	cycleSpeed = 2;
-	cycleStyle: MaterialStyle = "dithered";
-	cycleBlendTime = 0.2;
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, PALETTE_SWAP_DEFAULTS);
+	}
 
 	/**
 	 * Computes the effective 16-entry display remaps for a point in time.
@@ -89,3 +96,17 @@ export class PaletteSwapEffect {
 		return { remap: current, target, blend };
 	}
 }
+
+export interface PaletteSwapEffect extends Required<PaletteSwapOptions> {}
+
+/** Default settings for {@link PaletteSwapEffect}. */
+export const PALETTE_SWAP_DEFAULTS = deepFreeze<
+	DeepRequired<PaletteSwapOptions>
+>({
+	enabled: false,
+	map: [],
+	cycleIndices: [],
+	cycleSpeed: 2,
+	cycleStyle: "dithered",
+	cycleBlendTime: 0.2,
+});

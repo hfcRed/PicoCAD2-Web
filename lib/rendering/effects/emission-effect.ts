@@ -1,4 +1,9 @@
-import type { MaterialStyle } from "./material-style.ts";
+import type { EmissionOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 export type EmissionBlinkMode = "smooth" | "pulse";
 
@@ -15,15 +20,29 @@ export type EmissionBlinkMode = "smooth" | "pulse";
  * Pair with `bloom.maskedColors` on the same indices for a glow halo.
  */
 export class EmissionEffect {
-	enabled = false;
-	strength = 1;
-	blinkMode: EmissionBlinkMode = "smooth";
-	blinkRate = 0;
-	blinkMin = 0;
-	scrollDirection: [number, number, number] = [0, 1, 0];
-	scrollWidth = 0.25;
-	scrollGap = 0;
-	scrollSpeed = 1;
-	style: MaterialStyle = "palette";
-	maskedColors: number[] = [];
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, EMISSION_DEFAULTS);
+	}
 }
+
+export interface EmissionEffect extends Required<EmissionOptions> {}
+
+/** Default settings for {@link EmissionEffect}. */
+export const EMISSION_DEFAULTS = deepFreeze<DeepRequired<EmissionOptions>>({
+	enabled: false,
+	strength: 1,
+	blinkMode: "smooth",
+	blinkRate: 0,
+	blinkMin: 0,
+	scrollDirection: [0, 1, 0],
+	scrollWidth: 0.25,
+	scrollGap: 0,
+	scrollSpeed: 1,
+	style: "palette",
+	maskedColors: [],
+});

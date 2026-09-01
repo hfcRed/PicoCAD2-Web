@@ -1,4 +1,10 @@
 import halftoneFrag from "../../shaders/effects/halftone.frag";
+import type { HalftoneOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
 
@@ -15,11 +21,6 @@ const HALFTONE_MODE_MAP: Record<HalftoneMode, number> = {
  * Converts the scene to a halftone dot/line pattern like newspaper printing.
  */
 export class HalftoneEffect extends FullscreenEffect {
-	dotSize = 6.0;
-	angle = 0.4;
-	blend = 1.0;
-	mode: HalftoneMode = "dots";
-
 	/**
 	 * Creates a new halftone effect.
 	 */
@@ -27,6 +28,12 @@ export class HalftoneEffect extends FullscreenEffect {
 		super("halftone", halftoneFrag, (ctx: EffectContext) =>
 			this.getUniforms(ctx),
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, HALFTONE_DEFAULTS);
 	}
 
 	/**
@@ -45,3 +52,16 @@ export class HalftoneEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface HalftoneEffect extends Required<HalftoneOptions> {}
+
+/** Default settings for {@link HalftoneEffect}. */
+export const HALFTONE_DEFAULTS = deepFreeze<DeepRequired<HalftoneOptions>>({
+	enabled: false,
+	modelOnly: true,
+	dotSize: 6,
+	angle: 0.4,
+	blend: 1,
+	mode: "dots",
+	maskedColors: [],
+});

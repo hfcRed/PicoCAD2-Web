@@ -1,5 +1,9 @@
-import type { Color3 } from "../../types/scene.ts";
-import type { MaterialStyle } from "./material-style.ts";
+import type { TriangleFlashOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 export type TriangleFlashMode = "replace" | "add";
 
@@ -10,13 +14,29 @@ export type TriangleFlashMode = "replace" | "add";
  * so a blink never leaves other effects' masks.
  */
 export class TriangleFlashEffect {
-	enabled = false;
-	color: Color3 = [1, 1, 1];
-	rate = 8;
-	density = 0.15;
-	duration = 0.12;
-	softness = 0;
-	mode: TriangleFlashMode = "replace";
-	style: MaterialStyle = "palette";
-	maskedColors: number[] = [];
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, TRIANGLE_FLASH_DEFAULTS);
+	}
 }
+
+export interface TriangleFlashEffect extends Required<TriangleFlashOptions> {}
+
+/** Default settings for {@link TriangleFlashEffect}. */
+export const TRIANGLE_FLASH_DEFAULTS = deepFreeze<
+	DeepRequired<TriangleFlashOptions>
+>({
+	enabled: false,
+	color: [1, 1, 1],
+	rate: 8,
+	density: 0.15,
+	duration: 0.12,
+	softness: 0,
+	mode: "replace",
+	style: "palette",
+	maskedColors: [],
+});

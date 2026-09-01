@@ -1,5 +1,9 @@
-import type { Color3 } from "../../types/scene.ts";
-import type { MaterialStyle } from "./material-style.ts";
+import type { RimLightOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 /**
  * Fresnel rim on the model's silhouette, applied inside the model shader.
@@ -12,13 +16,27 @@ import type { MaterialStyle } from "./material-style.ts";
  * is exactly the silhouette rim tilted away from the light).
  */
 export class RimLightEffect {
-	enabled = false;
-	color: Color3 = [1, 1, 1];
-	width = 0.35;
-	sharpness = 0.7;
-	lightAlign = 0;
-	blend = 1;
-	invert = false;
-	style: MaterialStyle = "palette";
-	maskedColors: number[] = [];
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, RIM_LIGHT_DEFAULTS);
+	}
 }
+
+export interface RimLightEffect extends Required<RimLightOptions> {}
+
+/** Default settings for {@link RimLightEffect}. */
+export const RIM_LIGHT_DEFAULTS = deepFreeze<DeepRequired<RimLightOptions>>({
+	enabled: false,
+	color: [1, 1, 1],
+	width: 0.35,
+	sharpness: 0.7,
+	lightAlign: 0,
+	blend: 1,
+	invert: false,
+	style: "palette",
+	maskedColors: [],
+});

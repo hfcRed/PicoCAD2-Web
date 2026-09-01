@@ -32,6 +32,7 @@
 - **Color cutout effect (`extras.colorCutout`)** — Renders the selected palette colors as additional transparent colors. Applied in the model shader, so it produces real holes that outlines and depth-based effects see. Unlike effect masks, an empty `maskedColors` array cuts nothing.
 - **Palette index buffer for custom effects** — The scene pass now writes a screen-space palette index buffer (R = base palette index, 255 = no model pixel, G = shade row) available to post-process effects as `EffectContext.indexTexture`. `FullscreenEffect` passes it to shaders as `u_indexTexture` together with a `u_colorMask` bitmask packed from the effect's `maskedColors` (helper exported as `packColorMask`).
 - **`modelInfo.palette`** — The model's full color palette as an array of `Color3` values in palette index order, at the full precision of the model source.
+- **Effect defaults and `reset()`** — Every effect exports its default settings as a deep-frozen constant (`DISSOLVE_DEFAULTS`, `BLOOM_DEFAULTS`, …) and has a `reset()` method that restores every setting to its default while keeping the effect's enabled state. `EXTRAS_DEFAULTS` aggregates the defaults of all effects, `getDefaultExtras()` returns a fresh mutable copy (the extras half of a default viewer state), and `viewer.extras.reset()` resets every effect at once.
 
 ### Changed
 

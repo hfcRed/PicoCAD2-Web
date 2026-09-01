@@ -1,5 +1,11 @@
 import type { WorldBounds } from "../../scene/scene-graph.ts";
+import type { MeshDeformOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 export type DeformAxis = "x" | "y" | "z";
 
@@ -20,12 +26,33 @@ export type DeformAxis = "x" | "y" | "z";
  * shared edge open.
  */
 export class MeshDeformEffect {
-	enabled = false;
-	voxel = { enabled: false, gridSize: 0.25 };
-	barrel = { amount: 0, axis: "y" as DeformAxis };
-	spherify = { amount: 0 };
-	twist = { amount: 0, axis: "y" as DeformAxis, speed: 0 };
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, MESH_DEFORM_DEFAULTS);
+	}
 }
+
+export interface MeshDeformEffect extends Required<MeshDeformOptions> {
+	voxel: { enabled: boolean; gridSize: number };
+	barrel: { amount: number; axis: DeformAxis };
+	spherify: { amount: number };
+	twist: { amount: number; axis: DeformAxis; speed: number };
+}
+
+/** Default settings for {@link MeshDeformEffect}. */
+export const MESH_DEFORM_DEFAULTS = deepFreeze<DeepRequired<MeshDeformOptions>>(
+	{
+		enabled: false,
+		voxel: { enabled: false, gridSize: 0.25 },
+		barrel: { amount: 0, axis: "y" },
+		spherify: { amount: 0 },
+		twist: { amount: 0, axis: "y", speed: 0 },
+	},
+);
 
 export interface MeshDeformUniforms {
 	u_deformEnabled: boolean;

@@ -2,8 +2,14 @@ import type { mat4 } from "gl-matrix";
 import * as twgl from "twgl.js";
 import particlesFrag from "../../shaders/particles.frag";
 import particlesVert from "../../shaders/particles.vert";
+import type { ParticlesOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
 import type { ModelResources } from "../renderer.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import type { EffectContext, SceneEffect } from "./types.ts";
 
 export type ParticleShape = "pixel" | "quad" | "cube" | "triangle";
@@ -43,20 +49,7 @@ const MOTION_INDEX: Record<ParticleMotion, number> = {
  */
 export class ParticlesEffect implements SceneEffect {
 	readonly id = "particles";
-	enabled = false;
 	initialized = false;
-	count = 300;
-	shape: ParticleShape = "pixel";
-	paletteIndices: number[] = [];
-	size = 2;
-	sizeJitter = 0.5;
-	motion: ParticleMotion = "drift";
-	speed = 1;
-	velocity: [number, number, number] = [0, 0, 0];
-	areaScale = 1.5;
-	twinkle = 0.3;
-	randomHue = false;
-	hueRange = 0.5;
 
 	private program: twgl.ProgramInfo | null = null;
 	private gl: WebGL2RenderingContext | null = null;
@@ -82,6 +75,15 @@ export class ParticlesEffect implements SceneEffect {
 		u_paletteIndices: new Float32Array(16),
 		u_paletteCount: 0,
 	};
+
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, PARTICLES_DEFAULTS);
+	}
 
 	/**
 	 * Compiles the particle shader program.
@@ -185,3 +187,22 @@ export class ParticlesEffect implements SceneEffect {
 		this.gl = null;
 	}
 }
+
+export interface ParticlesEffect extends Required<ParticlesOptions> {}
+
+/** Default settings for {@link ParticlesEffect}. */
+export const PARTICLES_DEFAULTS = deepFreeze<DeepRequired<ParticlesOptions>>({
+	enabled: false,
+	count: 300,
+	shape: "pixel",
+	paletteIndices: [],
+	size: 2,
+	sizeJitter: 0.5,
+	motion: "drift",
+	speed: 1,
+	velocity: [0, 0, 0],
+	areaScale: 1.5,
+	twinkle: 0.3,
+	randomHue: false,
+	hueRange: 0.5,
+});

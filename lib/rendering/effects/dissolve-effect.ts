@@ -1,5 +1,9 @@
-import type { Color3 } from "../../types/scene.ts";
-import type { MaterialStyle } from "./material-style.ts";
+import type { DissolveOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 
 export type DissolveMode = "noise" | "directional" | "point" | "proximity";
 
@@ -17,16 +21,30 @@ export type DissolveMode = "noise" | "directional" | "point" | "proximity";
  * {@link edgeColor} band, {@link edgeWidth} wide.
  */
 export class DissolveEffect {
-	enabled = false;
-	progress = 0;
-	mode: DissolveMode = "noise";
-	scale = 8;
-	direction: [number, number, number] = [0, 1, 0];
-	point: [number, number, number] = [0, 0, 0];
-	invert = false;
-	softness = 0.15;
-	edgeWidth = 0.1;
-	edgeColor: Color3 = [1, 0.65, 0.2];
-	style: MaterialStyle = "palette";
-	maskedColors: number[] = [];
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, DISSOLVE_DEFAULTS);
+	}
 }
+
+export interface DissolveEffect extends Required<DissolveOptions> {}
+
+/** Default settings for {@link DissolveEffect}. */
+export const DISSOLVE_DEFAULTS = deepFreeze<DeepRequired<DissolveOptions>>({
+	enabled: false,
+	progress: 0,
+	mode: "noise",
+	scale: 8,
+	direction: [0, 1, 0],
+	point: [0, 0, 0],
+	invert: false,
+	softness: 0.15,
+	edgeWidth: 0.1,
+	edgeColor: [1, 0.65, 0.2],
+	style: "palette",
+	maskedColors: [],
+});

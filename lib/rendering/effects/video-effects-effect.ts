@@ -1,5 +1,11 @@
 import videoEffectsFrag from "../../shaders/effects/video-effects.frag";
+import type { VideoEffectsOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
 
@@ -52,37 +58,6 @@ const MIN_GHOST_DT = 1 / 240;
  * No color mask. Supersedes the deprecated standalone CRT effect.
  */
 export class VideoEffectsEffect extends FullscreenEffect {
-	screenType: ScreenType = "crt";
-	resolution = 0;
-	brightness = 1;
-	saturation = 1;
-	contrastBoost = 0;
-	gridStrength = 0.5;
-
-	crt = {
-		curvature: 0.5,
-		scanlineIntensity: 0.3,
-		refreshRate: 0,
-		pixelFadeTime: 0,
-	};
-	gameboy = {
-		palette: "dmg" as GameboyPalette,
-		customColors: DMG_COLORS.map((c): Color3 => [...c]),
-		ghosting: 0.3,
-	};
-	tn = {
-		angleShift: 0.5,
-	};
-	oled = {
-		blackCrush: 0.5,
-		pentile: false,
-	};
-	projector = {
-		keystone: 0.2,
-		hotspot: 0.4,
-		halo: 0.3,
-	};
-
 	private historyGl: WebGL2RenderingContext | null = null;
 	private historyTex: WebGLTexture | null = null;
 	private historyWidth = 0;
@@ -101,6 +76,12 @@ export class VideoEffectsEffect extends FullscreenEffect {
 			(ctx: EffectContext) => this.getUniforms(ctx),
 			true,
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, VIDEO_EFFECTS_DEFAULTS);
 	}
 
 	/**
@@ -243,3 +224,48 @@ export class VideoEffectsEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface VideoEffectsEffect extends Required<VideoEffectsOptions> {
+	crt: {
+		curvature: number;
+		scanlineIntensity: number;
+		refreshRate: number;
+		pixelFadeTime: number;
+	};
+	gameboy: {
+		palette: GameboyPalette;
+		customColors: Color3[];
+		ghosting: number;
+	};
+	tn: { angleShift: number };
+	oled: { blackCrush: number; pentile: boolean };
+	projector: { keystone: number; hotspot: number; halo: number };
+}
+
+/** Default settings for {@link VideoEffectsEffect}. */
+export const VIDEO_EFFECTS_DEFAULTS = deepFreeze<
+	DeepRequired<VideoEffectsOptions>
+>({
+	enabled: false,
+	modelOnly: true,
+	screenType: "crt",
+	resolution: 0,
+	brightness: 1,
+	saturation: 1,
+	contrastBoost: 0,
+	gridStrength: 0.5,
+	crt: {
+		curvature: 0.5,
+		scanlineIntensity: 0.3,
+		refreshRate: 0,
+		pixelFadeTime: 0,
+	},
+	gameboy: {
+		palette: "dmg",
+		customColors: DMG_COLORS.map((c): Color3 => [...c]),
+		ghosting: 0.3,
+	},
+	tn: { angleShift: 0.5 },
+	oled: { blackCrush: 0.5, pentile: false },
+	projector: { keystone: 0.2, hotspot: 0.4, halo: 0.3 },
+});

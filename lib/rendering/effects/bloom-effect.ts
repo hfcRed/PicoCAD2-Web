@@ -3,7 +3,13 @@ import bloomBlurFrag from "../../shaders/effects/bloom-blur.frag";
 import bloomCompositeFrag from "../../shaders/effects/bloom-composite.frag";
 import bloomThresholdFrag from "../../shaders/effects/bloom-threshold.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import type { BloomOptions } from "../../types/options.ts";
 import { packColorMask } from "./color-mask.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
 
 /**
@@ -12,13 +18,7 @@ import type { EffectContext, PostProcessEffect } from "./types.ts";
  */
 export class BloomEffect implements PostProcessEffect {
 	readonly id = "bloom";
-	enabled = false;
 	initialized = false;
-	modelOnly = true;
-	maskedColors: number[] = [];
-	threshold = 0.8;
-	intensity = 1.0;
-	blur = 4.0;
 
 	private gl: WebGL2RenderingContext | null = null;
 	private thresholdProgram: twgl.ProgramInfo | null = null;
@@ -32,6 +32,15 @@ export class BloomEffect implements PostProcessEffect {
 	private texB: WebGLTexture | null = null;
 	private internalWidth = 0;
 	private internalHeight = 0;
+
+	constructor() {
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, BLOOM_DEFAULTS);
+	}
 
 	/**
 	 * Compiles all bloom shader programs.
@@ -260,3 +269,15 @@ export class BloomEffect implements PostProcessEffect {
 		this.internalHeight = 0;
 	}
 }
+
+export interface BloomEffect extends Required<BloomOptions> {}
+
+/** Default settings for {@link BloomEffect}. */
+export const BLOOM_DEFAULTS = deepFreeze<DeepRequired<BloomOptions>>({
+	enabled: false,
+	modelOnly: true,
+	threshold: 0.8,
+	intensity: 1,
+	blur: 4,
+	maskedColors: [],
+});

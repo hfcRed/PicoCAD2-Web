@@ -1,40 +1,141 @@
-import { BillboardEffect } from "./rendering/effects/billboard-effect.ts";
-import { BloomEffect } from "./rendering/effects/bloom-effect.ts";
-import { ChromaticAberrationEffect } from "./rendering/effects/chromatic-aberration-effect.ts";
-import { ColorCutoutEffect } from "./rendering/effects/color-cutout-effect.ts";
-import { ColorGradingEffect } from "./rendering/effects/color-grading-effect.ts";
-import { ColorTintEffect } from "./rendering/effects/color-tint-effect.ts";
+import {
+	BILLBOARD_DEFAULTS,
+	BillboardEffect,
+} from "./rendering/effects/billboard-effect.ts";
+import {
+	BLOOM_DEFAULTS,
+	BloomEffect,
+} from "./rendering/effects/bloom-effect.ts";
+import {
+	CHROMATIC_ABERRATION_DEFAULTS,
+	ChromaticAberrationEffect,
+} from "./rendering/effects/chromatic-aberration-effect.ts";
+import {
+	COLOR_CUTOUT_DEFAULTS,
+	ColorCutoutEffect,
+} from "./rendering/effects/color-cutout-effect.ts";
+import {
+	COLOR_GRADING_DEFAULTS,
+	ColorGradingEffect,
+} from "./rendering/effects/color-grading-effect.ts";
+import {
+	COLOR_TINT_DEFAULTS,
+	ColorTintEffect,
+} from "./rendering/effects/color-tint-effect.ts";
 import { CRTEffect } from "./rendering/effects/crt-effect.ts";
-import { DepthFogEffect } from "./rendering/effects/depth-fog-effect.ts";
-import { DissolveEffect } from "./rendering/effects/dissolve-effect.ts";
-import { DitheringEffect } from "./rendering/effects/dithering-effect.ts";
-import { EdgeDetectionEffect } from "./rendering/effects/edge-detection-effect.ts";
-import { EmissionEffect } from "./rendering/effects/emission-effect.ts";
-import { FurEffect } from "./rendering/effects/fur-effect.ts";
-import { GlitchEffect } from "./rendering/effects/glitch-effect.ts";
-import { GlitterEffect } from "./rendering/effects/glitter-effect.ts";
-import { GradientLightEffect } from "./rendering/effects/gradient-light-effect.ts";
-import { GradientOutlineEffect } from "./rendering/effects/gradient-outline-effect.ts";
-import { HalftoneEffect } from "./rendering/effects/halftone-effect.ts";
-import { InteriorEffect } from "./rendering/effects/interior-effect.ts";
-import { LensDistortionEffect } from "./rendering/effects/lens-distortion-effect.ts";
-import { MeshDeformEffect } from "./rendering/effects/mesh-deform-effect.ts";
-import { NoiseEffect } from "./rendering/effects/noise-effect.ts";
-import { PaletteSwapEffect } from "./rendering/effects/palette-swap-effect.ts";
-import { ParticlesEffect } from "./rendering/effects/particles-effect.ts";
+import {
+	DEPTH_FOG_DEFAULTS,
+	DepthFogEffect,
+} from "./rendering/effects/depth-fog-effect.ts";
+import {
+	DISSOLVE_DEFAULTS,
+	DissolveEffect,
+} from "./rendering/effects/dissolve-effect.ts";
+import {
+	DITHERING_DEFAULTS,
+	DitheringEffect,
+} from "./rendering/effects/dithering-effect.ts";
+import {
+	EDGE_DETECTION_DEFAULTS,
+	EdgeDetectionEffect,
+} from "./rendering/effects/edge-detection-effect.ts";
+import type { DeepReadonly } from "./rendering/effects/effect-defaults.ts";
+import {
+	EMISSION_DEFAULTS,
+	EmissionEffect,
+} from "./rendering/effects/emission-effect.ts";
+import { FUR_DEFAULTS, FurEffect } from "./rendering/effects/fur-effect.ts";
+import {
+	GLITCH_DEFAULTS,
+	GlitchEffect,
+} from "./rendering/effects/glitch-effect.ts";
+import {
+	GLITTER_DEFAULTS,
+	GlitterEffect,
+} from "./rendering/effects/glitter-effect.ts";
+import {
+	GRADIENT_LIGHT_DEFAULTS,
+	GradientLightEffect,
+} from "./rendering/effects/gradient-light-effect.ts";
+import {
+	GRADIENT_OUTLINE_DEFAULTS,
+	GradientOutlineEffect,
+} from "./rendering/effects/gradient-outline-effect.ts";
+import {
+	HALFTONE_DEFAULTS,
+	HalftoneEffect,
+} from "./rendering/effects/halftone-effect.ts";
+import {
+	INTERIOR_DEFAULTS,
+	InteriorEffect,
+} from "./rendering/effects/interior-effect.ts";
+import {
+	LENS_DISTORTION_DEFAULTS,
+	LensDistortionEffect,
+} from "./rendering/effects/lens-distortion-effect.ts";
+import {
+	MESH_DEFORM_DEFAULTS,
+	MeshDeformEffect,
+} from "./rendering/effects/mesh-deform-effect.ts";
+import {
+	NOISE_DEFAULTS,
+	NoiseEffect,
+} from "./rendering/effects/noise-effect.ts";
+import {
+	PALETTE_SWAP_DEFAULTS,
+	PaletteSwapEffect,
+} from "./rendering/effects/palette-swap-effect.ts";
+import {
+	PARTICLES_DEFAULTS,
+	ParticlesEffect,
+} from "./rendering/effects/particles-effect.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
-import { PixelationEffect } from "./rendering/effects/pixelation-effect.ts";
-import { PosterizationEffect } from "./rendering/effects/posterization-effect.ts";
-import { ProceduralBackgroundEffect } from "./rendering/effects/procedural-background-effect.ts";
-import { RimLightEffect } from "./rendering/effects/rim-light-effect.ts";
-import { SharpenEffect } from "./rendering/effects/sharpen-effect.ts";
-import { SpecularEffect } from "./rendering/effects/specular-effect.ts";
-import { SSAOEffect } from "./rendering/effects/ssao-effect.ts";
-import { TriangleFlashEffect } from "./rendering/effects/triangle-flash-effect.ts";
-import { TriangleShatterEffect } from "./rendering/effects/triangle-shatter-effect.ts";
-import { VideoEffectsEffect } from "./rendering/effects/video-effects-effect.ts";
-import { VignetteEffect } from "./rendering/effects/vignette-effect.ts";
-import { WireframeEffect } from "./rendering/effects/wireframe-effect.ts";
+import {
+	PIXELATION_DEFAULTS,
+	PixelationEffect,
+} from "./rendering/effects/pixelation-effect.ts";
+import {
+	POSTERIZATION_DEFAULTS,
+	PosterizationEffect,
+} from "./rendering/effects/posterization-effect.ts";
+import {
+	PROCEDURAL_BACKGROUND_DEFAULTS,
+	ProceduralBackgroundEffect,
+} from "./rendering/effects/procedural-background-effect.ts";
+import {
+	RIM_LIGHT_DEFAULTS,
+	RimLightEffect,
+} from "./rendering/effects/rim-light-effect.ts";
+import {
+	SHARPEN_DEFAULTS,
+	SharpenEffect,
+} from "./rendering/effects/sharpen-effect.ts";
+import {
+	SPECULAR_DEFAULTS,
+	SpecularEffect,
+} from "./rendering/effects/specular-effect.ts";
+import { SSAO_DEFAULTS, SSAOEffect } from "./rendering/effects/ssao-effect.ts";
+import {
+	TRIANGLE_FLASH_DEFAULTS,
+	TriangleFlashEffect,
+} from "./rendering/effects/triangle-flash-effect.ts";
+import {
+	TRIANGLE_SHATTER_DEFAULTS,
+	TriangleShatterEffect,
+} from "./rendering/effects/triangle-shatter-effect.ts";
+import {
+	VIDEO_EFFECTS_DEFAULTS,
+	VideoEffectsEffect,
+} from "./rendering/effects/video-effects-effect.ts";
+import {
+	VIGNETTE_DEFAULTS,
+	VignetteEffect,
+} from "./rendering/effects/vignette-effect.ts";
+import {
+	WIREFRAME_DEFAULTS,
+	WireframeEffect,
+} from "./rendering/effects/wireframe-effect.ts";
+import type { ExtrasOptions, ExtrasState } from "./types/options.ts";
 
 /**
  * Provides access to extra (non-official) effects for the viewer.
@@ -199,4 +300,66 @@ export class ViewerExtras {
 		this.vignette = new VignetteEffect();
 		pipeline.addPostEffect(this.vignette);
 	}
+
+	/**
+	 * Restores every effect's settings to their default values. Each effect
+	 * keeps its enabled state.
+	 */
+	reset(): void {
+		for (const key of Object.keys(
+			EXTRAS_DEFAULTS,
+		) as (keyof typeof EXTRAS_DEFAULTS)[]) {
+			this[key].reset();
+		}
+	}
+}
+
+/**
+ * The default settings of every extra effect, deep-frozen. The values match
+ * a freshly constructed viewer's effects. Use {@link getDefaultExtras} for a
+ * mutable copy.
+ */
+export const EXTRAS_DEFAULTS = Object.freeze({
+	wireframe: WIREFRAME_DEFAULTS,
+	particles: PARTICLES_DEFAULTS,
+	proceduralBackground: PROCEDURAL_BACKGROUND_DEFAULTS,
+	colorCutout: COLOR_CUTOUT_DEFAULTS,
+	dissolve: DISSOLVE_DEFAULTS,
+	paletteSwap: PALETTE_SWAP_DEFAULTS,
+	interior: INTERIOR_DEFAULTS,
+	rimLight: RIM_LIGHT_DEFAULTS,
+	gradientLight: GRADIENT_LIGHT_DEFAULTS,
+	specular: SPECULAR_DEFAULTS,
+	glitter: GLITTER_DEFAULTS,
+	emission: EMISSION_DEFAULTS,
+	fur: FUR_DEFAULTS,
+	meshDeform: MESH_DEFORM_DEFAULTS,
+	triangleFlash: TRIANGLE_FLASH_DEFAULTS,
+	triangleShatter: TRIANGLE_SHATTER_DEFAULTS,
+	billboard: BILLBOARD_DEFAULTS,
+	gradientOutline: GRADIENT_OUTLINE_DEFAULTS,
+	ssao: SSAO_DEFAULTS,
+	colorGrading: COLOR_GRADING_DEFAULTS,
+	posterization: POSTERIZATION_DEFAULTS,
+	bloom: BLOOM_DEFAULTS,
+	dithering: DITHERING_DEFAULTS,
+	videoEffects: VIDEO_EFFECTS_DEFAULTS,
+	pixelation: PIXELATION_DEFAULTS,
+	lensDistortion: LENS_DISTORTION_DEFAULTS,
+	noise: NOISE_DEFAULTS,
+	chromaticAberration: CHROMATIC_ABERRATION_DEFAULTS,
+	depthFog: DEPTH_FOG_DEFAULTS,
+	halftone: HALFTONE_DEFAULTS,
+	edgeDetection: EDGE_DETECTION_DEFAULTS,
+	colorTint: COLOR_TINT_DEFAULTS,
+	sharpen: SHARPEN_DEFAULTS,
+	glitch: GLITCH_DEFAULTS,
+	vignette: VIGNETTE_DEFAULTS,
+} satisfies DeepReadonly<Omit<Required<ExtrasOptions>, "crt">>);
+
+/**
+ * Returns a fresh, mutable copy of every effect's default settings.
+ */
+export function getDefaultExtras(): ExtrasState {
+	return structuredClone(EXTRAS_DEFAULTS) as ExtrasState;
 }

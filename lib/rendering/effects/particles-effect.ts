@@ -74,6 +74,7 @@ export class ParticlesEffect implements SceneEffect {
 		u_speed: 1,
 		u_twinkle: 0,
 		u_hueRange: 0,
+		u_paletteBlend: 0,
 		u_paletteTexture: null as WebGLTexture | null,
 		u_paletteIndices: new Float32Array(16),
 		u_paletteCount: 0,
@@ -139,6 +140,7 @@ export class ParticlesEffect implements SceneEffect {
 		u.u_hueRange = this.randomHue
 			? Math.max(this.hueRange, 0) * Math.PI
 			: 0;
+		u.u_paletteBlend = ctx.paletteBlend;
 		u.u_paletteTexture = resources.paletteTexture;
 		u.u_paletteCount = Math.min(this.paletteIndices.length, 16);
 		for (let i = 0; i < u.u_paletteCount; i++) {

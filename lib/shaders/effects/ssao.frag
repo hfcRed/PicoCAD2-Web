@@ -17,6 +17,7 @@ uniform bool u_orthographic;
 uniform bool u_bgIsTransparent;
 
 #include color-mask.glsl;
+#include ../chunks/palette-blend.glsl;
 
 out vec4 fragColor;
 
@@ -125,7 +126,10 @@ void main() {
         return;
     }
 
-    vec2 lookup = vec2((float(base) + 0.5) / 16.0, (float(newRow) + 0.5) / 3.0);
+    vec2 lookup = vec2(
+        (float(base) + 0.5) / 16.0,
+        (float(newRow) + 0.5) / 6.0 + paletteBlendOffset()
+    );
     vec3 shaded = texture(u_paletteTexture, lookup).rgb;
     fragColor = vec4(u_bgIsTransparent ? shaded * col.a : shaded, col.a);
 }

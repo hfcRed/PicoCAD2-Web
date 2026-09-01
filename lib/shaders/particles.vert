@@ -24,6 +24,7 @@ uniform int u_motion; // 0 = drift, 1 = rise, 2 = fall, 3 = orbit, 4 = swirl
 uniform float u_speed;
 uniform float u_twinkle;
 uniform float u_hueRange;
+uniform float u_paletteBlend;
 uniform sampler2D u_paletteTexture;
 uniform float u_paletteIndices[16];
 uniform int u_paletteCount;
@@ -119,8 +120,13 @@ void main() {
             int(h2.w * float(u_paletteCount)), 0, u_paletteCount - 1
         );
         float idx = u_paletteIndices[sel];
+
+        // During a dithered palette-cycle blend, each particle flips to the
+        // target palette rows at its own stable point in the blend window.
+        float rowSet =
+            hash13(vec3(id * 0.7919, 5.3, 91.7)) < u_paletteBlend ? 0.5 : 0.0;
         color = texture(
-            u_paletteTexture, vec2((idx + 0.5) / 16.0, 0.5 / 3.0)
+            u_paletteTexture, vec2((idx + 0.5) / 16.0, 0.5 / 6.0 + rowSet)
         ).rgb;
     }
 

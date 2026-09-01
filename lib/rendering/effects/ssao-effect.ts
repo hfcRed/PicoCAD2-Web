@@ -54,6 +54,7 @@ export class SSAOEffect extends FullscreenEffect {
 			u_style:
 				this.style === "palette" ? 0 : this.style === "dithered" ? 1 : 2,
 			u_orthographic: ctx.isOrthographic,
+			u_paletteBlend: ctx.paletteBlend,
 		};
 	}
 }

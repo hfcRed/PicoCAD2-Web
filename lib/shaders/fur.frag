@@ -23,6 +23,7 @@ uniform float u_furRootShade;
 
 #include chunks/hash.glsl;
 #include chunks/dissolve.glsl;
+#include chunks/palette-blend.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
@@ -90,7 +91,7 @@ void main() {
     paletteRow = clamp(paletteRow, 0, 2);
 
     float u = (colorIdx + 0.5) / 16.0;
-    float v = (float(paletteRow) + 0.5) / 3.0;
+    float v = (float(paletteRow) + 0.5) / 6.0 + paletteBlendOffset();
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
 
     color = applyDissolveEdge(color, dissolveEdge);

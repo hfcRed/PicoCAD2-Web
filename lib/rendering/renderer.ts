@@ -121,6 +121,7 @@ export class Renderer {
 		u_shadingEnabled: true,
 		u_renderMode: 0,
 		u_cutoutMask: 0,
+		u_paletteBlend: 0,
 
 		u_cameraPos: [0, 0, 0] as Color3,
 		u_cameraFwd: [0, 0, -1] as Color3,
@@ -260,6 +261,7 @@ export class Renderer {
 		u_shadingEnabled: true,
 		u_renderMode: 0,
 		u_cutoutMask: 0,
+		u_paletteBlend: 0,
 
 		u_furLength: 0,
 		u_furLayers: 1,
@@ -336,6 +338,7 @@ export class Renderer {
 			cameraAzimuth: 0,
 			cameraElevation: 0,
 			palette: new Float32Array(0),
+			paletteBlend: 0,
 			meshDeform: null,
 			shatterActive: false,
 		};
@@ -738,6 +741,12 @@ export class Renderer {
 	 * palette LUT on the CPU when its effective remap changes. Restores the
 	 * original palette when the effect turns off.
 	 *
+	 * A smooth cycle blend lerps the LUT's display rows toward the next
+	 * step's colors, so every palette consumer crossfades for free. A
+	 * dithered blend instead uploads the next step's palette into the LUT's
+	 * target row set and drives the shaders' per-pixel dither gate through
+	 * the palette blend uniform.
+	 *
 	 * @param settings - The current render settings.
 	 * @param model - The parsed model, for its texture data.
 	 * @param resources - The GPU resources holding the palette texture.
@@ -752,6 +761,9 @@ export class Renderer {
 		const swap = settings.paletteSwap;
 
 		if (!swap?.enabled) {
+			this.modelUniforms.u_paletteBlend = 0;
+			this.furUniforms.u_paletteBlend = 0;
+			this.effectCtx.paletteBlend = 0;
 			if (resources.paletteKey !== "") {
 				updatePaletteTexture(
 					this.gl,
@@ -763,14 +775,22 @@ export class Renderer {
 			return;
 		}
 
-		const remap = swap.resolveRemap(time);
-		const key = remap.join(",");
+		const { remap, target, blend } = swap.resolveCycle(time);
+
+		const dithered = swap.cycleStyle === "dithered" ? blend : 0;
+		this.modelUniforms.u_paletteBlend = dithered;
+		this.furUniforms.u_paletteBlend = dithered;
+		this.effectCtx.paletteBlend = dithered;
+
+		// The smooth blend lives in the LUT bytes, so it joins the key
+		const smooth = swap.cycleStyle === "smooth" ? blend : 0;
+		const key = `${remap.join(",")}|${target.join(",")}|${Math.round(smooth * 255)}`;
 		if (key === resources.paletteKey) return;
 
 		updatePaletteTexture(
 			this.gl,
 			resources.paletteTexture,
-			buildPaletteData(model.texture, remap),
+			buildPaletteData(model.texture, remap, target, smooth),
 		);
 		resources.paletteKey = key;
 	}

@@ -1155,6 +1155,8 @@ export class PicoCAD2Viewer {
 				map: [...e.paletteSwap.map],
 				cycleIndices: [...e.paletteSwap.cycleIndices],
 				cycleSpeed: e.paletteSwap.cycleSpeed,
+				cycleStyle: e.paletteSwap.cycleStyle,
+				cycleBlendTime: e.paletteSwap.cycleBlendTime,
 			},
 			interior: {
 				enabled: e.interior.enabled,

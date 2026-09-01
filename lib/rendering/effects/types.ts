@@ -23,6 +23,7 @@ export interface EffectContext {
 	cameraAzimuth: number;
 	cameraElevation: number;
 	palette: Float32Array;
+	paletteBlend: number;
 	meshDeform: MeshDeformEffect | null;
 	shatterActive: boolean;
 }

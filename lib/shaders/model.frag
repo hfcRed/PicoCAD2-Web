@@ -19,6 +19,7 @@ uniform int u_renderMode; // 0 = texture, 1 = color
 uniform int u_cutoutMask;
 
 #include chunks/material-effects.glsl;
+#include chunks/palette-blend.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
@@ -79,11 +80,12 @@ void main() {
     }
 
     float u = (colorIdx + 0.5) / 16.0;
-    float v = (float(paletteRow) + 0.5) / 3.0;
+    float rowSet = paletteBlendOffset();
+    float v = (float(paletteRow) + 0.5) / 6.0 + rowSet;
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
 
     if (emission > 0.0 && u_emissionSmooth) {
-        vec3 lit = texture(u_paletteTexture, vec2(u, 0.5 / 3.0)).rgb;
+        vec3 lit = texture(u_paletteTexture, vec2(u, 0.5 / 6.0 + rowSet)).rgb;
         color = mix(color, lit, emission);
     }
 

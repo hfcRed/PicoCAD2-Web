@@ -315,6 +315,8 @@ export interface PaletteSwapOptions {
 	map?: number[];
 	cycleIndices?: number[];
 	cycleSpeed?: number;
+	cycleStyle?: MaterialStyle;
+	cycleBlendTime?: number;
 }
 
 export interface InteriorOptions {

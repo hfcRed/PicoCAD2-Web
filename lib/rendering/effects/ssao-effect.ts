@@ -51,8 +51,7 @@ export class SSAOEffect extends FullscreenEffect {
 			u_intensity: Math.max(this.intensity, 0),
 			u_power: Math.max(this.power, 1e-3),
 			u_samples: this.samples === 8 || this.samples === 32 ? this.samples : 16,
-			u_style:
-				this.style === "palette" ? 0 : this.style === "dithered" ? 1 : 2,
+			u_style: this.style === "palette" ? 0 : this.style === "dithered" ? 1 : 2,
 			u_orthographic: ctx.isOrthographic,
 			u_paletteBlend: ctx.paletteBlend,
 		};

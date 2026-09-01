@@ -45,7 +45,6 @@ export class ParticlesEffect implements SceneEffect {
 	readonly id = "particles";
 	enabled = false;
 	initialized = false;
-	modelOnly = true;
 	count = 300;
 	shape: ParticleShape = "pixel";
 	paletteIndices: number[] = [];

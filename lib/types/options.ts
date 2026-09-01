@@ -36,7 +36,6 @@ import type {
 
 export interface WireframeOptions {
 	enabled?: boolean;
-	modelOnly?: boolean;
 	color?: Color3;
 }
 
@@ -72,7 +71,6 @@ export interface ProceduralBackgroundOptions {
 
 export interface GradientOutlineOptions {
 	enabled?: boolean;
-	modelOnly?: boolean;
 	size?: number;
 	colorFrom?: Color3;
 	colorTo?: Color3;

@@ -1115,7 +1115,6 @@ export class PicoCAD2Viewer {
 		return {
 			wireframe: {
 				enabled: e.wireframe.enabled,
-				modelOnly: e.wireframe.modelOnly,
 				color: [...e.wireframe.color],
 			},
 			particles: {
@@ -1296,7 +1295,6 @@ export class PicoCAD2Viewer {
 			},
 			gradientOutline: {
 				enabled: e.gradientOutline.enabled,
-				modelOnly: e.gradientOutline.modelOnly,
 				size: e.gradientOutline.size,
 				colorFrom: [...e.gradientOutline.colorFrom],
 				colorTo: [...e.gradientOutline.colorTo],

@@ -627,7 +627,7 @@ viewer.extras.particles.count = 300;           // Particle count, up to 2000 (de
 viewer.extras.particles.shape = "pixel";       // "pixel" | "quad" | "cube" | "triangle" (default: "pixel")
 viewer.extras.particles.size = 2;              // Output pixels for "pixel", world units otherwise (default: 2)
 viewer.extras.particles.sizeJitter = 0.5;      // Random per-particle shrink, 0-1 (default: 0.5)
-viewer.extras.particles.motion = "drift";      // "drift" | "rise" | "fall" | "orbit" | "swirl" (default: "drift")
+viewer.extras.particles.motion = "drift";      // "drift" | "orbit" | "linear" (default: "drift")
 viewer.extras.particles.speed = 1;             // Motion rate (default: 1)
 viewer.extras.particles.areaScale = 1.5;       // Particle volume as a multiple of the model bounds (default: 1.5)
 viewer.extras.particles.twinkle = 0.3;         // Per-particle brightness flicker, 0-1 (default: 0.3)
@@ -925,7 +925,7 @@ viewer.extras.edgeDetection.blend = 1.0;                      // Blend with orig
 
 ### Model Only
 
-All post-processing effects and the wireframe have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels. Set to `false` to apply the effect to the entire viewport including the background. Material effects are inherently model-only.
+All post-processing effects except the gradient outline have a `modelOnly` property (default: `true`). When enabled, the effect only applies to model pixels. Set to `false` to apply the effect to the entire viewport including the background. Material, geometry, and scene effects are inherently model-only, and the gradient outline always paints around the model.
 
 ```typescript
 viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport

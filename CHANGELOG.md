@@ -41,6 +41,10 @@
 
 - **`extras.crt`** — Superseded by `extras.videoEffects` with `screenType: "crt"`. The property remains as a forwarding alias. Old saved states load unchanged (their `crt` settings map onto `videoEffects` and render identically). New states save only `videoEffects`. The old CRT's `maskedColors` is no longer supported.
 
+### Removed
+
+- **Inert `modelOnly` settings** — The `wireframe` and `particles` effects no longer carry a `modelOnly` property, and `gradientOutline` no longer accepts one in its options or saved state. None of them ever read the value. Old saved states containing these keys still load, the value is simply ignored.
+
 ### Fixed
 
 - **`modelInfo.backgroundColor` full precision** — Now returns the color at the full precision of the model source again when no background color override is set.

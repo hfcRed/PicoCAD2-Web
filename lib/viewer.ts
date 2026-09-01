@@ -1239,7 +1239,7 @@ export class PicoCAD2Viewer {
 			},
 			meshDeform: {
 				enabled: e.meshDeform.enabled,
-				rounding: { ...e.meshDeform.rounding },
+				voxel: { ...e.meshDeform.voxel },
 				barrel: { ...e.meshDeform.barrel },
 				spherify: { ...e.meshDeform.spherify },
 				twist: { ...e.meshDeform.twist },
@@ -1519,10 +1519,9 @@ export class PicoCAD2Viewer {
 		}
 
 		if (extras.meshDeform) {
-			const { rounding, barrel, spherify, twist, ...deform } =
-				extras.meshDeform;
+			const { voxel, barrel, spherify, twist, ...deform } = extras.meshDeform;
 			assign(this.extras.meshDeform, deform);
-			assign(this.extras.meshDeform.rounding, rounding);
+			assign(this.extras.meshDeform.voxel, voxel);
 			assign(this.extras.meshDeform.barrel, barrel);
 			assign(this.extras.meshDeform.spherify, spherify);
 			assign(this.extras.meshDeform.twist, twist);

@@ -410,7 +410,7 @@ export interface BillboardOptions {
 
 export interface MeshDeformOptions {
 	enabled?: boolean;
-	rounding?: { amount?: number; gridSize?: number };
+	voxel?: { enabled?: boolean; gridSize?: number };
 	barrel?: { amount?: number; axis?: DeformAxis };
 	spherify?: { amount?: number };
 	twist?: { amount?: number; axis?: DeformAxis; speed?: number };

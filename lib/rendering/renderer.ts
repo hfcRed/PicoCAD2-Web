@@ -10,6 +10,8 @@ import {
 import type { Color3, PicoCAD2Model, SceneNode } from "../types/scene.ts";
 import {
 	buildAllBuffers,
+	buildNodeBuffers,
+	deleteNodeBuffers,
 	type NodeBuffers,
 	updateNodeTexCoords,
 } from "./buffers.ts";
@@ -44,6 +46,7 @@ import {
 	createPaletteTexture,
 	updatePaletteTexture,
 } from "./textures.ts";
+import { voxelizeMesh } from "./voxelize.ts";
 
 export interface RenderSettings {
 	shading: boolean;
@@ -90,6 +93,9 @@ export interface ModelResources {
 	indexTexture: WebGLTexture;
 	paletteTexture: WebGLTexture;
 	nodeBuffers: NodeBuffers[];
+	baseBuffers: NodeBuffers[];
+	voxelBuffers: NodeBuffers[] | null;
+	voxelKey: string;
 	bounds: WorldBounds;
 	paletteKey: string;
 }
@@ -134,8 +140,6 @@ export class Renderer {
 		u_boundsSpanY: 1,
 
 		u_deformEnabled: false,
-		u_deformRound: 0,
-		u_deformRoundGrid: 0.25,
 		u_deformBarrel: 0,
 		u_deformBarrelAxis: 1,
 		u_deformSpherify: 0,
@@ -288,8 +292,6 @@ export class Renderer {
 		u_dissolveMask: 0,
 
 		u_deformEnabled: false,
-		u_deformRound: 0,
-		u_deformRoundGrid: 0.25,
 		u_deformBarrel: 0,
 		u_deformBarrelAxis: 1,
 		u_deformSpherify: 0,
@@ -353,10 +355,14 @@ export class Renderer {
 	createModelResources(model: PicoCAD2Model): ModelResources {
 		updateRenderState(model.root);
 
+		const baseBuffers = buildAllBuffers(this.gl, model.root);
 		return {
 			indexTexture: createIndexTexture(this.gl, model.texture),
 			paletteTexture: createPaletteTexture(this.gl, model.texture),
-			nodeBuffers: buildAllBuffers(this.gl, model.root),
+			nodeBuffers: baseBuffers,
+			baseBuffers,
+			voxelBuffers: null,
+			voxelKey: "",
 			bounds: computeWorldBounds(model.root),
 			paletteKey: "",
 		};
@@ -444,6 +450,7 @@ export class Renderer {
 		updateRenderState(model.root);
 		this.applyBillboard(settings, model.root, v);
 		this.updatePaletteSwap(settings, model, resources, time);
+		this.updateVoxelization(settings, model, resources);
 
 		let bgR: number;
 		let bgG: number;
@@ -610,7 +617,13 @@ export class Renderer {
 		const gl = this.gl;
 		gl.deleteTexture(resources.indexTexture);
 		gl.deleteTexture(resources.paletteTexture);
+		if (resources.voxelBuffers) {
+			deleteNodeBuffers(gl, resources.voxelBuffers);
+			resources.voxelBuffers = null;
+			resources.voxelKey = "";
+		}
 		resources.nodeBuffers = [];
+		resources.baseBuffers = [];
 	}
 
 	/**
@@ -793,6 +806,56 @@ export class Renderer {
 			buildPaletteData(model.texture, remap, target, smooth),
 		);
 		resources.paletteKey = key;
+	}
+
+	/**
+	 * Applies the mesh deform's voxel mode by swapping the active node
+	 * buffers to CPU-voxelized stand-in geometry, rebuilt when the grid
+	 * size changes and cached until then. The voxel meshes render with the
+	 * real nodes' transforms, so hierarchy, animation and billboard still
+	 * apply, and the remaining GPU deforms bend the cubes.
+	 *
+	 * @param settings - The current render settings.
+	 * @param model - The parsed model, for its meshes and texture.
+	 * @param resources - The GPU resources holding both buffer sets.
+	 */
+	private updateVoxelization(
+		settings: RenderSettings,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+	): void {
+		const deform = settings.meshDeform;
+		const voxel = deform?.enabled ? deform.voxel : null;
+
+		if (!voxel?.enabled) {
+			resources.nodeBuffers = resources.baseBuffers;
+			return;
+		}
+
+		const grid = Math.max(voxel.gridSize, 1e-3);
+		const key = String(grid);
+		if (key !== resources.voxelKey) {
+			if (resources.voxelBuffers) {
+				deleteNodeBuffers(this.gl, resources.voxelBuffers);
+			}
+
+			const list: NodeBuffers[] = [];
+			const triIdCounter = { value: 0 };
+			traverseNode(model.root, (node) => {
+				if (!node.mesh) return;
+				const voxelMesh = voxelizeMesh(node.mesh, grid, model.texture);
+				const nb = buildNodeBuffers(this.gl, node, triIdCounter, voxelMesh);
+				if (nb) {
+					nb.bakedUvs = true;
+					list.push(nb);
+				}
+			});
+
+			resources.voxelBuffers = list;
+			resources.voxelKey = key;
+		}
+
+		resources.nodeBuffers = resources.voxelBuffers ?? resources.baseBuffers;
 	}
 
 	/**
@@ -1125,7 +1188,9 @@ export class Renderer {
 			// but their nodes still drive child transforms.
 			if (!nb.node.renderVisible || nb.node.ghost) continue;
 
-			if (nb.node.uvsDirty) {
+			// Voxel stand-in buffers carry baked UVs. Leave the dirty flag
+			// set so the base buffers update when they return.
+			if (nb.node.uvsDirty && !nb.bakedUvs) {
 				updateNodeTexCoords(gl, nb);
 				nb.node.uvsDirty = false;
 			}

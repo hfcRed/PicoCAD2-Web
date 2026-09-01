@@ -1,17 +1,16 @@
 /**
- * Mesh deform: rounding, barrel, spherify and twist as closed-form
- * world-space position warps, included by both model.vert and
- * wireframe.vert so wireframe edges follow the deformed surface.
+ * Mesh deform: barrel, spherify and twist as closed-form world-space
+ * position warps, included by both model.vert and wireframe.vert so
+ * wireframe edges follow the deformed surface. The voxel remesh happens on
+ * the CPU before these warps, so a voxelized model can still bulge and
+ * twist.
  *
  * Deforms are centered on the model's rest-pose bounds and applied after
  * the node transform, so hierarchy and animation stay correct. Normals
- * are left alone, under flat shading the error is invisible. The fixed
- * order ends with rounding, so voxelation quantizes the other deforms.
+ * are left alone, under flat shading the error is invisible.
  */
 
 uniform bool u_deformEnabled;
-uniform float u_deformRound; // 0-1
-uniform float u_deformRoundGrid; // world units per voxel cell
 uniform float u_deformBarrel;
 uniform int u_deformBarrelAxis; // 0 = x, 1 = y, 2 = z
 uniform float u_deformSpherify;
@@ -67,13 +66,5 @@ vec3 applyMeshDeform(vec3 p) {
         rel = rotateAround(rel, ax, angle);
     }
 
-    p = u_deformCenter + rel;
-
-    if (u_deformRound > 0.0) {
-        float grid = max(u_deformRoundGrid, 1e-4);
-        vec3 snapped = floor(p / grid + 0.5) * grid;
-        p = mix(p, snapped, u_deformRound);
-    }
-
-    return p;
+    return u_deformCenter + rel;
 }

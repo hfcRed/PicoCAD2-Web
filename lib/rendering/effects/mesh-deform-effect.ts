@@ -4,11 +4,16 @@ import type { Color3 } from "../../types/scene.ts";
 export type DeformAxis = "x" | "y" | "z";
 
 /**
- * Stackable closed-form vertex deforms, applied in world space after the
- * node transform and centered on the model's rest-pose bounds. Runs in
- * the vertex shader with no per-frame CPU geometry. The wireframe follows
- * through a shared shader chunk. Applied in a fixed order ending with
- * rounding, so voxelation quantizes the other deforms.
+ * Stackable geometry deforms. `voxel` remeshes the model into strict
+ * axis-aligned cubes on a grid (`gridSize` = voxel edge length). The
+ * renderer swaps in CPU-voxelized stand-in geometry, so the result is real
+ * closed cubes, not a vertex warp. The remaining deforms (barrel, spherify,
+ * twist) are closed-form world-space vertex warps applied after the node
+ * transform and centered on the model's rest-pose bounds, running in the
+ * vertex shader with no per-frame CPU geometry. The wireframe follows
+ * through a shared shader chunk (and shows the voxel cube edges). The
+ * vertex warps apply on top of the voxelized mesh, so a voxel model can
+ * still bulge and twist.
  *
  * Deliberately unmaskable. Adjacent faces share coincident positions, so
  * deforming a masked face next to an unmasked neighbor would tear their
@@ -16,7 +21,7 @@ export type DeformAxis = "x" | "y" | "z";
  */
 export class MeshDeformEffect {
 	enabled = false;
-	rounding = { amount: 0, gridSize: 0.25 };
+	voxel = { enabled: false, gridSize: 0.25 };
 	barrel = { amount: 0, axis: "y" as DeformAxis };
 	spherify = { amount: 0 };
 	twist = { amount: 0, axis: "y" as DeformAxis, speed: 0 };
@@ -24,8 +29,6 @@ export class MeshDeformEffect {
 
 export interface MeshDeformUniforms {
 	u_deformEnabled: boolean;
-	u_deformRound: number;
-	u_deformRoundGrid: number;
 	u_deformBarrel: number;
 	u_deformBarrelAxis: number;
 	u_deformSpherify: number;
@@ -41,7 +44,8 @@ const AXIS_INDEX: Record<DeformAxis, number> = { x: 0, y: 1, z: 2 };
 /**
  * Maps a deform settings object onto shader uniforms. Used by both the
  * renderer (model program) and the wireframe effect so the two programs
- * always agree on the deformation.
+ * always agree on the deformation. The voxel remesh has no uniforms, it is
+ * applied by the renderer as a geometry swap.
  *
  * @param u - The uniform object to write into.
  * @param deform - The deform settings, or null/disabled for a no-op.
@@ -57,8 +61,6 @@ export function writeMeshDeformUniforms(
 	u.u_deformEnabled = deform?.enabled ?? false;
 	if (!deform?.enabled) return;
 
-	u.u_deformRound = Math.min(Math.max(deform.rounding.amount, 0), 1);
-	u.u_deformRoundGrid = Math.max(deform.rounding.gridSize, 1e-4);
 	u.u_deformBarrel = deform.barrel.amount;
 	u.u_deformBarrelAxis = AXIS_INDEX[deform.barrel.axis] ?? 1;
 	u.u_deformSpherify = Math.min(Math.max(deform.spherify.amount, 0), 1);

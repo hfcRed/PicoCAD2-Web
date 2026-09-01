@@ -12,6 +12,11 @@ export interface NodeBuffers {
 	node: SceneNode;
 	groups: (MeshBufferGroup | null)[];
 	wireframe: twgl.BufferInfo | null;
+	/**
+	 * True for buffers whose UVs are baked (voxelized meshes). Animated
+	 * "tex" clips must not re-upload the node's face UVs into them.
+	 */
+	bakedUvs?: boolean;
 }
 
 /**
@@ -178,16 +183,19 @@ function computeSmoothedNormals(
  *
  * @param gl - The WebGL 2 rendering context.
  * @param node - The scene node containing the mesh.
+ * @param triIdCounter - Model-wide triangle id counter for geometry effects.
+ * @param meshOverride - Optional mesh to build instead of the node's own
+ *   (used for voxelized stand-in geometry rendered with the node's transform).
  * @returns The node buffer data, or null if the node has no mesh.
  */
 export function buildNodeBuffers(
 	gl: WebGL2RenderingContext,
 	node: SceneNode,
 	triIdCounter: { value: number } = { value: 0 },
+	meshOverride?: Mesh,
 ): NodeBuffers | null {
-	if (!node.mesh) return null;
-
-	const mesh = node.mesh;
+	const mesh = meshOverride ?? node.mesh;
+	if (!mesh) return null;
 
 	// Collect triangulated vertex data per group
 	const groupPositions: number[][] = [[], [], [], []];
@@ -329,6 +337,31 @@ export function buildNodeBuffers(
 	}
 
 	return { node, groups, wireframe };
+}
+
+/**
+ * Deletes the GL buffers held by a list of node buffers. Used when
+ * voxelized stand-in geometry is rebuilt for a new grid size.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @param buffers - The node buffers to delete.
+ */
+export function deleteNodeBuffers(
+	gl: WebGL2RenderingContext,
+	buffers: NodeBuffers[],
+): void {
+	const deleteInfo = (info: twgl.BufferInfo): void => {
+		for (const attrib of Object.values(info.attribs ?? {})) {
+			gl.deleteBuffer(attrib.buffer);
+		}
+	};
+
+	for (const nb of buffers) {
+		for (const group of nb.groups) {
+			if (group) deleteInfo(group.bufferInfo);
+		}
+		if (nb.wireframe) deleteInfo(nb.wireframe);
+	}
 }
 
 /**

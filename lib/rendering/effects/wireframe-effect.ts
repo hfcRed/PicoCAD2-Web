@@ -28,8 +28,6 @@ export class WireframeEffect implements SceneEffect {
 		u_color: [1, 1, 1] as Color3,
 
 		u_deformEnabled: false,
-		u_deformRound: 0,
-		u_deformRoundGrid: 0.25,
 		u_deformBarrel: 0,
 		u_deformBarrelAxis: 1,
 		u_deformSpherify: 0,

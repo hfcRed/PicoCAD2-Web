@@ -5,7 +5,9 @@ import type { ProjectionMode } from "../types/scene.ts";
  * The non-standard W component used in PicoCAD 2's projection matrices.
  * This creates a tilt-shift depth effect that differs from standard projection.
  */
-const GLOBAL_W = 0.35;
+export const GLOBAL_W = 0.35;
+
+export const FISHEYE_STRENGTH = 0.25;
 
 /**
  * Creates the appropriate PicoCAD 2 projection matrix for the given mode.
@@ -133,6 +135,11 @@ function makeFisheyeMatrix(
 	znear: number,
 	zfar: number,
 ): mat4 {
-	const strength = 0.25;
-	return makePerspectiveMatrix(out, zoom * strength, aspect, znear, zfar);
+	return makePerspectiveMatrix(
+		out,
+		zoom * FISHEYE_STRENGTH,
+		aspect,
+		znear,
+		zfar,
+	);
 }

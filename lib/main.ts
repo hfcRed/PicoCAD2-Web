@@ -185,6 +185,7 @@ export type {
 	BloomOptions,
 	BookmarkSettings,
 	CameraControlOptions,
+	CameraDistanceClamp,
 	CameraSettings,
 	ChromaticAberrationOptions,
 	ColorCutoutOptions,

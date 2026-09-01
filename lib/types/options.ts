@@ -530,6 +530,11 @@ export interface BookmarkSettings {
 	target: [number, number, number];
 }
 
+export interface CameraDistanceClamp {
+	enabled: boolean;
+	minimumDistance: number;
+}
+
 export interface ViewerSettings {
 	shading: boolean;
 	renderMode: RenderMode;
@@ -548,7 +553,7 @@ export interface ViewerSettings {
 	camera: CameraSettings;
 	resolution: ResolutionSettings;
 	maxFps: number;
-	clampCameraDistance: boolean;
+	clampCameraDistance: CameraDistanceClamp;
 	bookmark: BookmarkSettings;
 }
 
@@ -584,7 +589,7 @@ export interface PicoCAD2ViewerOptions {
 		scale?: number;
 	};
 	maxFps?: number;
-	clampCameraDistance?: boolean;
+	clampCameraDistance?: Partial<CameraDistanceClamp>;
 	extras?: ExtrasOptions;
 	onLoad?: ((info: ModelInfo) => void) | null;
 	onFrame?: ((dt: number) => void) | null;

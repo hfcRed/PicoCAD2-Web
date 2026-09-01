@@ -1,10 +1,13 @@
+import { vec3 } from "gl-matrix";
 import { evaluateMotions } from "./animation/animator.ts";
 import { CAMERA_NEAR, OrbitCamera } from "./camera/orbit-camera.ts";
+import { FISHEYE_STRENGTH, GLOBAL_W } from "./camera/projection.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
 import { packColorMask } from "./rendering/effects/color-mask.ts";
 import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
+import { collectRayCrossings } from "./scene/raycast.ts";
 import {
 	restoreStaticTransforms,
 	storeStaticTransforms,
@@ -12,6 +15,7 @@ import {
 } from "./scene/scene-graph.ts";
 import type {
 	CameraControlOptions,
+	CameraDistanceClamp,
 	ExtrasOptions,
 	ExtrasState,
 	ModelInfo,
@@ -25,6 +29,7 @@ import type {
 	PicoCAD2Model,
 	ProjectionMode,
 	RenderMode,
+	SceneNode,
 } from "./types/scene.ts";
 import { EXTRAS_DEFAULTS, ViewerExtras } from "./viewer-extras.ts";
 
@@ -32,6 +37,13 @@ export interface ViewerTag {
 	text: string;
 	color?: Color3;
 }
+
+/**
+ * Ray crossings closer together than this are treated as the same wall for
+ * the camera surface clamp, so paired opposing single-sided faces behave
+ * like one two-sided wall.
+ */
+const COPLANAR_EPSILON = 1e-4;
 
 /** Controls animation playback state and timing. */
 class AnimationController {
@@ -129,7 +141,10 @@ export class PicoCAD2Viewer {
 	cameraModeSpeed = 5;
 	cameraModeDirection: "left" | "right" = "left";
 	maxFps = 60;
-	clampCameraDistance = false;
+	clampCameraDistance: CameraDistanceClamp = {
+		enabled: false,
+		minimumDistance: 0,
+	};
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -164,6 +179,7 @@ export class PicoCAD2Viewer {
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private cameraModeTime = 0;
 	private wasAnimating = false;
+	private clampBaseline: number | null = null;
 	private _modelInfo: ModelInfo | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private resizeScale = 1;
@@ -254,8 +270,11 @@ export class PicoCAD2Viewer {
 			this.cameraModeDirection = options.cameraModeDirection;
 		}
 		if (options?.maxFps !== undefined) this.maxFps = options.maxFps;
-		if (options?.clampCameraDistance !== undefined) {
-			this.clampCameraDistance = options.clampCameraDistance;
+		if (options?.clampCameraDistance) {
+			this.clampCameraDistance = {
+				enabled: options.clampCameraDistance.enabled ?? false,
+				minimumDistance: options.clampCameraDistance.minimumDistance ?? 0,
+			};
 		}
 
 		if (options?.extras) {
@@ -383,6 +402,7 @@ export class PicoCAD2Viewer {
 
 		storeStaticTransforms(this.model.root);
 		this.wasAnimating = false;
+		this.clampBaseline = null;
 
 		this._modelInfo = this.computeModelInfo(this.model);
 		this.onLoad?.(this._modelInfo);
@@ -499,25 +519,114 @@ export class PicoCAD2Viewer {
 		settings.fur = this._extras.fur;
 		settings.billboard = this._extras.billboard;
 
-		if (this.clampCameraDistance && this.resources) {
-			const b = this.resources.bounds;
-			const cx = (b.min[0] + b.max[0]) / 2;
-			const cy = (b.min[1] + b.max[1]) / 2;
-			const cz = (b.min[2] + b.max[2]) / 2;
-			const radius =
-				Math.hypot(
-					b.max[0] - b.min[0],
-					b.max[1] - b.min[1],
-					b.max[2] - b.min[2],
-				) / 2;
-			const t = this.camera.target;
-			const offset = Math.hypot(t[0] - cx, t[1] - cy, t[2] - cz);
-			const minDist = radius + offset + CAMERA_NEAR;
+		if (this.clampCameraDistance.enabled && this.model) {
+			this.clampCameraToSurfaces(this.model.root);
+		} else {
+			this.clampBaseline = null;
+		}
+	}
 
-			if (this.camera.distanceToTarget < minDist) {
-				this.camera.zoomBy(minDist - this.camera.distanceToTarget);
+	/**
+	 * Keeps the camera outside the model's surfaces by zooming out, no
+	 * matter what moved it inside. Only the distance to target is adjusted,
+	 * never the target or the orbit angles.
+	 *
+	 * Double-sided faces are treated as membranes and block the zoom-in sweep
+	 * like any visible surface, but carry no volume information, so the
+	 * enclosure walk ignores them.
+	 *
+	 * Enforcement pauses while the camera interpolates to a state so
+	 * restores can complete; the landing position is enforced normally.
+	 *
+	 * @param root - The model's scene graph root.
+	 */
+	private clampCameraToSurfaces(root: SceneNode): void {
+		const camera = this.camera;
+		if (camera.isInterpolating) {
+			this.clampBaseline = null;
+			return;
+		}
+
+		// Unit direction from the target to the camera
+		const omega = camera.omega + camera.omegaOffset;
+		const cosTheta = Math.cos(camera.theta);
+		const dir = vec3.fromValues(
+			Math.cos(omega) * cosTheta,
+			Math.sin(camera.theta),
+			Math.sin(omega) * cosTheta,
+		);
+
+		const crossings = collectRayCrossings(root, camera.target, dir);
+		if (crossings.length === 0) {
+			this.clampBaseline = camera.distanceToTarget;
+			return;
+		}
+
+		const margin = Math.max(
+			this.clampCameraDistance.minimumDistance,
+			this.nearPlaneClearance(),
+		);
+		const baseline = this.clampBaseline;
+		let distance = camera.distanceToTarget;
+
+		// Anti-tunnel sweep over the segment the camera moved this frame.
+		if (baseline !== null && distance < baseline) {
+			for (const crossing of crossings) {
+				if (crossing.t > baseline) break;
+				if (!crossing.enclosing && !crossing.membrane) continue;
+				if (crossing.t + margin > distance) {
+					distance = crossing.t + margin;
+				}
 			}
 		}
+
+		// Enclosure walk outward from the camera. Membranes carry no
+		// volume information, so they neither push nor shield here.
+		for (let i = 0; i < crossings.length; i++) {
+			const crossing = crossings[i];
+			if (crossing.membrane) continue;
+			if (crossing.t + margin <= distance) continue;
+			if (!crossing.enclosing) break;
+
+			// A camera-facing face coplanar with this one makes it a
+			// two-sided wall, not a solid so it shields instead of pushing.
+			let shielded = false;
+			for (
+				let j = i + 1;
+				j < crossings.length && crossings[j].t - crossing.t < COPLANAR_EPSILON;
+				j++
+			) {
+				if (!crossings[j].enclosing && !crossings[j].membrane) {
+					shielded = true;
+					break;
+				}
+			}
+			if (shielded) break;
+
+			distance = crossing.t + margin;
+		}
+
+		if (distance > camera.distanceToTarget) {
+			camera.zoomBy(distance - camera.distanceToTarget);
+		}
+		this.clampBaseline = camera.distanceToTarget;
+	}
+
+	/**
+	 * How much room the camera needs in front of a surface so no part of
+	 * the near plane can poke through it. The Euclidean distance from the
+	 * camera to the near plane's corners under the current projection, plus
+	 * a small safety factor for oblique surfaces.
+	 */
+	private nearPlaneClearance(): number {
+		const zoom = Math.max(
+			this.camera.zoom *
+				(this.projectionMode === "fisheye" ? FISHEYE_STRENGTH : 1),
+			0.05,
+		);
+		const tanV = GLOBAL_W / zoom;
+		const tanH = (tanV * this.renderWidth) / this.renderHeight;
+		return CAMERA_NEAR * Math.sqrt(1 + tanV * tanV + tanH * tanH) * 1.2;
 	}
 
 	/**
@@ -996,7 +1105,7 @@ export class PicoCAD2Viewer {
 					scale: this.renderScale,
 				},
 				maxFps: this.maxFps,
-				clampCameraDistance: this.clampCameraDistance,
+				clampCameraDistance: { ...this.clampCameraDistance },
 				bookmark: this.model?.bookmark
 					? {
 							omega: this.model.bookmark.omega,
@@ -1060,7 +1169,8 @@ export class PicoCAD2Viewer {
 		// The following properties have fallbacks for backwards compatibility
 		this.animation.loops = s.animation.loops ?? this.animation.loops;
 		this.maxFps = s.maxFps ?? this.maxFps;
-		this.clampCameraDistance = s.clampCameraDistance ?? false;
+		this.clampCameraDistance =
+			s.clampCameraDistance ?? this.clampCameraDistance;
 
 		if (s.animation.playing) {
 			this.animation.play();

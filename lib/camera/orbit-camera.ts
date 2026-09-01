@@ -109,6 +109,11 @@ export class OrbitCamera {
 		this.needsUpdate = true;
 	}
 
+	/** Whether the camera is currently interpolating to a state. */
+	get isInterpolating(): boolean {
+		return this.lerping;
+	}
+
 	/**
 	 * If the camera is currently interpolating, resolves the lerp at its
 	 * current progress into the base properties and stops the interpolation.

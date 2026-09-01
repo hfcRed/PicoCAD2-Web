@@ -94,7 +94,10 @@ const viewer = new PicoCAD2Viewer({
   cameraMode: "fixed",            // "fixed" | "spin" | "sway" | "pingpong" (default: "fixed")
   cameraModeSpeed: 5,             // Camera mode cycle duration in seconds (default: 5)
   cameraModeDirection: "left",    // "left" | "right" (default: "left")
-  clampCameraDistance: false,     // Keep the camera outside the model bounds so zooming can't clip into the geometry (default: false)
+  clampCameraDistance: {          // Keep the camera outside the model's surfaces so the view can't clip into the geometry
+    enabled: false,               // (default: false)
+    minimumDistance: 0,           // Minimum distance to keep to the surfaces the camera stops at, in world units (default: 0)
+  },
 
   // Animation
   animationSpeed: 1,              // Animation playback speed multiplier (default: 1)
@@ -151,7 +154,8 @@ viewer.scanlineColor = [0.2, 0, 0.4];
 viewer.cameraMode = "spin";
 viewer.cameraModeSpeed = 10;
 viewer.cameraModeDirection = "right";
-viewer.clampCameraDistance = true;    // Prevent the view from clipping into the model
+viewer.clampCameraDistance.enabled = true;        // Prevent the view from clipping into the model
+viewer.clampCameraDistance.minimumDistance = 0.5; // Keep at least half a unit to the surfaces
 
 // Tags (watermark text in viewport corners)
 viewer.leftTag = { text: "picocad2-web", color: [1, 1, 1] };

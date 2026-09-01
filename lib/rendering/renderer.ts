@@ -46,7 +46,7 @@ import {
 	createPaletteTexture,
 	updatePaletteTexture,
 } from "./textures.ts";
-import { voxelizeMesh } from "./voxelize.ts";
+import { voxelizeModel } from "./voxelize.ts";
 
 export interface RenderSettings {
 	shading: boolean;
@@ -811,9 +811,11 @@ export class Renderer {
 	/**
 	 * Applies the mesh deform's voxel mode by swapping the active node
 	 * buffers to CPU-voxelized stand-in geometry, rebuilt when the grid
-	 * size changes and cached until then. The voxel meshes render with the
-	 * real nodes' transforms, so hierarchy, animation and billboard still
-	 * apply, and the remaining GPU deforms bend the cubes.
+	 * size changes and cached until then. The whole model shares one
+	 * rest-pose world grid, so overlapping nodes cannot produce z-fighting
+	 * duplicate cubes. The voxel meshes render with the real nodes'
+	 * transforms, so hierarchy, animation and billboard still apply, and
+	 * the remaining GPU deforms bend the cubes.
 	 *
 	 * @param settings - The current render settings.
 	 * @param model - The parsed model, for its meshes and texture.
@@ -841,15 +843,14 @@ export class Renderer {
 
 			const list: NodeBuffers[] = [];
 			const triIdCounter = { value: 0 };
-			traverseNode(model.root, (node) => {
-				if (!node.mesh) return;
-				const voxelMesh = voxelizeMesh(node.mesh, grid, model.texture);
+			const meshes = voxelizeModel(model.root, grid, model.texture);
+			for (const [node, voxelMesh] of meshes) {
 				const nb = buildNodeBuffers(this.gl, node, triIdCounter, voxelMesh);
 				if (nb) {
 					nb.bakedUvs = true;
 					list.push(nb);
 				}
-			});
+			}
 
 			resources.voxelBuffers = list;
 			resources.voxelKey = key;

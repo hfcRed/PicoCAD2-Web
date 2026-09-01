@@ -6,8 +6,8 @@ precision highp float;
  * color pick and twinkle phase are hashed from the instance id, so one
  * attribute-less instanced draw animates the whole system with zero CPU
  * work per frame. Positions wrap inside a unit box, so motion loops
- * perfectly. Size scales to zero toward the box faces so the wrap never
- * pops.
+ * perfectly. Size scales to zero toward the edge of the volume's inscribed
+ * ellipsoid so the wrap never pops.
  */
 
 uniform mat4 u_vp;
@@ -88,9 +88,8 @@ void main() {
     vec3 worldPos = u_areaCenter + (q - vec3(0.5)) * u_areaSize;
 
     // Scale in after spawning and back out before despawning. Size follows
-    // the distance to the nearest face of the unit box.
-    vec3 edge = min(q, 1.0 - q);
-    float grow = smoothstep(0.0, 0.1, min(edge.x, min(edge.y, edge.z)));
+    // the radial distance from the volume's center.
+    float grow = smoothstep(0.0, 0.15, 1.0 - 2.0 * length(q - 0.5));
 
     float size = u_size * (1.0 - u_sizeJitter * h2.z) * grow;
 

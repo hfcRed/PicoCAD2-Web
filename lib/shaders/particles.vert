@@ -6,8 +6,9 @@ precision highp float;
  * color pick and twinkle phase are hashed from the instance id, so one
  * attribute-less instanced draw animates the whole system with zero CPU
  * work per frame. Positions wrap inside a unit box, so motion loops
- * perfectly. Size scales to zero toward the edge of the volume's inscribed
- * ellipsoid so the wrap never pops.
+ * perfectly. A motion style layers procedural movement (scaled by u_speed)
+ * on top of the constant directional u_velocity. Size scales to zero toward
+ * the edge of the volume's inscribed ellipsoid so the wrap never pops.
  */
 
 uniform mat4 u_vp;
@@ -20,8 +21,9 @@ uniform vec2 u_resolution;
 uniform int u_shape; // 0 = pixel, 1 = quad, 2 = cube, 3 = triangle
 uniform float u_size;
 uniform float u_sizeJitter;
-uniform int u_motion; // 0 = drift, 1 = rise, 2 = fall, 3 = orbit, 4 = swirl
+uniform int u_motion; // 0 = drift, 1 = orbit, 2 = linear
 uniform float u_speed;
+uniform vec3 u_velocity;
 uniform float u_twinkle;
 uniform float u_hueRange;
 uniform float u_paletteBlend;
@@ -68,22 +70,20 @@ void main() {
     vec4 h2 = hash43(vec3(id * 0.7919, 27.3, 51.7));
     float t = u_time * u_speed;
 
-    // Motion in the unit box, wrapped for a perfect loop
+    // Motion in the unit box, wrapped for a perfect loop. "linear" adds no
+    // motion of its own and moves through u_velocity alone.
     vec3 q = h.xyz;
     if (u_motion == 0) {
         q += (h2.xyz - 0.5) * 0.16 * t;
     } else if (u_motion == 1) {
-        q.y += t * (0.06 + 0.08 * h2.x);
-        q.x += 0.02 * sin(TAU * (h2.y + t * 0.3));
-    } else if (u_motion == 2) {
-        q.y -= t * (0.06 + 0.08 * h2.x);
-        q.x += 0.02 * sin(TAU * (h2.y + t * 0.3));
-    } else {
         float angle = TAU * (h.x + t * 0.05 * (0.5 + h2.x));
         float radius = 0.15 + 0.35 * h2.y;
         q.xz = vec2(0.5) + radius * vec2(cos(angle), sin(angle));
-        q.y = u_motion == 4 ? h.y + t * 0.05 : h.y;
     }
+
+    // Directional movement in box lengths per second, unscaled by u_speed.
+    float velJitter = 0.6 + 0.8 * hash13(vec3(id * 0.7919, 41.3, 7.7));
+    q += u_velocity * (u_time * velJitter);
     q = fract(q);
 
     vec3 worldPos = u_areaCenter + (q - vec3(0.5)) * u_areaSize;

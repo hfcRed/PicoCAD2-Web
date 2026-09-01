@@ -8,7 +8,7 @@ import type { EffectContext, SceneEffect } from "./types.ts";
 
 export type ParticleShape = "pixel" | "quad" | "cube" | "triangle";
 
-export type ParticleMotion = "drift" | "rise" | "fall" | "orbit" | "swirl";
+export type ParticleMotion = "drift" | "orbit" | "linear";
 
 const MAX_PARTICLES = 2000;
 
@@ -21,16 +21,18 @@ const SHAPE_INDEX: Record<ParticleShape, number> = {
 
 const MOTION_INDEX: Record<ParticleMotion, number> = {
 	drift: 0,
-	rise: 1,
-	fall: 2,
-	orbit: 3,
-	swirl: 4,
+	orbit: 1,
+	linear: 2,
 };
 
 /**
  * Snow, rain, embers, sparkles or dust motes around the model. One
  * attribute-less instanced draw of hashed particles, stateless and
  * looping. Depth writes stay off so particles never punch holes in each other.
+ *
+ * `motion` layers a procedural movement style (scaled by `speed`) on top of
+ * `velocity`, a constant directional movement in box lengths per second
+ * that `speed` does not scale. `"linear"` adds no motion of its own.
  *
  * `paletteIndices` is a color source and not a mask. Particles sample the
  * model's palette at those indices (empty = plain white). `randomHue`
@@ -51,6 +53,7 @@ export class ParticlesEffect implements SceneEffect {
 	sizeJitter = 0.5;
 	motion: ParticleMotion = "drift";
 	speed = 1;
+	velocity: [number, number, number] = [0, 0, 0];
 	areaScale = 1.5;
 	twinkle = 0.3;
 	randomHue = false;
@@ -72,6 +75,7 @@ export class ParticlesEffect implements SceneEffect {
 		u_sizeJitter: 0,
 		u_motion: 0,
 		u_speed: 1,
+		u_velocity: [0, 0, 0] as Color3,
 		u_twinkle: 0,
 		u_hueRange: 0,
 		u_paletteBlend: 0,
@@ -136,10 +140,11 @@ export class ParticlesEffect implements SceneEffect {
 		u.u_sizeJitter = Math.min(Math.max(this.sizeJitter, 0), 1);
 		u.u_motion = MOTION_INDEX[this.motion] ?? 0;
 		u.u_speed = this.speed;
+		for (let axis = 0; axis < 3; axis++) {
+			u.u_velocity[axis] = this.velocity[axis] ?? 0;
+		}
 		u.u_twinkle = Math.min(Math.max(this.twinkle, 0), 1);
-		u.u_hueRange = this.randomHue
-			? Math.max(this.hueRange, 0) * Math.PI
-			: 0;
+		u.u_hueRange = this.randomHue ? Math.max(this.hueRange, 0) * Math.PI : 0;
 		u.u_paletteBlend = ctx.paletteBlend;
 		u.u_paletteTexture = resources.paletteTexture;
 		u.u_paletteCount = Math.min(this.paletteIndices.length, 16);

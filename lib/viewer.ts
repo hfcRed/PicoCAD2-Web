@@ -1127,6 +1127,7 @@ export class PicoCAD2Viewer {
 				sizeJitter: e.particles.sizeJitter,
 				motion: e.particles.motion,
 				speed: e.particles.speed,
+				velocity: [...e.particles.velocity],
 				areaScale: e.particles.areaScale,
 				twinkle: e.particles.twinkle,
 				randomHue: e.particles.randomHue,

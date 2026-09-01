@@ -49,6 +49,7 @@ export interface ParticlesOptions {
 	sizeJitter?: number;
 	motion?: ParticleMotion;
 	speed?: number;
+	velocity?: [number, number, number];
 	areaScale?: number;
 	twinkle?: number;
 	randomHue?: boolean;

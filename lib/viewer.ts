@@ -1269,7 +1269,6 @@ export class PicoCAD2Viewer {
 		assign(this.extras.particles, extras.particles);
 		assign(this.extras.proceduralBackground, extras.proceduralBackground);
 		assign(this.extras.colorCutout, extras.colorCutout);
-		assign(this.extras.dissolve, extras.dissolve);
 		assign(this.extras.paletteSwap, extras.paletteSwap);
 		assign(this.extras.interior, extras.interior);
 		assign(this.extras.rimLight, extras.rimLight);
@@ -1294,6 +1293,12 @@ export class PicoCAD2Viewer {
 		assign(this.extras.sharpen, extras.sharpen);
 		assign(this.extras.edgeDetection, extras.edgeDetection);
 
+		if (extras.dissolve) {
+			const { cycle, ...dissolve } = extras.dissolve;
+			assign(this.extras.dissolve, dissolve);
+			assign(this.extras.dissolve.cycle, cycle);
+		}
+
 		if (extras.specular) {
 			const { environment, ...specular } = extras.specular;
 			assign(this.extras.specular, specular);
@@ -1310,8 +1315,14 @@ export class PicoCAD2Viewer {
 		}
 
 		assign(this.extras.triangleFlash, extras.triangleFlash);
-		assign(this.extras.triangleShatter, extras.triangleShatter);
 		assign(this.extras.fur, extras.fur);
+
+		if (extras.triangleShatter) {
+			const { cycle, ...shatter } = extras.triangleShatter;
+			assign(this.extras.triangleShatter, shatter);
+			assign(this.extras.triangleShatter.cycle, cycle);
+		}
+
 		assign(this.extras.billboard, extras.billboard);
 
 		if (extras.videoEffects) {

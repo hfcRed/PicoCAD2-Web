@@ -446,6 +446,32 @@ const material: Scenario[] = [
 			fur: { enabled: true },
 		},
 	},
+	// Dissolve cycle: custom duration 2 with hold 0.25 rises over 0.25-1.0,
+	// rests at 1 until 1.25 and falls over 1.25-2.0.
+	{
+		name: "material/dissolve-cycle-rising",
+		model: "pig",
+		time: 0.55, // progress 0.4
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0,
+				cycle: { enabled: true, duration: 2, hold: 0.25 },
+			},
+		},
+	},
+	{
+		name: "material/dissolve-cycle-falling",
+		model: "pig",
+		time: 3.85, // second loop, progress 0.2
+		extras: {
+			dissolve: {
+				enabled: true,
+				mode: "directional",
+				cycle: { enabled: true, duration: 2, hold: 0.25 },
+			},
+		},
+	},
 	// Interior
 	{
 		name: "material/interior-stars-palette",
@@ -725,6 +751,34 @@ const geometry: Scenario[] = [
 		extras: {
 			fur: { enabled: true },
 			triangleShatter: { enabled: true, progress: 0.3 },
+		},
+	},
+	// Shatter cycle: defaults (duration 4, hold 0.5) rise over 0.5-2.0 and fall
+	// over 2.5-4.0. Manual progress is ignored while cycling.
+	{
+		name: "geometry/triangle-shatter-cycle-rising",
+		model: "pig",
+		time: 1.1, // progress 0.4
+		extras: {
+			triangleShatter: { enabled: true, progress: 1, cycle: { enabled: true } },
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-cycle-falling",
+		model: "pig",
+		time: 3.7, // progress 0.2
+		extras: {
+			triangleShatter: { enabled: true, progress: 1, cycle: { enabled: true } },
+		},
+	},
+	{
+		// Second loop, inside the rest at 0: fur is back and the model intact.
+		name: "geometry/fur-restored-by-shatter-cycle-hold",
+		model: "pig",
+		time: 4.3,
+		extras: {
+			fur: { enabled: true },
+			triangleShatter: { enabled: true, progress: 1, cycle: { enabled: true } },
 		},
 	},
 	// Billboard

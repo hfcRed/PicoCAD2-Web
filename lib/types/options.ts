@@ -281,10 +281,17 @@ export interface ColorCutoutOptions {
 	maskedColors?: number[];
 }
 
+export interface CycleOptions {
+	enabled?: boolean;
+	duration?: number;
+	hold?: number;
+}
+
 export interface DissolveOptions {
 	nodes?: string[];
 	enabled?: boolean;
 	progress?: number;
+	cycle?: CycleOptions;
 	mode?: DissolveMode;
 	scale?: number;
 	direction?: [number, number, number];
@@ -441,6 +448,7 @@ export interface TriangleShatterOptions {
 	nodes?: string[];
 	enabled?: boolean;
 	progress?: number;
+	cycle?: CycleOptions;
 	mode?: TriangleShatterMode;
 	direction?: [number, number, number];
 	distance?: number;

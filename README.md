@@ -413,11 +413,14 @@ viewer.extras.colorCutout.nodes = ["window"];             // Only within these n
 
 ### Dissolve
 
-Dissolves the model texel by texel as `progress` runs from 0 (intact) to 1 (gone), punching holes into the mesh. Survivors near the cut show a dithered edge. Fur strands dissolve with their base surface. Drive `progress` from the host for spawn and despawn animations, and combine with the triangle shatter for layered destruction.
+Dissolves the model texel by texel as `progress` runs from 0 (intact) to 1 (gone), punching holes into the mesh. Survivors near the cut show a dithered edge. Fur strands dissolve with their base surface. Drive `progress` from the host for spawn and despawn animations, or let `cycle` run it back and forth automatically, and combine with the triangle shatter for layered destruction.
 
 ```typescript
 viewer.extras.dissolve.enabled = true;
 viewer.extras.dissolve.progress = 0.5;             // 0 = intact, 1 = fully dissolved (default: 0)
+viewer.extras.dissolve.cycle.enabled = false;      // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.dissolve.cycle.duration = 4;         // Seconds per full cycle, holds included (default: 4)
+viewer.extras.dissolve.cycle.hold = 0.5;           // Seconds to rest at each end (default: 0.5)
 viewer.extras.dissolve.mode = "noise";             // Dissolve order (default: "noise")
 // Available modes: "noise" (random cells) | "directional" (world-space sweep) |
 // "point" (sphere growing from a world point) | "proximity" (front-to-back from the camera)
@@ -432,7 +435,7 @@ viewer.extras.dissolve.maskedColors = [7];         // Only these colors dissolve
 viewer.extras.dissolve.nodes = ["arm"];          // Only within these nodes (default: [] = all nodes)
 ```
 
-The directional, point and proximity sweeps are normalized to the model's bounds, so `progress` always spans the whole model. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
+The directional, point and proximity sweeps are normalized to the model's bounds, so `progress` always spans the whole model. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
 
 ### Interior
 
@@ -588,11 +591,14 @@ viewer.extras.triangleFlash.nodes = ["screen"];     // Only within these nodes (
 
 ### Triangle Shatter
 
-Blows the model apart into its triangles. Rendering is forced double-sided and the wireframe hides while a shatter is in progress.
+Blows the model apart into its triangles. Rendering is forced double-sided and the wireframe hides while a shatter is in progress. `cycle` works like the dissolve's. While enabled it runs `progress` from 0 to 1 and back over `duration` seconds, resting `hold` seconds at each end, so the wireframe and fur return during the rest at 0.
 
 ```typescript
 viewer.extras.triangleShatter.enabled = true;
 viewer.extras.triangleShatter.progress = 0.5;      // 0 = intact, 1 = fully dispersed (default: 0)
+viewer.extras.triangleShatter.cycle.enabled = false; // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.triangleShatter.cycle.duration = 4;  // Seconds per full cycle, holds included (default: 4)
+viewer.extras.triangleShatter.cycle.hold = 0.5;    // Seconds to rest at each end (default: 0.5)
 viewer.extras.triangleShatter.mode = "normal";     // Travel direction (default: "normal")
 // Available modes: "normal" (face normals) | "radial" (away from center) | "directional"
 viewer.extras.triangleShatter.direction = [0, 1, 0]; // For "directional" mode (default: [0, 1, 0])

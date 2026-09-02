@@ -1,4 +1,5 @@
-import type { DissolveOptions } from "../../types/options.ts";
+import type { CycleOptions, DissolveOptions } from "../../types/options.ts";
+import { CYCLE_DEFAULTS } from "./cycle.ts";
 import {
 	type DeepRequired,
 	deepFreeze,
@@ -19,6 +20,9 @@ export type DissolveMode = "noise" | "directional" | "point" | "proximity";
  * and "proximity" wipes front to back from the camera. {@link invert}
  * reverses the sweep. Survivors near the cut show a dithered
  * {@link edgeColor} band, {@link edgeWidth} wide.
+ *
+ * {@link cycle} runs the progress from 0 to 1 and back automatically over
+ * the elapsed time, ignoring the manual value while enabled.
  */
 export class DissolveEffect {
 	constructor() {
@@ -31,12 +35,15 @@ export class DissolveEffect {
 	}
 }
 
-export interface DissolveEffect extends Required<DissolveOptions> {}
+export interface DissolveEffect extends Required<DissolveOptions> {
+	cycle: Required<CycleOptions>;
+}
 
 /** Default settings for {@link DissolveEffect}. */
 export const DISSOLVE_DEFAULTS = deepFreeze<DeepRequired<DissolveOptions>>({
 	enabled: false,
 	progress: 0,
+	cycle: { ...CYCLE_DEFAULTS },
 	mode: "noise",
 	scale: 8,
 	direction: [0, 1, 0],

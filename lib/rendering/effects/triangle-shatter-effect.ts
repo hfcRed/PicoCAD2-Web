@@ -1,4 +1,8 @@
-import type { TriangleShatterOptions } from "../../types/options.ts";
+import type {
+	CycleOptions,
+	TriangleShatterOptions,
+} from "../../types/options.ts";
+import { CYCLE_DEFAULTS } from "./cycle.ts";
 import {
 	type DeepRequired,
 	deepFreeze,
@@ -7,9 +11,10 @@ import {
 export type TriangleShatterMode = "normal" | "radial" | "directional";
 
 /**
- * Blows the model apart into its triangles. The host animates `progress`.
- * Rendering is forced double-sided while active, and the wireframe
- * hides during shatter.
+ * Blows the model apart into its triangles. The host animates `progress`,
+ * or {@link cycle} runs it from 0 to 1 and back automatically over the
+ * elapsed time. Rendering is forced double-sided while active, and the
+ * wireframe hides during shatter.
  */
 export class TriangleShatterEffect {
 	constructor() {
@@ -23,7 +28,9 @@ export class TriangleShatterEffect {
 }
 
 export interface TriangleShatterEffect
-	extends Required<TriangleShatterOptions> {}
+	extends Required<TriangleShatterOptions> {
+	cycle: Required<CycleOptions>;
+}
 
 /** Default settings for {@link TriangleShatterEffect}. */
 export const TRIANGLE_SHATTER_DEFAULTS = deepFreeze<
@@ -31,6 +38,7 @@ export const TRIANGLE_SHATTER_DEFAULTS = deepFreeze<
 >({
 	enabled: false,
 	progress: 0,
+	cycle: { ...CYCLE_DEFAULTS },
 	mode: "normal",
 	direction: [0, 1, 0],
 	distance: 2,

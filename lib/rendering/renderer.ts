@@ -18,6 +18,7 @@ import {
 import type { BillboardEffect } from "./effects/billboard-effect.ts";
 import type { ColorCutoutEffect } from "./effects/color-cutout-effect.ts";
 import { packColorMask } from "./effects/color-mask.ts";
+import { resolveCycleProgress } from "./effects/cycle.ts";
 import type { DissolveEffect } from "./effects/dissolve-effect.ts";
 import type { EmissionEffect } from "./effects/emission-effect.ts";
 import type { FurEffect } from "./effects/fur-effect.ts";
@@ -118,6 +119,8 @@ export class Renderer {
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private readonly effectCtx: EffectContext;
 	private shatterActive = false;
+	private shatterProgress = 0;
+	private dissolveProgress = 0;
 	private readonly nodeUniforms = {
 		u_worldMatrix: mat4.create() as mat4,
 		u_nodeBits: 0,
@@ -452,8 +455,16 @@ export class Renderer {
 		mat4.copy(mu.u_vp, vpMatrix);
 
 		const shatter = settings.triangleShatter;
+		this.shatterProgress = shatter
+			? resolveCycleProgress(shatter.progress, shatter.cycle, time)
+			: 0;
 		this.shatterActive =
-			(shatter?.enabled ?? false) && (shatter?.progress ?? 0) > 0;
+			(shatter?.enabled ?? false) && this.shatterProgress > 0;
+
+		const dissolve = settings.dissolve;
+		this.dissolveProgress = dissolve
+			? resolveCycleProgress(dissolve.progress, dissolve.cycle, time)
+			: 0;
 
 		updateRenderState(model.root);
 		this.applyBillboard(settings, model.root, v);
@@ -1013,7 +1024,7 @@ export class Renderer {
 
 		const dissolve = settings.dissolve;
 		const dissolveOn = dissolve
-			? dissolve.enabled && dissolve.progress > 0
+			? dissolve.enabled && this.dissolveProgress > 0
 			: false;
 		u.u_dissolveEnabled = dissolveOn;
 		if (dissolve && dissolveOn) {
@@ -1025,7 +1036,7 @@ export class Renderer {
 			const hy = Math.max((b.max[1] - b.min[1]) / 2, 0);
 			const hz = Math.max((b.max[2] - b.min[2]) / 2, 0);
 
-			u.u_dissolveProgress = Math.min(Math.max(dissolve.progress, 0), 1);
+			u.u_dissolveProgress = Math.min(Math.max(this.dissolveProgress, 0), 1);
 			u.u_dissolveScale = Math.max(dissolve.scale, 0.01);
 			u.u_dissolveSoftness = Math.max(dissolve.softness, 0);
 			u.u_dissolveEdgeWidth = Math.max(dissolve.edgeWidth, 0);
@@ -1154,7 +1165,7 @@ export class Renderer {
 		const shatter = settings.triangleShatter;
 		u.u_shatterEnabled = shatter?.enabled ?? false;
 		if (shatter?.enabled) {
-			u.u_shatterProgress = Math.min(Math.max(shatter.progress, 0), 1);
+			u.u_shatterProgress = Math.min(Math.max(this.shatterProgress, 0), 1);
 			u.u_shatterMode =
 				shatter.mode === "normal" ? 0 : shatter.mode === "radial" ? 1 : 2;
 

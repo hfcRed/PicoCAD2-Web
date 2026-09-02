@@ -783,6 +783,55 @@ const geometry: Scenario[] = [
 		},
 		time: 0.3,
 	},
+	// Triangle shatter sweeps: each triangle flies at the local progress of
+	// the front at its centroid, so the debris moves across the model.
+	{
+		name: "geometry/triangle-shatter-sweep-directional",
+		model: "rig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [1, 0, 0] },
+			},
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-sweep-noise-soft",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.4,
+				sweep: { mode: "noise", scale: 2, softness: 0.5 },
+			},
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-sweep-point-invert",
+		model: "rig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.5,
+				mode: "radial",
+				sweep: { mode: "point", point: [0, 0, 0], invert: true },
+			},
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-sweep-proximity-cycle",
+		model: "livingroom",
+		time: 0.55, // progress 0.4 with duration 2 and hold 0.25
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				cycle: { enabled: true, duration: 2, hold: 0.25 },
+				sweep: { mode: "proximity", softness: 0.3 },
+			},
+		},
+	},
 	// Triangle shatter
 	{
 		name: "geometry/triangle-shatter-normal",

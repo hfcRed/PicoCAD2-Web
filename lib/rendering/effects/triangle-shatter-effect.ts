@@ -1,5 +1,6 @@
 import type {
 	CycleOptions,
+	SweepOptions,
 	TriangleShatterOptions,
 } from "../../types/options.ts";
 import { CYCLE_DEFAULTS } from "./cycle.ts";
@@ -15,6 +16,10 @@ export type TriangleShatterMode = "normal" | "radial" | "directional";
  * or {@link cycle} runs it from 0 to 1 and back automatically over the
  * elapsed time. Rendering is forced double-sided while active, and the
  * wireframe hides during shatter.
+ *
+ * The {@link sweep} decides which triangles go first. The default uniform
+ * sweep flies every triangle at once. Any other mode gives each triangle
+ * the local progress the front has reached at its centroid.
  */
 export class TriangleShatterEffect {
 	constructor() {
@@ -30,6 +35,7 @@ export class TriangleShatterEffect {
 export interface TriangleShatterEffect
 	extends Required<TriangleShatterOptions> {
 	cycle: Required<CycleOptions>;
+	sweep: Required<SweepOptions>;
 }
 
 /** Default settings for {@link TriangleShatterEffect}. */
@@ -39,6 +45,14 @@ export const TRIANGLE_SHATTER_DEFAULTS = deepFreeze<
 	enabled: false,
 	progress: 0,
 	cycle: { ...CYCLE_DEFAULTS },
+	sweep: {
+		mode: "uniform",
+		direction: [0, 1, 0],
+		point: [0, 0, 0],
+		scale: 8,
+		softness: 0.15,
+		invert: false,
+	},
 	mode: "normal",
 	direction: [0, 1, 0],
 	distance: 2,

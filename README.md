@@ -380,7 +380,7 @@ All material effects support masking, per texel. These post-processing effects s
 Effects that run a `progress` across the model take a `sweep` group deciding where the front is. `mode` picks the order. `"uniform"` applies to the whole model at once, `"noise"` applies to random mesh-space cells, `"directional"` sweeps a plane along `direction`, `"point"` grows a sphere from a world `point`, and `"proximity"` runs front to back from the camera. Every mode is normalized to the model's bounds, so `progress` 0 to 1 always spans the whole model. `softness` is the width of the front as a fraction of that span, and `invert` reverses the order. A uniform sweep has no front, so the other settings do nothing there.
 
 ```typescript
-viewer.extras.dissolve.sweep.mode = "directional"; // Sweep order (default: "uniform", the dissolve uses "noise")
+viewer.extras.dissolve.sweep.mode = "directional"; // Sweep order (default: "uniform"; the dissolve uses "noise", the triangle shatter "uniform")
 viewer.extras.dissolve.sweep.direction = [0, 1, 0]; // Sweep direction for "directional" (default: [0, 1, 0])
 viewer.extras.dissolve.sweep.point = [0, 0, 0];     // World center for "point" (default: [0, 0, 0])
 viewer.extras.dissolve.sweep.scale = 8;             // Noise cells per mesh unit (default: 8)
@@ -619,7 +619,7 @@ viewer.extras.triangleFlash.nodes = ["screen"];     // Only within these nodes (
 
 ### Triangle Shatter
 
-Blows the model apart into its triangles. Rendering is forced double-sided and the wireframe hides while a shatter is in progress. `cycle` works like the dissolve's. While enabled it runs `progress` from 0 to 1 and back over `duration` seconds, resting `hold` seconds at each end, so the wireframe and fur return during the rest at 0.
+Blows the model apart into its triangles. Rendering is forced double-sided and the wireframe hides while a shatter is in progress. `cycle` works like the dissolve's. While enabled it runs `progress` from 0 to 1 and back over `duration` seconds, resting `hold` seconds at each end, so the wireframe and fur return during the rest at 0. The `sweep` group (see [Sweeps](#sweeps)) decides which triangles go first.
 
 ```typescript
 viewer.extras.triangleShatter.enabled = true;
@@ -627,6 +627,7 @@ viewer.extras.triangleShatter.progress = 0.5;      // 0 = intact, 1 = fully disp
 viewer.extras.triangleShatter.cycle.enabled = false; // Run progress 0 → 1 → 0 automatically (default: false)
 viewer.extras.triangleShatter.cycle.duration = 4;  // Seconds per full cycle, holds included (default: 4)
 viewer.extras.triangleShatter.cycle.hold = 0.5;    // Seconds to rest at each end (default: 0.5)
+viewer.extras.triangleShatter.sweep.mode = "uniform"; // Which triangles go first, see Sweeps (default: "uniform")
 viewer.extras.triangleShatter.mode = "normal";     // Travel direction (default: "normal")
 // Available modes: "normal" (face normals) | "radial" (away from center) | "directional"
 viewer.extras.triangleShatter.direction = [0, 1, 0]; // For "directional" mode (default: [0, 1, 0])

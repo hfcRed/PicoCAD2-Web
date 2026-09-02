@@ -173,6 +173,7 @@ export class Renderer {
 		u_shatterGravity: 0,
 		u_shatterShrink: 0,
 		u_shatterMask: 0,
+		u_shatterSweep: createSweepUniforms(),
 
 		u_flashEnabled: false,
 		u_flashRate: 0,
@@ -1150,6 +1151,12 @@ export class Renderer {
 			u.u_shatterGravity = shatter.gravity;
 			u.u_shatterShrink = Math.min(Math.max(shatter.shrink, 0), 1);
 			u.u_shatterMask = packColorMask(shatter.maskedColors);
+			writeSweepUniforms(
+				u.u_shatterSweep,
+				shatter.sweep,
+				resources.bounds,
+				u.u_cameraPos,
+			);
 		}
 
 		const flash = settings.triangleFlash;

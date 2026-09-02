@@ -16,9 +16,11 @@ uniform float u_time; // shared with the fragment stage's declaration
 #include chunks/node-bits.glsl;
 #include chunks/deform.glsl;
 #include chunks/hash.glsl;
+#include chunks/sweep.glsl;
 
 uniform bool u_shatterEnabled;
 uniform float u_shatterProgress; // 0 = intact, 1 = fully dispersed
+uniform Sweep u_shatterSweep;
 uniform int u_shatterMode; // 0 = normal, 1 = radial, 2 = directional
 uniform vec3 u_shatterDirection;
 uniform float u_shatterDistance;
@@ -62,6 +64,9 @@ vec3 applyShatter(vec3 p, vec3 centroidW, vec3 worldNormal) {
     float progress = clamp(u_shatterProgress, 0.0, 1.0);
     if (!u_shatterEnabled || progress <= 0.0) return p;
     if (!inNodeSet(NODE_SHATTER) || !inFaceMask(u_shatterMask, a_colorIndex)) return p;
+
+    progress = sweepProgress(u_shatterSweep, progress, centroidW, a_triCentroid);
+    if (progress <= 0.0) return p;
 
     vec3 seed = vec3(a_triId * 0.7919, 13.37, 71.7);
     vec4 h = hash43(seed);

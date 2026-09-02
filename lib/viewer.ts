@@ -1322,9 +1322,10 @@ export class PicoCAD2Viewer {
 		assign(this.extras.fur, extras.fur);
 
 		if (extras.triangleShatter) {
-			const { cycle, ...shatter } = extras.triangleShatter;
+			const { cycle, sweep, ...shatter } = extras.triangleShatter;
 			assign(this.extras.triangleShatter, shatter);
 			assign(this.extras.triangleShatter.cycle, cycle);
+			assign(this.extras.triangleShatter.sweep, sweep);
 		}
 
 		assign(this.extras.billboard, extras.billboard);

@@ -86,6 +86,16 @@ export function writeMeshDeformUniforms(
 	bounds: WorldBounds,
 	time: number,
 ): void {
+	// The bounds center also anchors the radial shatter, so it stays current
+	// whether or not the deform is enabled. The renderer outlives the model.
+	for (let axis = 0; axis < 3; axis++) {
+		u.u_deformCenter[axis] = (bounds.min[axis] + bounds.max[axis]) * 0.5;
+		u.u_deformHalfExt[axis] = Math.max(
+			(bounds.max[axis] - bounds.min[axis]) * 0.5,
+			1e-5,
+		);
+	}
+
 	u.u_deformEnabled = deform?.enabled ?? false;
 	if (!deform?.enabled) return;
 
@@ -95,12 +105,4 @@ export function writeMeshDeformUniforms(
 	u.u_deformTwist = deform.twist.amount;
 	u.u_deformTwistAxis = AXIS_INDEX[deform.twist.axis] ?? 1;
 	u.u_deformTwistPhase = time * deform.twist.speed;
-
-	for (let axis = 0; axis < 3; axis++) {
-		u.u_deformCenter[axis] = (bounds.min[axis] + bounds.max[axis]) * 0.5;
-		u.u_deformHalfExt[axis] = Math.max(
-			(bounds.max[axis] - bounds.min[axis]) * 0.5,
-			1e-5,
-		);
-	}
 }

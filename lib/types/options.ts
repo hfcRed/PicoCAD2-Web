@@ -474,6 +474,7 @@ export interface TriangleShatterOptions {
 	enabled?: boolean;
 	progress?: number;
 	cycle?: CycleOptions;
+	sweep?: SweepOptions;
 	mode?: TriangleShatterMode;
 	direction?: [number, number, number];
 	distance?: number;

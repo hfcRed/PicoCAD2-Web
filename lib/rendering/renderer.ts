@@ -16,6 +16,7 @@ import {
 	updateNodeTexCoords,
 } from "./buffers.ts";
 import type { BillboardEffect } from "./effects/billboard-effect.ts";
+import type { ColorCutoutEffect } from "./effects/color-cutout-effect.ts";
 import { packColorMask } from "./effects/color-mask.ts";
 import type { DissolveEffect } from "./effects/dissolve-effect.ts";
 import type { EmissionEffect } from "./effects/emission-effect.ts";
@@ -39,6 +40,7 @@ import type { SpecularEffect } from "./effects/specular-effect.ts";
 import type { TriangleFlashEffect } from "./effects/triangle-flash-effect.ts";
 import type { TriangleShatterEffect } from "./effects/triangle-shatter-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
+import { computeNodeBits, NODE_BIT } from "./node-selection.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import {
 	buildPaletteData,
@@ -55,6 +57,7 @@ export interface RenderSettings {
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
 	cutoutMask: number;
+	colorCutout: ColorCutoutEffect | null;
 	dissolve: DissolveEffect | null;
 	emission: EmissionEffect | null;
 	interior: InteriorEffect | null;
@@ -95,6 +98,7 @@ export interface ModelResources {
 	nodeBuffers: NodeBuffers[];
 	baseBuffers: NodeBuffers[];
 	voxelBuffers: NodeBuffers[] | null;
+	voxelActive: NodeBuffers[] | null;
 	voxelKey: string;
 	bounds: WorldBounds;
 	paletteKey: string;
@@ -116,7 +120,10 @@ export class Renderer {
 	private shatterActive = false;
 	private readonly nodeUniforms = {
 		u_worldMatrix: mat4.create() as mat4,
+		u_nodeBits: 0,
 	};
+	/** Per-node effect selection bits for the current frame. */
+	private readonly nodeBits = new Map<SceneNode, number>();
 	private readonly modelUniforms = {
 		u_vp: mat4.create() as mat4,
 		u_indexTexture: null as WebGLTexture | null,
@@ -362,6 +369,7 @@ export class Renderer {
 			nodeBuffers: baseBuffers,
 			baseBuffers,
 			voxelBuffers: null,
+			voxelActive: null,
 			voxelKey: "",
 			bounds: computeWorldBounds(model.root),
 			paletteKey: "",
@@ -449,6 +457,7 @@ export class Renderer {
 
 		updateRenderState(model.root);
 		this.applyBillboard(settings, model.root, v);
+		computeNodeBits(settings, model.root, this.nodeBits);
 		this.updatePaletteSwap(settings, model, resources, time);
 		this.updateVoxelization(settings, model, resources);
 
@@ -620,6 +629,7 @@ export class Renderer {
 		if (resources.voxelBuffers) {
 			deleteNodeBuffers(gl, resources.voxelBuffers);
 			resources.voxelBuffers = null;
+			resources.voxelActive = null;
 			resources.voxelKey = "";
 		}
 		resources.nodeBuffers = [];
@@ -835,28 +845,43 @@ export class Renderer {
 		}
 
 		const grid = Math.max(voxel.gridSize, 1e-3);
-		const key = String(grid);
+		const key = `${grid}|${JSON.stringify(deform?.nodes ?? [])}`;
 		if (key !== resources.voxelKey) {
 			if (resources.voxelBuffers) {
 				deleteNodeBuffers(this.gl, resources.voxelBuffers);
 			}
 
-			const list: NodeBuffers[] = [];
+			// Only the nodes the deform selects are voxelized, the others keep
+			// drawing their base buffers, so the draw list mixes both.
+			const selected = (node: SceneNode): boolean =>
+				((this.nodeBits.get(node) ?? 0) & NODE_BIT.meshDeform) !== 0;
+			const voxels: NodeBuffers[] = [];
+			const active: NodeBuffers[] = [];
 			const triIdCounter = { value: 0 };
-			const meshes = voxelizeModel(model.root, grid, model.texture);
+
+			// Voxel stand-ins are built in voxelizer order so triangle ids (and
+			// with them flash and shatter patterns) match a fully voxelized model.
+			const meshes = voxelizeModel(model.root, grid, model.texture, selected);
 			for (const [node, voxelMesh] of meshes) {
 				const nb = buildNodeBuffers(this.gl, node, triIdCounter, voxelMesh);
 				if (nb) {
 					nb.bakedUvs = true;
-					list.push(nb);
+					voxels.push(nb);
+					active.push(nb);
+				}
+			}
+			for (const base of resources.baseBuffers) {
+				if (!selected(base.node)) {
+					active.push(base);
 				}
 			}
 
-			resources.voxelBuffers = list;
+			resources.voxelBuffers = voxels;
+			resources.voxelActive = active;
 			resources.voxelKey = key;
 		}
 
-		resources.nodeBuffers = resources.voxelBuffers ?? resources.baseBuffers;
+		resources.nodeBuffers = resources.voxelActive ?? resources.baseBuffers;
 	}
 
 	/**
@@ -1197,6 +1222,7 @@ export class Renderer {
 			}
 
 			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
+			this.nodeUniforms.u_nodeBits = this.nodeBits.get(nb.node) ?? 0;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -1307,7 +1333,11 @@ export class Renderer {
 		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.renderVisible || nb.node.ghost) continue;
 
+			const bits = this.nodeBits.get(nb.node) ?? 0;
+			if ((bits & NODE_BIT.fur) === 0) continue;
+
 			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
+			this.nodeUniforms.u_nodeBits = bits;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -1396,7 +1426,7 @@ export class Renderer {
 			});
 		} else {
 			for (const node of root.children) {
-				if (node.mesh) this.billboardNode(node);
+				this.billboardNode(node);
 			}
 		}
 	}

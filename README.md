@@ -351,6 +351,18 @@ Masks select *materials*, not displayed colors: a color is matched whether it is
 
 Mask granularity follows where the mask is tested. Material and post-processing effects test per pixel, so `maskedColors: [12]` means "texels painted with color 12". Geometry effects run in the vertex stage where texels don't exist yet, so their masks select faces by the face's *assigned* color instead. On textured faces the two can disagree. Fur is the exception, its strand cutout runs per fragment and samples the texture, so its mask is per texel like the material effects. The billboard effect selects whole nodes by name rather than by color.
 
+### Node Selection
+
+Effects that run in the model pass also accept a `nodes` array of scene node names. A named node's descendants are included, so naming a group selects everything in it, and several nodes sharing a name are all selected. Colors and nodes combine, so the effect applies to the selected colors within the selected nodes. An empty array (the default) selects every node.
+
+```typescript
+viewer.extras.emission.maskedColors = [10];       // Color 10...
+viewer.extras.emission.nodes = ["lamp", "sign"];  // ...but only on these nodes and their children
+viewer.extras.fur.nodes = ["body"];               // Fur on the body only, every color
+```
+
+Node names come from the model file; `modelInfo.nodeCount` gives the total.
+
 ```typescript
 // Make palette color 10 glow
 viewer.extras.bloom.enabled = true;
@@ -396,6 +408,7 @@ Renders the selected palette colors as additional transparent colors, punching r
 ```typescript
 viewer.extras.colorCutout.enabled = true;
 viewer.extras.colorCutout.maskedColors = [3, 7];    // These colors become transparent
+viewer.extras.colorCutout.nodes = ["window"];             // Only within these nodes (default: [] = all nodes)
 ```
 
 ### Dissolve
@@ -416,6 +429,7 @@ viewer.extras.dissolve.softness = 0.15;            // Dithered boundary band wid
 viewer.extras.dissolve.edgeWidth = 0.1;            // Ember edge band width, 0 = no edge (default: 0.1)
 viewer.extras.dissolve.edgeColor = [1, 0.65, 0.2]; // Edge color (default: [1, 0.65, 0.2])
 viewer.extras.dissolve.maskedColors = [7];         // Only these colors dissolve (default: [] = all)
+viewer.extras.dissolve.nodes = ["arm"];          // Only within these nodes (default: [] = all nodes)
 ```
 
 The directional, point and proximity sweeps are normalized to the model's bounds, so `progress` always spans the whole model. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
@@ -427,6 +441,7 @@ Fake depth behind selected palette colors: for masked texels the view ray is mar
 ```typescript
 viewer.extras.interior.enabled = true;
 viewer.extras.interior.maskedColors = [7];              // These colors become windows into the pattern
+viewer.extras.interior.nodes = ["visor"];               // Only within these nodes (default: [] = all nodes)
 viewer.extras.interior.pattern = "stars";               // Pattern behind the surface (default: "stars")
 // Available patterns: "stars" | "dust" | "voronoi" | "lava" | "grid" | "truchet" | "constellations"
 viewer.extras.interior.depth = 2;                       // World units to the deepest layer (default: 2)
@@ -453,6 +468,7 @@ viewer.extras.rimLight.sharpness = 0.7;      // Soft dithered falloff to hard cu
 viewer.extras.rimLight.lightAlign = 0;       // -1 shadow side only, 0 everywhere, +1 lit side only (default: 0)
 viewer.extras.rimLight.blend = 1;            // Mix over the base color, 0-1 (default: 1)
 viewer.extras.rimLight.invert = false;       // Light camera-facing geometry instead (default: false)
+viewer.extras.rimLight.nodes = ["body"];          // Only within these nodes (default: [] = all nodes)
 ```
 
 The light is attached to the camera, so `lightAlign = -1` gives a backlight: the silhouette rim tilted away from the light.
@@ -466,6 +482,7 @@ viewer.extras.gradientLight.enabled = true;
 viewer.extras.gradientLight.litColor = [1, 0.92, 0.6];       // Color where the source is high (default: [1, 0.92, 0.6])
 viewer.extras.gradientLight.shadowColor = [0.35, 0.35, 0.7]; // Color where the source is low (default: [0.35, 0.35, 0.7])
 viewer.extras.gradientLight.source = "light";                // "light" | "worldY" | "screenY" (default: "light")
+viewer.extras.gradientLight.nodes = ["body"];                     // Only within these nodes (default: [] = all nodes)
 viewer.extras.gradientLight.blend = 0.5;                     // Tint amount, 0-1 (default: 0.5)
 ```
 
@@ -479,6 +496,7 @@ viewer.extras.specular.strength = 0.5;       // Highlight intensity, 0-1 (defaul
 viewer.extras.specular.smoothness = 0.5;     // Highlight tightness, 0-1 (default: 0.5)
 viewer.extras.specular.color = [1, 1, 1];    // Highlight color (default: [1, 1, 1])
 viewer.extras.specular.anisotropy = 0;       // Screen-space highlight stretch, 0-1 (default: 0)
+viewer.extras.specular.nodes = ["helmet"];          // Only within these nodes (default: [] = all nodes)
 
 // Environment reflection (off by default)
 viewer.extras.specular.environment.strength = 0.5;                  // Reflection amount, 0 = off (default: 0)
@@ -498,6 +516,7 @@ viewer.extras.glitter.space = "uv";          // Sparkle space (default: "uv")
 // Available spaces: "uv" (quantized to the texel grid) | "screen" | "world" (sticks to surfaces under animation)
 viewer.extras.glitter.density = 48;          // Sparkle cells per unit (default: 48)
 viewer.extras.glitter.size = 0.6;            // Lit fraction of a cell, 0-1 (default: 0.6)
+viewer.extras.glitter.nodes = ["gem"];           // Only within these nodes (default: [] = all nodes)
 viewer.extras.glitter.color = [1, 1, 1];     // Sparkle color (default: [1, 1, 1])
 viewer.extras.glitter.brightness = 1;        // Max sparkle intensity (default: 1)
 viewer.extras.glitter.angleRange = 40;       // View-angle window in degrees, larger = more sparkles (default: 40)
@@ -514,6 +533,7 @@ Makes the masked palette colors emissive. Their texels ignore shading and render
 ```typescript
 viewer.extras.emission.enabled = true;
 viewer.extras.emission.maskedColors = [10];         // Emissive colors (default: [] = all)
+viewer.extras.emission.nodes = ["lamp"];          // Only within these nodes (default: [] = all nodes)
 viewer.extras.emission.strength = 1;                // How fully shading is ignored, 0-1 (default: 1)
 
 // Blinking (off by default)
@@ -538,17 +558,18 @@ Stackable closed-form deforms, applied in world space after the node transform s
 
 ```typescript
 viewer.extras.meshDeform.enabled = true;
-viewer.extras.meshDeform.rounding.amount = 1;      // Vertex snap / voxelation, 0-1 (default: 0)
-viewer.extras.meshDeform.rounding.gridSize = 0.25; // World units per voxel cell (default: 0.25)
+viewer.extras.meshDeform.voxel.enabled = true;     // Remesh into grid-aligned cubes (default: false)
+viewer.extras.meshDeform.voxel.gridSize = 0.25;    // Voxel edge length in world units (default: 0.25)
 viewer.extras.meshDeform.barrel.amount = 0.5;      // Bulge (or pinch when negative) along the axis, -1-1 (default: 0)
 viewer.extras.meshDeform.barrel.axis = "y";        // "x" | "y" | "z" (default: "y")
 viewer.extras.meshDeform.spherify.amount = 0.5;    // Lerp toward the bounding sphere, 0-1 (default: 0)
 viewer.extras.meshDeform.twist.amount = 0.5;       // Rotations across the model height (default: 0)
 viewer.extras.meshDeform.twist.axis = "y";         // "x" | "y" | "z" (default: "y")
 viewer.extras.meshDeform.twist.speed = 1;          // Animates the twist into a tornado (default: 0)
+viewer.extras.meshDeform.nodes = ["propeller"];        // Only within these nodes (default: [] = all nodes)
 ```
 
-Mesh deform has no `maskedColors` because adjacent faces share positions, so deforming a masked face next to an unmasked face would tear their shared edge open.
+Mesh deform has no `maskedColors` because adjacent faces share positions, so deforming a masked face next to an unmasked face would tear their shared edge open. It does take `nodes`, whole nodes deform (or voxelize) while the rest of the model keeps its real geometry.
 
 ### Triangle Flash
 
@@ -562,6 +583,7 @@ viewer.extras.triangleFlash.density = 0.15;        // Fraction of triangles per 
 viewer.extras.triangleFlash.duration = 0.12;       // Seconds a flash lasts (default: 0.12)
 viewer.extras.triangleFlash.softness = 0;          // 0 = hard on/off, 1 = full fade (default: 0)
 viewer.extras.triangleFlash.mode = "replace";      // "replace" | "add" (add is smooth style only, default: "replace")
+viewer.extras.triangleFlash.nodes = ["screen"];     // Only within these nodes (default: [] = all nodes)
 ```
 
 ### Triangle Shatter
@@ -580,6 +602,7 @@ viewer.extras.triangleShatter.rotation = 1;        // Tumble revolutions at prog
 viewer.extras.triangleShatter.gravity = 0;         // Downward pull, scaled by distance (default: 0)
 viewer.extras.triangleShatter.shrink = 0;          // Scale toward 0 at progress 1, 0-1 (default: 0)
 viewer.extras.triangleShatter.maskedColors = [7];  // Only these face colors explode (default: [] = all)
+viewer.extras.triangleShatter.nodes = ["wall"];   // Only within these nodes (default: [] = all nodes)
 ```
 
 ### Fur
@@ -594,6 +617,7 @@ viewer.extras.fur.density = 40;            // Strand cells per world unit (defau
 viewer.extras.fur.gravity = [0, -0.5, 0];  // Comb/droop vector, in fur lengths at the tip (default: [0, 0, 0])
 viewer.extras.fur.rootShade = 1;           // How hard roots darken through the shade rows, 0-1 (default: 1)
 viewer.extras.fur.maskedColors = [9];      // Fur only grows from these colors (default: [] = everywhere)
+viewer.extras.fur.nodes = ["body"];       // Only within these nodes (default: [] = all nodes)
 ```
 
 Unlike the other geometry effects, fur's mask is per texel. The strand cutout samples the texture, so `maskedColors: [9]` grows fur exactly where the surface is painted with color 9.
@@ -604,7 +628,7 @@ Turns selected nodes toward the camera, keeping translation and scale. Children 
 
 ```typescript
 viewer.extras.billboard.enabled = true;
-viewer.extras.billboard.nodes = ["sign"];  // Node names (default: [] = all top-level mesh nodes)
+viewer.extras.billboard.nodes = ["sign"];  // Node names (default: [] = all top-level nodes, groups included)
 viewer.extras.billboard.mode = "full";     // "full" (face the camera on all axes) | "yaw" (spin around world Y, default: "full")
 ```
 

@@ -60,7 +60,7 @@ bool inFaceMask(int mask, float colorIdx) {
 vec3 applyShatter(vec3 p, vec3 centroidW, vec3 worldNormal) {
     float progress = clamp(u_shatterProgress, 0.0, 1.0);
     if (!u_shatterEnabled || progress <= 0.0) return p;
-    if (!inFaceMask(u_shatterMask, a_colorIndex)) return p;
+    if (!inNodeSet(NODE_SHATTER) || !inFaceMask(u_shatterMask, a_colorIndex)) return p;
 
     vec3 seed = vec3(a_triId * 0.7919, 13.37, 71.7);
     vec4 h = hash43(seed);
@@ -98,7 +98,7 @@ vec3 applyShatter(vec3 p, vec3 centroidW, vec3 worldNormal) {
  */
 float computeFlash() {
     if (!u_flashEnabled) return 0.0;
-    if (!inFaceMask(u_flashMask, a_colorIndex)) return 0.0;
+    if (!inNodeSet(NODE_FLASH) || !inFaceMask(u_flashMask, a_colorIndex)) return 0.0;
 
     float rate = max(u_flashRate, 0.001);
     float bucket = floor(u_time * rate);

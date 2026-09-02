@@ -9,6 +9,8 @@
  * included chunks/hash.glsl (directly or via patterns.glsl) beforehand.
  */
 
+#include node-bits.glsl;
+
 uniform bool u_dissolveEnabled;
 uniform float u_dissolveProgress; // 0 = intact, 1 = fully dissolved
 uniform int u_dissolveMode; // 0 = noise, 1 = directional, 2 = distance
@@ -62,7 +64,9 @@ float dissolveValue(vec3 worldPos, vec3 meshPos) {
  * progress 1 removes every fragment, dither band included.
  */
 float applyDissolveCutout(float colorIdx, vec3 worldPos, vec3 meshPos) {
-    if (!u_dissolveEnabled || !inDissolveMask(colorIdx)) return 0.0;
+    if (!u_dissolveEnabled || !inNodeSet(NODE_DISSOLVE) || !inDissolveMask(colorIdx)) {
+        return 0.0;
+    }
 
     float v = dissolveValue(worldPos, meshPos);
     float s = max(u_dissolveSoftness, 0.0001);

@@ -38,4 +38,5 @@ export const GRADIENT_LIGHT_DEFAULTS = deepFreeze<
 	blend: 0.5,
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

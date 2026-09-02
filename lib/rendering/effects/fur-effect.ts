@@ -37,4 +37,5 @@ export const FUR_DEFAULTS = deepFreeze<DeepRequired<FurOptions>>({
 	gravity: [0, 0, 0],
 	rootShade: 1,
 	maskedColors: [],
+	nodes: [],
 });

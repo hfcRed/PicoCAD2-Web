@@ -144,7 +144,8 @@ vec3 applyStyled(vec3 base, vec3 effectColor, float t, bool smoothStyle) {
  * (smooth style).
  */
 float emissionAmount(float colorIdx, vec3 worldPos) {
-    if (!u_emissionEnabled || !inMaterialMask(u_emissionMask, colorIdx)) {
+    if (!u_emissionEnabled || !inNodeSet(NODE_EMISSION) ||
+        !inMaterialMask(u_emissionMask, colorIdx)) {
         return 0.0;
     }
 
@@ -369,11 +370,13 @@ vec3 applyMaterialEffects(
     vec3 viewDir = u_isOrtho ? -u_cameraFwd : normalize(u_cameraPos - worldPos);
     float ndv = clamp(dot(normal, viewDir), 0.0, 1.0);
 
-    if (u_interiorEnabled && inMaterialMask(u_interiorMask, colorIdx)) {
+    if (u_interiorEnabled && inNodeSet(NODE_INTERIOR) &&
+        inMaterialMask(u_interiorMask, colorIdx)) {
         color = applyInterior(worldPos, viewDir, normal);
     }
 
-    if (u_gradLightEnabled && inMaterialMask(u_gradLightMask, colorIdx)) {
+    if (u_gradLightEnabled && inNodeSet(NODE_GRADIENT_LIGHT) &&
+        inMaterialMask(u_gradLightMask, colorIdx)) {
         float g;
         if (u_gradLightSource == 0) {
             g = lightAmount;
@@ -385,15 +388,18 @@ vec3 applyMaterialEffects(
         color = applyGradientLight(color, g);
     }
 
-    if (u_specEnabled && inMaterialMask(u_specMask, colorIdx)) {
+    if (u_specEnabled && inNodeSet(NODE_SPECULAR) &&
+        inMaterialMask(u_specMask, colorIdx)) {
         color = applySpecular(color, normal, viewDir, toLight, ndv);
     }
 
-    if (u_rimEnabled && inMaterialMask(u_rimMask, colorIdx)) {
+    if (u_rimEnabled && inNodeSet(NODE_RIM_LIGHT) &&
+        inMaterialMask(u_rimMask, colorIdx)) {
         color = applyRim(color, ndv, lightAmount);
     }
 
-    if (u_glitterEnabled && inMaterialMask(u_glitterMask, colorIdx)) {
+    if (u_glitterEnabled && inNodeSet(NODE_GLITTER) &&
+        inMaterialMask(u_glitterMask, colorIdx)) {
         color = applyGlitter(color, worldPos, texCoord, viewDir);
     }
 

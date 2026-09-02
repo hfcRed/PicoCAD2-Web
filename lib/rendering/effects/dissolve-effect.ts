@@ -47,4 +47,5 @@ export const DISSOLVE_DEFAULTS = deepFreeze<DeepRequired<DissolveOptions>>({
 	edgeColor: [1, 0.65, 0.2],
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

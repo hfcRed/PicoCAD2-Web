@@ -39,4 +39,5 @@ export const TRIANGLE_FLASH_DEFAULTS = deepFreeze<
 	mode: "replace",
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

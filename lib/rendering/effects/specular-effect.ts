@@ -57,4 +57,5 @@ export const SPECULAR_DEFAULTS = deepFreeze<DeepRequired<SpecularOptions>>({
 	},
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

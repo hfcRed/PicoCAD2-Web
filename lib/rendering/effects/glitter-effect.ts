@@ -50,4 +50,5 @@ export const GLITTER_DEFAULTS = deepFreeze<DeepRequired<GlitterOptions>>({
 	shape: "square",
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

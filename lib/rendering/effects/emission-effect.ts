@@ -45,4 +45,5 @@ export const EMISSION_DEFAULTS = deepFreeze<DeepRequired<EmissionOptions>>({
 	scrollSpeed: 1,
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

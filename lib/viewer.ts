@@ -197,6 +197,7 @@ export class PicoCAD2Viewer {
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
 		cutoutMask: 0,
+		colorCutout: null,
 		dissolve: null,
 		emission: null,
 		interior: null,
@@ -504,6 +505,7 @@ export class PicoCAD2Viewer {
 		settings.cutoutMask = cutout.enabled
 			? packColorMask(cutout.maskedColors)
 			: 0;
+		settings.colorCutout = cutout;
 
 		settings.dissolve = this._extras.dissolve;
 		settings.emission = this._extras.emission;

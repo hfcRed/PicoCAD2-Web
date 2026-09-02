@@ -39,4 +39,5 @@ export const RIM_LIGHT_DEFAULTS = deepFreeze<DeepRequired<RimLightOptions>>({
 	invert: false,
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

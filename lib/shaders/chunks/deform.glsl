@@ -10,6 +10,8 @@
  * are left alone, under flat shading the error is invisible.
  */
 
+#include node-bits.glsl;
+
 uniform bool u_deformEnabled;
 uniform float u_deformBarrel;
 uniform int u_deformBarrelAxis; // 0 = x, 1 = y, 2 = z
@@ -39,7 +41,7 @@ float deformHalfExtent(int axis) {
 }
 
 vec3 applyMeshDeform(vec3 p) {
-    if (!u_deformEnabled) return p;
+    if (!u_deformEnabled || !inNodeSet(NODE_DEFORM)) return p;
 
     vec3 rel = p - u_deformCenter;
 

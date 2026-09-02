@@ -45,7 +45,7 @@ void main() {
 
     // Color cutout: selected palette colors act as additional transparent colors
     int cutoutIdx = int(colorIdx + 0.5);
-    if (cutoutIdx < 16 && ((u_cutoutMask >> cutoutIdx) & 1) != 0) {
+    if (inNodeSet(NODE_CUTOUT) && cutoutIdx < 16 && ((u_cutoutMask >> cutoutIdx) & 1) != 0) {
         discard;
     }
 

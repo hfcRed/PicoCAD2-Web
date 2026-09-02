@@ -39,4 +39,5 @@ export const TRIANGLE_SHATTER_DEFAULTS = deepFreeze<
 	gravity: 0,
 	shrink: 0,
 	maskedColors: [],
+	nodes: [],
 });

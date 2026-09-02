@@ -58,4 +58,5 @@ export const INTERIOR_DEFAULTS = deepFreeze<DeepRequired<InteriorOptions>>({
 	hueRange: 0.5,
 	style: "palette",
 	maskedColors: [],
+	nodes: [],
 });

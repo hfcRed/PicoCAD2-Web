@@ -1504,10 +1504,183 @@ const combos: Scenario[] = [
 	},
 ];
 
+const nodes: Scenario[] = [
+	{
+		name: "nodes/rim-light-front-bumper",
+		model: "rig",
+		extras: {
+			rimLight: { enabled: true, style: "smooth", nodes: ["front bumper"] },
+		},
+	},
+	{
+		name: "nodes/gradient-light-cab",
+		model: "rig",
+		extras: {
+			gradientLight: {
+				enabled: true,
+				source: "screenY",
+				style: "smooth",
+				blend: 1,
+				nodes: ["cab"],
+			},
+		},
+	},
+	{
+		name: "nodes/specular-fuel-tank",
+		model: "rig",
+		extras: {
+			specular: {
+				enabled: true,
+				style: "smooth",
+				strength: 1,
+				nodes: ["fuel tank"],
+			},
+		},
+	},
+	{
+		name: "nodes/glitter-step",
+		model: "rig",
+		extras: {
+			glitter: {
+				enabled: true,
+				style: "smooth",
+				density: 24,
+				speed: 0,
+				nodes: ["step"],
+			},
+		},
+	},
+	{
+		name: "nodes/emission-fuel-tank",
+		model: "rig",
+		extras: { emission: { enabled: true, nodes: ["fuel tank"] } },
+	},
+	{
+		name: "nodes/interior-front-bumper",
+		model: "rig",
+		extras: {
+			interior: { enabled: true, pattern: "grid", nodes: ["front bumper"] },
+		},
+	},
+	{
+		name: "nodes/dissolve-cab",
+		model: "rig",
+		extras: { dissolve: { enabled: true, progress: 0.6, nodes: ["cab"] } },
+	},
+	{
+		name: "nodes/cutout-step",
+		model: "rig",
+		extras: {
+			colorCutout: {
+				enabled: true,
+				maskedColors: [7, 12, 6, 1, 3, 15],
+				nodes: ["step"],
+			},
+		},
+	},
+	{
+		name: "nodes/fur-front-bumper",
+		model: "rig",
+		extras: { fur: { enabled: true, length: 0.3, nodes: ["front bumper"] } },
+	},
+	{
+		name: "nodes/flash-fuel-tank",
+		model: "rig",
+		extras: {
+			triangleFlash: { enabled: true, density: 1, nodes: ["fuel tank"] },
+		},
+		time: 0.05,
+	},
+	{
+		name: "nodes/shatter-back-wheels",
+		model: "rig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.5,
+				nodes: ["wheel.1", "wheel.2", "wheel.3", "wheel.4"],
+			},
+		},
+	},
+	{
+		name: "nodes/twist-front-bumper",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				twist: { amount: 2 },
+				nodes: ["front bumper"],
+			},
+		},
+	},
+	{
+		name: "nodes/voxel-cab-only",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				voxel: { enabled: true, gridSize: 0.3 },
+				nodes: ["cab"],
+			},
+		},
+	},
+	{
+		name: "nodes/color-within-node",
+		model: "rig",
+		extras: {
+			rimLight: {
+				enabled: true,
+				style: "smooth",
+				maskedColors: [12],
+				nodes: ["cab"],
+			},
+		},
+	},
+	{
+		name: "nodes/billboard-default-groups",
+		model: "rig",
+		settings: { camera: { omega: 2.4, theta: 0.6 } },
+		extras: { billboard: { enabled: true } },
+	},
+	{
+		name: "nodes/group-lamps",
+		model: "rig",
+		extras: { emission: { enabled: true, nodes: ["lamps"] } },
+	},
+	{
+		name: "nodes/group-inheritance",
+		model: "helicopter_takeoff",
+		extras: {
+			rimLight: {
+				enabled: true,
+				style: "smooth",
+				width: 0.6,
+				nodes: ["handle"],
+			},
+		},
+		animationTime: 1,
+	},
+	{
+		name: "nodes/unknown-name-is-noop",
+		model: "rig",
+		extras: {
+			rimLight: { enabled: true, style: "smooth", nodes: ["no such node"] },
+			fur: { enabled: true, nodes: ["no such node"] },
+			meshDeform: {
+				enabled: true,
+				voxel: { enabled: true },
+				twist: { amount: 2 },
+				nodes: ["no such node"],
+			},
+		},
+	},
+];
+
 export const SCENARIOS: readonly Scenario[] = [
 	...core,
 	...material,
 	...geometry,
 	...post,
+	...nodes,
 	...combos,
 ];

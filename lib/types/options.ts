@@ -276,11 +276,13 @@ export interface EdgeDetectionOptions {
 }
 
 export interface ColorCutoutOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	maskedColors?: number[];
 }
 
 export interface DissolveOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	progress?: number;
 	mode?: DissolveMode;
@@ -296,6 +298,7 @@ export interface DissolveOptions {
 }
 
 export interface EmissionOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	strength?: number;
 	blinkMode?: EmissionBlinkMode;
@@ -319,6 +322,7 @@ export interface PaletteSwapOptions {
 }
 
 export interface InteriorOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	pattern?: InteriorPattern;
 	depth?: number;
@@ -334,6 +338,7 @@ export interface InteriorOptions {
 }
 
 export interface RimLightOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	color?: Color3;
 	width?: number;
@@ -346,6 +351,7 @@ export interface RimLightOptions {
 }
 
 export interface GradientLightOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	litColor?: Color3;
 	shadowColor?: Color3;
@@ -364,6 +370,7 @@ export interface SpecularEnvironmentOptions {
 }
 
 export interface SpecularOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	strength?: number;
 	smoothness?: number;
@@ -375,6 +382,7 @@ export interface SpecularOptions {
 }
 
 export interface GlitterOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	space?: GlitterSpace;
 	density?: number;
@@ -391,6 +399,7 @@ export interface GlitterOptions {
 }
 
 export interface FurOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	length?: number;
 	layers?: number;
@@ -407,6 +416,7 @@ export interface BillboardOptions {
 }
 
 export interface MeshDeformOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	voxel?: { enabled?: boolean; gridSize?: number };
 	barrel?: { amount?: number; axis?: DeformAxis };
@@ -415,6 +425,7 @@ export interface MeshDeformOptions {
 }
 
 export interface TriangleFlashOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	color?: Color3;
 	rate?: number;
@@ -427,6 +438,7 @@ export interface TriangleFlashOptions {
 }
 
 export interface TriangleShatterOptions {
+	nodes?: string[];
 	enabled?: boolean;
 	progress?: number;
 	mode?: TriangleShatterMode;

@@ -33,4 +33,5 @@ export const COLOR_CUTOUT_DEFAULTS = deepFreeze<
 >({
 	enabled: false,
 	maskedColors: [],
+	nodes: [],
 });

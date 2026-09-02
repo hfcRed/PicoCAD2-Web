@@ -47,6 +47,7 @@ export interface MeshDeformEffect extends Required<MeshDeformOptions> {
 export const MESH_DEFORM_DEFAULTS = deepFreeze<DeepRequired<MeshDeformOptions>>(
 	{
 		enabled: false,
+		nodes: [],
 		voxel: { enabled: false, gridSize: 0.25 },
 		barrel: { amount: 0, axis: "y" },
 		spherify: { amount: 0 },

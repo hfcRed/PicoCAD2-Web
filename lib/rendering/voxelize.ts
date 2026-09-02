@@ -54,12 +54,15 @@ function isTransparentTexel(
  * @param root - The scene graph root.
  * @param gridSize - Voxel edge length in world units.
  * @param texture - The model texture, for skipping transparent texels.
+ * @param include - Optional node filter. Unselected nodes are neither
+ *   sampled into the grid nor returned.
  * @returns The voxelized stand-in mesh for each contributing node.
  */
 export function voxelizeModel(
 	root: SceneNode,
 	gridSize: number,
 	texture: TextureData,
+	include?: (node: SceneNode) => boolean,
 ): Map<SceneNode, Mesh> {
 	const g = Math.max(gridSize, 1e-4);
 	const cells = new Map<string, CellSample>();
@@ -73,7 +76,7 @@ export function voxelizeModel(
 			computeLocalMatrix(local, child.staticTransform);
 			const world = mat4.multiply(mat4.create(), parentWorld, local);
 
-			if (child.mesh && !child.ghost) {
+			if (child.mesh && !child.ghost && (!include || include(child))) {
 				restMatrices.set(child, world);
 				sampleMesh(child, world, g, texture, cells);
 			}

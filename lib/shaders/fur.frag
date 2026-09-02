@@ -47,7 +47,7 @@ void main() {
     }
 
     int idx = int(colorIdx + 0.5);
-    if (idx < 16 && ((u_cutoutMask >> idx) & 1) != 0) {
+    if (inNodeSet(NODE_CUTOUT) && idx < 16 && ((u_cutoutMask >> idx) & 1) != 0) {
         discard;
     }
 

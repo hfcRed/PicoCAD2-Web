@@ -52,7 +52,8 @@ const MIN_GHOST_DT = 1 / 240;
  * shared controls (virtual resolution, brightness/saturation/contrast,
  * grid strength) and per-type settings. The virtual `resolution` quantizes
  * color per virtual pixel while the subpixel/grid structure renders at
- * full output resolution. Temporal ghosting (CRT phosphor fade, gameboy
+ * full output resolution. At the default `0` there is neither quantization
+ * nor grid. Temporal ghosting (CRT phosphor fade, gameboy
  * smear) persists across frames.
  *
  * No color mask. Supersedes the deprecated standalone CRT effect.

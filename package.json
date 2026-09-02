@@ -27,10 +27,16 @@
 		"publish": "node scripts/publish.js",
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",
-		"check": "biome check --write ."
+		"check": "biome check --write .",
+		"test:visual": "node test/visual/run.ts",
+		"test:visual:update": "node test/visual/run.ts --update"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",
+		"@types/node": "^26.4.0",
+		"@types/pngjs": "^6.0.5",
+		"playwright": "^1.62.1",
+		"pngjs": "^7.0.0",
 		"typescript": "~5.9.3",
 		"vite": "^8.0.1",
 		"vite-plugin-dts": "^4.5.4",

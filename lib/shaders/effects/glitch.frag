@@ -15,12 +15,13 @@ uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
 #include color-mask.glsl;
+#include ../chunks/hash.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
 
 float hash(float n) {
-    return fract(sin(n) * 43758.5453);
+    return hash13(vec3(n, 7.0, 13.0));
 }
 
 float blockHash(vec2 uv, float time) {

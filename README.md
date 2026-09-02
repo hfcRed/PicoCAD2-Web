@@ -1085,6 +1085,23 @@ viewer.dispose();
 context.dispose();
 ```
 
+## Development
+
+### Visual Regression Tests
+
+`test/visual/` renders a catalogue of scenarios (every viewer setting, every effect and mode, both alpha paths, stacked combinations) in headless Chromium and compares each frame byte for byte against a baseline PNG. Proves that a refactor or optimization leaves the output pixel-identical.
+
+```bash
+pnpm test:visual                 # compare every scenario against its baseline
+pnpm test:visual fur post/bloom  # only scenarios whose name contains a filter
+pnpm test:visual:update          # accept the current output as the new baselines
+pnpm test:visual --audit         # flag scenarios whose effect changed nothing
+```
+
+Frames render on SwiftShader (Chromium's software rasterizer) so baselines reproduce across machines. Any mismatch writes `<name>.actual.png` and a three-panel `<name>.diff.png` (baseline, actual, changed pixels in red) to `test/visual/output/`. Scenarios live in `test/visual/scenarios.ts`; a scenario pins the model, settings, effect options, shader clock and animation pose so the frame is fully deterministic. After adding a scenario, run it with `--update` to create its baseline, and check `--audit` to make sure it actually exercises what it claims.
+
+Playwright's Chromium is required once `pnpm exec playwright install chromium`.
+
 ## License
 
 MIT

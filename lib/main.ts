@@ -113,6 +113,7 @@ export {
 	type ParticleShape,
 	ParticlesEffect,
 } from "./rendering/effects/particles-effect.ts";
+export type { PatternName } from "./rendering/effects/patterns.ts";
 export { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 export {
 	PIXELATION_DEFAULTS,
@@ -128,6 +129,12 @@ export {
 	PROCEDURAL_BACKGROUND_DEFAULTS,
 	ProceduralBackgroundEffect,
 } from "./rendering/effects/procedural-background-effect.ts";
+export {
+	PROJECTION_DEFAULTS,
+	ProjectionEffect,
+	type ProjectionEffectMode,
+	type ProjectionPattern,
+} from "./rendering/effects/projection-effect.ts";
 export {
 	RIM_LIGHT_DEFAULTS,
 	RimLightEffect,
@@ -220,6 +227,7 @@ export type {
 	PixelationOptions,
 	PosterizationOptions,
 	ProceduralBackgroundOptions,
+	ProjectionOptions,
 	ResolutionSettings,
 	RimLightOptions,
 	SharpenOptions,

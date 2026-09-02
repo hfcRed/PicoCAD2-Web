@@ -384,6 +384,98 @@ const material: Scenario[] = [
 		},
 		time: 0.9,
 	},
+	// Projection
+	{
+		name: "material/projection-light-voronoi",
+		model: "rig",
+		extras: { projection: { enabled: true, mode: "light" } },
+	},
+	{
+		name: "material/projection-shadow-voronoi",
+		model: "rig",
+		extras: { projection: { enabled: true } },
+	},
+	{
+		name: "material/projection-tint-grid-smooth-time",
+		model: "pirate",
+		extras: {
+			projection: {
+				enabled: true,
+				mode: "tint",
+				pattern: "grid",
+				style: "smooth",
+				color: [0, 1, 1],
+				direction: [1, 0, 0],
+				facing: 0,
+				scale: 3,
+				speed: 1,
+			},
+		},
+		time: 0.5,
+	},
+	{
+		name: "material/projection-truchet-masked-dithered",
+		model: "rig",
+		extras: {
+			projection: {
+				enabled: true,
+				mode: "tint",
+				pattern: "truchet",
+				style: "dithered",
+				color: [1, 0.2, 0.9],
+				scale: 4,
+				strength: 0.6,
+				maskedColors: [7],
+			},
+		},
+	},
+	// Seed 0 slices the star field at depth 0 exactly, which a flat slice
+	// would miss entirely, so this frame proves the oblique slice.
+	{
+		name: "material/projection-stars-tint-seed0",
+		model: "rig",
+		extras: {
+			projection: {
+				enabled: true,
+				mode: "tint",
+				pattern: "stars",
+				color: [1, 1, 0],
+				scale: 3,
+				speed: 0,
+				facing: 0,
+			},
+		},
+	},
+	{
+		name: "material/projection-dust-tint-time",
+		model: "pig",
+		extras: {
+			projection: {
+				enabled: true,
+				mode: "tint",
+				pattern: "dust",
+				color: [1, 1, 1],
+				scale: 4,
+				facing: 0,
+			},
+		},
+		time: 1.3,
+	},
+	{
+		name: "material/projection-constellations-shadow-transparent",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			projection: {
+				enabled: true,
+				mode: "shadow",
+				pattern: "constellations",
+				scale: 3,
+				facing: 0,
+				seed: 3,
+			},
+		},
+	},
 	// Dissolve
 	{
 		name: "material/dissolve-noise",
@@ -484,6 +576,11 @@ const material: Scenario[] = [
 		name: "material/interior-stars-palette",
 		model: "pig",
 		extras: { interior: { enabled: true, maskedColors: [9] } },
+	},
+	{
+		name: "material/interior-stars-seed",
+		model: "pig",
+		extras: { interior: { enabled: true, maskedColors: [9], seed: 3 } },
 	},
 	{
 		name: "material/interior-voronoi-dithered",
@@ -1627,6 +1724,19 @@ const nodes: Scenario[] = [
 		name: "nodes/dissolve-cab",
 		model: "rig",
 		extras: { dissolve: { enabled: true, progress: 0.6, nodes: ["cab"] } },
+	},
+	{
+		name: "nodes/projection-cab",
+		model: "rig",
+		extras: {
+			projection: {
+				enabled: true,
+				mode: "tint",
+				color: [0, 1, 0],
+				facing: 0,
+				nodes: ["cab"],
+			},
+		},
 	},
 	{
 		name: "nodes/cutout-step",

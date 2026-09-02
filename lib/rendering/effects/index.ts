@@ -26,6 +26,11 @@ export { PostProcessPipeline } from "./pipeline.ts";
 export type { PixelShape } from "./pixelation-effect.ts";
 export { PixelationEffect } from "./pixelation-effect.ts";
 export { PosterizationEffect } from "./posterization-effect.ts";
+export {
+	ProjectionEffect,
+	type ProjectionEffectMode,
+	type ProjectionPattern,
+} from "./projection-effect.ts";
 export { SSAOEffect, type SSAOSamples } from "./ssao-effect.ts";
 export type { SweepMode } from "./sweep.ts";
 export type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";

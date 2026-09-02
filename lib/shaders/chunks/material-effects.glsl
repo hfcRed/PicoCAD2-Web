@@ -1,8 +1,8 @@
 /**
  * Material effects applied inside the model shader: interior, rim light,
- * gradient light, specular + environment reflection, glitter, and the
- * emission envelope. Self-contained. Declares its own uniforms and
- * receives all per-fragment inputs as parameters of
+ * gradient light, specular + environment reflection, glitter, the
+ * emission envelope and the pattern projection. Self-contained. Declares
+ * its own uniforms and receives all per-fragment inputs as parameters of
  * applyMaterialEffects(). The dissolve chunk rides along here so the
  * model shader gets it with the same include.
  *
@@ -21,6 +21,7 @@
  * a rim or sparkle is light on a material instead of a material change.
  */
 
+#include node-bits.glsl;
 #include patterns.glsl;
 #include dissolve.glsl;
 
@@ -40,6 +41,7 @@ uniform float u_interiorDepth;
 uniform int u_interiorLayers;
 uniform float u_interiorScale;
 uniform float u_interiorSpeed;
+uniform float u_interiorSeed;
 uniform vec3 u_interiorColor;
 uniform vec3 u_interiorBgColor;
 uniform float u_interiorHueRange;
@@ -105,6 +107,21 @@ uniform float u_emissionScrollGap;
 uniform float u_emissionScrollSpeed;
 uniform bool u_emissionSmooth;
 uniform int u_emissionMask;
+
+uniform bool u_projectionEnabled;
+uniform int u_projectionPattern;
+uniform int u_projectionMode; // 0 = light, 1 = shadow, 2 = tint
+uniform vec3 u_projectionDir; // normalized travel direction
+uniform vec3 u_projectionU; // plane basis perpendicular to the direction
+uniform vec3 u_projectionV;
+uniform vec3 u_projectionColor;
+uniform float u_projectionScale;
+uniform float u_projectionSpeed;
+uniform float u_projectionSeed;
+uniform float u_projectionStrength;
+uniform float u_projectionFacing;
+uniform bool u_projectionSmooth;
+uniform int u_projectionMask;
 
 /**
  * Returns true if the fragment's base palette index is selected by the
@@ -173,6 +190,67 @@ float emissionAmount(float colorIdx, vec3 worldPos) {
 }
 
 /**
+ * The projected pattern's intensity at the fragment, 0-1. Zero where the
+ * surface does not receive the projection, outside the mask or the node
+ * selection, or on faces turned away from the incoming direction. The
+ * pattern is sampled on the plane perpendicular to the direction, so it
+ * stays put while the model moves along the axis. The planar line
+ * patterns keep their slice pinned like the interior does.
+ */
+float projectionAmount(float colorIdx, vec3 normal, vec3 worldPos) {
+    if (!u_projectionEnabled || !inNodeSet(NODE_PROJECTION) ||
+        !inMaterialMask(u_projectionMask, colorIdx)) {
+        return 0.0;
+    }
+    if (dot(normal, -u_projectionDir) <= u_projectionFacing) return 0.0;
+
+    vec2 q = vec2(dot(worldPos, u_projectionU), dot(worldPos, u_projectionV))
+        * u_projectionScale;
+    float t = u_time * u_projectionSpeed;
+    vec3 p;
+    if (u_projectionPattern == 4) {
+        p = vec3(q + t * 0.1, -0.3 * t);
+    } else if (u_projectionPattern > 4) {
+        p = vec3(q, u_projectionSeed * 43.7);
+    } else {
+        // Slice the volumetric fields obliquely. A flat slice at one depth
+        // misses the stars, whose centers keep clear of the cell borders,
+        // and cuts every drifting dust mote at the same moment.
+        p = vec3(q, dot(q, vec2(0.37, 0.61))) + vec3(u_projectionSeed * 43.7);
+    }
+
+    float f = clamp(patternField(u_projectionPattern, p, t), 0.0, 1.0);
+    return clamp(f * u_projectionStrength, 0.0, 1.0);
+}
+
+/**
+ * The shade-row shift of a light or shadow projection in palette and
+ * dithered style, up to two rows, with fractional steps dithered on the
+ * shading checkerboard the way SSAO does. Negative lifts toward the lit
+ * row.
+ */
+int projectionRowShift(float amount) {
+    float rows = amount * 2.0;
+    int steps = int(floor(rows));
+    float frac = rows - float(steps);
+    float checker = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);
+    if (frac >= 0.75 || (frac >= 0.25 && checker < 0.5)) steps += 1;
+    return u_projectionMode == 0 ? -steps : steps;
+}
+
+/**
+ * The projection applied after the palette lookup. Tint in every style,
+ * light and shadow in smooth style, which blend toward the texel's lit or
+ * darkest shade-row color instead of stepping rows.
+ */
+vec3 applyProjectionColor(vec3 color, float amount, vec3 litColor, vec3 darkColor) {
+    if (u_projectionMode == 2) {
+        return applyStyled(color, u_projectionColor, amount, u_projectionSmooth);
+    }
+    return mix(color, u_projectionMode == 0 ? litColor : darkColor, amount);
+}
+
+/**
  * Applies the triangle flash color by the vertex-computed envelope.
  * Flash is light on a material, not a material change so the index buffer
  * keeps the base face index, so a blink never leaves other effects' masks.
@@ -219,9 +297,9 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
                 // pin the grid slice to the lattice plane (its time scroll
                 // along z pulses a fixed slice) and drift in-plane instead
                 ? vec3(uv + t * 0.1, -0.3 * t)
-                : vec3(uv, float(i) + float(axis) * 37.0);
+                : vec3(uv, float(i) + float(axis) * 37.0 + u_interiorSeed * 43.7);
         } else {
-            p = q * u_interiorScale;
+            p = q * u_interiorScale + vec3(u_interiorSeed * 43.7);
         }
         float rand;
         float f = patternField(u_interiorPattern, p, t, 0.0, rand);

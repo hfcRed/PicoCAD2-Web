@@ -458,6 +458,7 @@ viewer.extras.interior.depth = 2;                       // World units to the de
 viewer.extras.interior.layers = 3;                      // Pattern layers, 1-5 (default: 3)
 viewer.extras.interior.scale = 4;                       // Pattern cells per world unit (default: 4)
 viewer.extras.interior.speed = 1;                       // Pattern animation rate, 0 = frozen (default: 1)
+viewer.extras.interior.seed = 0;                        // Variant of the random patterns, inert for "grid" (default: 0)
 viewer.extras.interior.color = [1, 1, 1];               // Pattern color (default: [1, 1, 1])
 viewer.extras.interior.backgroundColor = [0.06, 0.05, 0.13]; // Fill behind the last layer (default: [0.06, 0.05, 0.13])
 ```
@@ -556,6 +557,26 @@ viewer.extras.emission.scrollGap = 2;               // World units between bands
 viewer.extras.emission.scrollWidth = 0.25;          // Band width in world units (default: 0.25)
 viewer.extras.emission.scrollDirection = [0, 1, 0]; // World travel direction (default: [0, 1, 0])
 viewer.extras.emission.scrollSpeed = 1;             // World units per second, negative reverses (default: 1)
+```
+
+### Projection
+
+Projects a pattern from the shared library onto the model's surfaces along a direction. The pattern is sampled on the plane perpendicular to `direction`, so it stays put while the model moves along the axis, and only faces turned toward the incoming direction receive it. `"light"` lifts shaded surfaces toward their lit color, `"shadow"` pushes them down the shade rows, and `"tint"` paints `color` where the pattern hits. In palette style, light and shadow step through the palette's shade rows with checkerboard dithering, so the render stays palette-pure. That also means light only shows on shaded surfaces, since lit is the palette's brightest. Smooth style blends instead.
+
+```typescript
+viewer.extras.projection.enabled = true;
+viewer.extras.projection.pattern = "voronoi";       // Projected field (default: "voronoi")
+// Available patterns: "stars" | "dust" | "voronoi" | "lava" | "grid" | "truchet" | "constellations"
+viewer.extras.projection.direction = [0, -1, 0];    // Travel direction of the projection (default: [0, -1, 0], straight down)
+viewer.extras.projection.mode = "shadow";           // "light" | "shadow" | "tint" (default: "shadow")
+viewer.extras.projection.color = [1, 1, 1];         // Tint color, snapped in palette style (default: [1, 1, 1])
+viewer.extras.projection.scale = 2;                 // Pattern cells per world unit (default: 2)
+viewer.extras.projection.speed = 0.5;               // Pattern animation speed (default: 0.5)
+viewer.extras.projection.seed = 0;                  // Pattern variant (default: 0)
+viewer.extras.projection.strength = 1;              // Intensity, 0-1 (default: 1)
+viewer.extras.projection.facing = 0.3;              // How squarely a face must face the direction to receive it, 0-1 (default: 0.3)
+viewer.extras.projection.maskedColors = [7];        // Only these colors receive it (default: [] = all)
+viewer.extras.projection.nodes = ["floor"];         // Only within these nodes (default: [] = all nodes)
 ```
 
 ## Geometry Effects
@@ -1011,7 +1032,7 @@ When multiple effects are active, they are applied in this fixed order:
 18. Glitch
 19. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

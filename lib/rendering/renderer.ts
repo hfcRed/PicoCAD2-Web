@@ -25,17 +25,19 @@ import type { FurEffect } from "./effects/fur-effect.ts";
 import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
-import {
-	INTERIOR_PATTERN_ID,
-	type InteriorEffect,
-} from "./effects/interior-effect.ts";
+import type { InteriorEffect } from "./effects/interior-effect.ts";
 import { writeStyledColor } from "./effects/material-style.ts";
 import {
 	type MeshDeformEffect,
 	writeMeshDeformUniforms,
 } from "./effects/mesh-deform-effect.ts";
 import type { PaletteSwapEffect } from "./effects/palette-swap-effect.ts";
+import { PATTERN_ID } from "./effects/patterns.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
+import {
+	type ProjectionEffect,
+	writeProjectionBasis,
+} from "./effects/projection-effect.ts";
 import type { RimLightEffect } from "./effects/rim-light-effect.ts";
 import type { SpecularEffect } from "./effects/specular-effect.ts";
 import { createSweepUniforms, writeSweepUniforms } from "./effects/sweep.ts";
@@ -62,6 +64,7 @@ export interface RenderSettings {
 	colorCutout: ColorCutoutEffect | null;
 	dissolve: DissolveEffect | null;
 	emission: EmissionEffect | null;
+	projection: ProjectionEffect | null;
 	interior: InteriorEffect | null;
 	rimLight: RimLightEffect | null;
 	gradientLight: GradientLightEffect | null;
@@ -187,6 +190,7 @@ export class Renderer {
 		u_interiorLayers: 1,
 		u_interiorScale: 1,
 		u_interiorSpeed: 0,
+		u_interiorSeed: 0,
 		u_interiorColor: [1, 1, 1] as Color3,
 		u_interiorBgColor: [0, 0, 0] as Color3,
 		u_interiorHueRange: 0,
@@ -256,6 +260,21 @@ export class Renderer {
 		u_emissionScrollSpeed: 0,
 		u_emissionSmooth: false,
 		u_emissionMask: 0,
+
+		u_projectionEnabled: false,
+		u_projectionPattern: 0,
+		u_projectionMode: 0,
+		u_projectionDir: [0, -1, 0] as Color3,
+		u_projectionU: [1, 0, 0] as Color3,
+		u_projectionV: [0, 0, 1] as Color3,
+		u_projectionColor: [1, 1, 1] as Color3,
+		u_projectionScale: 1,
+		u_projectionSpeed: 0,
+		u_projectionSeed: 0,
+		u_projectionStrength: 0,
+		u_projectionFacing: 0,
+		u_projectionSmooth: false,
+		u_projectionMask: 0,
 	};
 	private readonly furUniforms = {
 		u_vp: mat4.create() as mat4,
@@ -918,7 +937,7 @@ export class Renderer {
 				interior.style,
 				palette,
 			);
-			u.u_interiorPattern = INTERIOR_PATTERN_ID[interior.pattern] ?? 0;
+			u.u_interiorPattern = PATTERN_ID[interior.pattern] ?? 0;
 			u.u_interiorDepth = Math.max(interior.depth, 0);
 			u.u_interiorLayers = Math.min(
 				Math.max(Math.round(interior.layers), 1),
@@ -926,6 +945,7 @@ export class Renderer {
 			);
 			u.u_interiorScale = interior.scale;
 			u.u_interiorSpeed = interior.speed;
+			u.u_interiorSeed = interior.seed;
 			u.u_interiorHueRange =
 				interior.randomHue && interior.style !== "palette"
 					? Math.max(interior.hueRange, 0) * Math.PI
@@ -1055,6 +1075,33 @@ export class Renderer {
 			u.u_emissionScrollSpeed = emission.scrollSpeed;
 			u.u_emissionSmooth = emission.style === "smooth";
 			u.u_emissionMask = packColorMask(emission.maskedColors);
+		}
+
+		const projection = settings.projection;
+		u.u_projectionEnabled = projection?.enabled ?? false;
+		if (projection?.enabled) {
+			u.u_projectionPattern = PATTERN_ID[projection.pattern] ?? 0;
+			u.u_projectionMode =
+				projection.mode === "light" ? 0 : projection.mode === "shadow" ? 1 : 2;
+			writeProjectionBasis(
+				u.u_projectionDir,
+				u.u_projectionU,
+				u.u_projectionV,
+				projection.direction,
+			);
+			writeStyledColor(
+				u.u_projectionColor,
+				projection.color,
+				projection.style,
+				palette,
+			);
+			u.u_projectionScale = Math.max(projection.scale, 0.001);
+			u.u_projectionSpeed = projection.speed;
+			u.u_projectionSeed = projection.seed;
+			u.u_projectionStrength = Math.min(Math.max(projection.strength, 0), 1);
+			u.u_projectionFacing = Math.min(Math.max(projection.facing, 0), 1);
+			u.u_projectionSmooth = projection.style === "smooth";
+			u.u_projectionMask = packColorMask(projection.maskedColors);
 		}
 	}
 

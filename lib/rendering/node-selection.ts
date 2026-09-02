@@ -20,6 +20,7 @@ export const NODE_BIT = Object.freeze({
 	triangleFlash: 1 << 9,
 	triangleShatter: 1 << 10,
 	meshDeform: 1 << 11,
+	projection: 1 << 12,
 });
 
 type NodeBitKey = keyof typeof NODE_BIT;
@@ -38,6 +39,7 @@ const NODE_EFFECTS: readonly NodeBitKey[] = [
 	"triangleFlash",
 	"triangleShatter",
 	"meshDeform",
+	"projection",
 ];
 
 /**

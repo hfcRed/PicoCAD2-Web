@@ -59,6 +59,9 @@ void main() {
     float rawDot = -dot(normal, u_lightDir);
     float lightAmount = clamp(1.0 - (1.0 - rawDot) * (1.0 - rawDot), 0.0, 1.0);
 
+    float projection = projectionAmount(colorIdx, normal, v_worldPos);
+    bool projectionOnRows = projection > 0.0 && !u_projectionSmooth && u_projectionMode != 2;
+
     // Compute shading level
     int paletteRow = 0;
     if (u_shadingEnabled && !noShade) {
@@ -75,6 +78,10 @@ void main() {
         }
     }
 
+    if (projectionOnRows) {
+        paletteRow = clamp(paletteRow + projectionRowShift(projection), 0, 2);
+    }
+
     float emission = emissionAmount(colorIdx, v_worldPos);
     if (emission > 0.0 && !u_emissionSmooth && ditherGate(emission)) {
         paletteRow = 0;
@@ -84,6 +91,12 @@ void main() {
     float rowSet = paletteBlendOffset();
     float v = (float(paletteRow) + 0.5) / 6.0 + rowSet;
     vec3 color = texture(u_paletteTexture, vec2(u, v)).rgb;
+
+    if (projection > 0.0 && !projectionOnRows) {
+        vec3 lit = texture(u_paletteTexture, vec2(u, 0.5 / 6.0 + rowSet)).rgb;
+        vec3 dark = texture(u_paletteTexture, vec2(u, 2.5 / 6.0 + rowSet)).rgb;
+        color = applyProjectionColor(color, projection, lit, dark);
+    }
 
     if (emission > 0.0 && u_emissionSmooth) {
         vec3 lit = texture(u_paletteTexture, vec2(u, 0.5 / 6.0 + rowSet)).rgb;

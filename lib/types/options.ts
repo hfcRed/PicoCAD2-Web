@@ -19,6 +19,10 @@ import type {
 } from "../rendering/effects/particles-effect.ts";
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
 import type { BackgroundPattern } from "../rendering/effects/procedural-background-effect.ts";
+import type {
+	ProjectionEffectMode,
+	ProjectionPattern,
+} from "../rendering/effects/projection-effect.ts";
 import type { SSAOSamples } from "../rendering/effects/ssao-effect.ts";
 import type { SweepMode } from "../rendering/effects/sweep.ts";
 import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
@@ -323,6 +327,22 @@ export interface EmissionOptions {
 	maskedColors?: number[];
 }
 
+export interface ProjectionOptions {
+	nodes?: string[];
+	enabled?: boolean;
+	pattern?: ProjectionPattern;
+	direction?: [number, number, number];
+	mode?: ProjectionEffectMode;
+	color?: Color3;
+	scale?: number;
+	speed?: number;
+	seed?: number;
+	strength?: number;
+	facing?: number;
+	style?: MaterialStyle;
+	maskedColors?: number[];
+}
+
 export interface PaletteSwapOptions {
 	enabled?: boolean;
 	map?: number[];
@@ -340,6 +360,7 @@ export interface InteriorOptions {
 	layers?: number;
 	scale?: number;
 	speed?: number;
+	seed?: number;
 	color?: Color3;
 	backgroundColor?: Color3;
 	randomHue?: boolean;
@@ -476,6 +497,7 @@ export interface ExtrasOptions {
 	specular?: SpecularOptions;
 	glitter?: GlitterOptions;
 	emission?: EmissionOptions;
+	projection?: ProjectionOptions;
 	fur?: FurOptions;
 	meshDeform?: MeshDeformOptions;
 	triangleFlash?: TriangleFlashOptions;

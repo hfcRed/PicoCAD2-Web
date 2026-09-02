@@ -103,6 +103,10 @@ import {
 	ProceduralBackgroundEffect,
 } from "./rendering/effects/procedural-background-effect.ts";
 import {
+	PROJECTION_DEFAULTS,
+	ProjectionEffect,
+} from "./rendering/effects/projection-effect.ts";
+import {
 	RIM_LIGHT_DEFAULTS,
 	RimLightEffect,
 } from "./rendering/effects/rim-light-effect.ts";
@@ -141,9 +145,9 @@ import type { ExtrasOptions, ExtrasState } from "./types/options.ts";
  * Provides access to extra (non-official) effects for the viewer.
  * All effects are pre-instantiated but disabled by default.
  *
- * Material effects (color cutout, dissolve, emission, interior, gradient
- * light, specular, rim light, glitter) are applied inside the model
- * shader, in that order, before any
+ * Material effects (color cutout, dissolve, projection, emission, interior,
+ * gradient light, specular, rim light, glitter) are applied inside the
+ * model shader, in that order, before any
  * post-processing. Fur shells and the billboard node exclusion are applied
  * by the renderer alongside the model draw. Scene effects (wireframe,
  * particles) draw into the 3D
@@ -165,6 +169,7 @@ export class ViewerExtras {
 	readonly specular: SpecularEffect;
 	readonly glitter: GlitterEffect;
 	readonly emission: EmissionEffect;
+	readonly projection: ProjectionEffect;
 	readonly fur: FurEffect;
 	readonly meshDeform: MeshDeformEffect;
 	readonly triangleFlash: TriangleFlashEffect;
@@ -217,6 +222,7 @@ export class ViewerExtras {
 		this.specular = new SpecularEffect();
 		this.glitter = new GlitterEffect();
 		this.emission = new EmissionEffect();
+		this.projection = new ProjectionEffect();
 		// ---------------
 
 		// Instanced shell pass drawn by the renderer with the model.
@@ -332,6 +338,7 @@ export const EXTRAS_DEFAULTS = Object.freeze({
 	specular: SPECULAR_DEFAULTS,
 	glitter: GLITTER_DEFAULTS,
 	emission: EMISSION_DEFAULTS,
+	projection: PROJECTION_DEFAULTS,
 	fur: FUR_DEFAULTS,
 	meshDeform: MESH_DEFORM_DEFAULTS,
 	triangleFlash: TRIANGLE_FLASH_DEFAULTS,

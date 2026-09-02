@@ -8,26 +8,10 @@ import {
 } from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import { writeStyledColor } from "./material-style.ts";
+import { PATTERN_ID, type PatternName } from "./patterns.ts";
 import type { EffectContext } from "./types.ts";
 
-export type BackgroundPattern =
-	| "voronoi"
-	| "truchet"
-	| "stars"
-	| "constellations"
-	| "lava"
-	| "dust"
-	| "grid";
-
-const PATTERN_FIELD_ID: Record<BackgroundPattern, number> = {
-	stars: 0,
-	dust: 1,
-	voronoi: 2,
-	lava: 3,
-	grid: 4,
-	truchet: 5,
-	constellations: 6,
-};
+export type BackgroundPattern = PatternName;
 
 /**
  * Fills background pixels with a procedural pattern.
@@ -88,7 +72,7 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 		return {
 			u_resolution: [ctx.width, ctx.height],
 			u_time: ctx.time,
-			u_pattern: PATTERN_FIELD_ID[this.pattern] ?? 0,
+			u_pattern: PATTERN_ID[this.pattern] ?? 0,
 			u_colorA: this.styledA,
 			u_colorB: this.styledB,
 			u_scale: this.scale,

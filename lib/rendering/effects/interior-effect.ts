@@ -4,25 +4,9 @@ import {
 	deepFreeze,
 	resetEffect,
 } from "./effect-defaults.ts";
+import type { PatternName } from "./patterns.ts";
 
-export type InteriorPattern =
-	| "stars"
-	| "dust"
-	| "voronoi"
-	| "lava"
-	| "grid"
-	| "truchet"
-	| "constellations";
-
-export const INTERIOR_PATTERN_ID: Record<InteriorPattern, number> = {
-	stars: 0,
-	dust: 1,
-	voronoi: 2,
-	lava: 3,
-	grid: 4,
-	truchet: 5,
-	constellations: 6,
-};
+export type InteriorPattern = PatternName;
 
 /**
  * Fake depth behind selected palette colors, applied inside the model
@@ -52,6 +36,7 @@ export const INTERIOR_DEFAULTS = deepFreeze<DeepRequired<InteriorOptions>>({
 	layers: 3,
 	scale: 4,
 	speed: 1,
+	seed: 0,
 	color: [1, 1, 1],
 	backgroundColor: [0.06, 0.05, 0.13],
 	randomHue: false,

@@ -200,6 +200,7 @@ export class PicoCAD2Viewer {
 		colorCutout: null,
 		dissolve: null,
 		emission: null,
+		projection: null,
 		interior: null,
 		rimLight: null,
 		gradientLight: null,
@@ -509,6 +510,7 @@ export class PicoCAD2Viewer {
 
 		settings.dissolve = this._extras.dissolve;
 		settings.emission = this._extras.emission;
+		settings.projection = this._extras.projection;
 		settings.interior = this._extras.interior;
 		settings.rimLight = this._extras.rimLight;
 		settings.gradientLight = this._extras.gradientLight;
@@ -1275,6 +1277,7 @@ export class PicoCAD2Viewer {
 		assign(this.extras.gradientLight, extras.gradientLight);
 		assign(this.extras.glitter, extras.glitter);
 		assign(this.extras.emission, extras.emission);
+		assign(this.extras.projection, extras.projection);
 		assign(this.extras.gradientOutline, extras.gradientOutline);
 		assign(this.extras.ssao, extras.ssao);
 		assign(this.extras.colorGrading, extras.colorGrading);

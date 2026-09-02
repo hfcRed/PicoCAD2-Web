@@ -50,6 +50,7 @@
 ### Fixed
 
 - **Glitch bursts on every GPU** — The effect stayed inert for seconds at a time. The hash is now sine-free, so bursts fire at the same steps everywhere.
+- **Noise grain on every GPU** — The grain used a sine-based hash with large arguments, which could band on some hardware. It now uses the shared sine-free hash.
 - **`modelInfo.backgroundColor` full precision** — Now returns the color at the full precision of the model source again when no background color override is set.
 
 ## 1.4.0-beta.2

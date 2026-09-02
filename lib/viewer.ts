@@ -1223,9 +1223,16 @@ export class PicoCAD2Viewer {
 	 * matches the defaults shape.
 	 */
 	private getExtrasState(): ExtrasState {
+		// Arrays are copied element by element rather than with structuredClone.
+		// Callers may hand the effects reactive proxies (Svelte, Vue) or typed
+		// arrays, which structuredClone rejects or would not turn into plain
+		// arrays.
+		const copyArray = (value: unknown): unknown =>
+			Array.isArray(value) ? value.map(copyArray) : value;
+
 		const project = (shape: unknown, value: unknown): unknown => {
 			if (Array.isArray(shape)) {
-				return structuredClone(value);
+				return copyArray(value);
 			}
 			if (typeof shape === "object" && shape !== null) {
 				const out: Record<string, unknown> = {};

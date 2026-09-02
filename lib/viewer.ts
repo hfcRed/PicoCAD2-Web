@@ -1310,8 +1310,11 @@ export class PicoCAD2Viewer {
 		}
 
 		if (extras.meshDeform) {
-			const { voxel, barrel, spherify, twist, ...deform } = extras.meshDeform;
+			const { cycle, sweep, voxel, barrel, spherify, twist, ...deform } =
+				extras.meshDeform;
 			assign(this.extras.meshDeform, deform);
+			assign(this.extras.meshDeform.cycle, cycle);
+			assign(this.extras.meshDeform.sweep, sweep);
 			assign(this.extras.meshDeform.voxel, voxel);
 			assign(this.extras.meshDeform.barrel, barrel);
 			assign(this.extras.meshDeform.spherify, spherify);

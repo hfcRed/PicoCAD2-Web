@@ -28,6 +28,7 @@ import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
 import type { InteriorEffect } from "./effects/interior-effect.ts";
 import { writeStyledColor } from "./effects/material-style.ts";
 import {
+	createMeshDeformUniforms,
 	type MeshDeformEffect,
 	writeMeshDeformUniforms,
 } from "./effects/mesh-deform-effect.ts";
@@ -40,7 +41,12 @@ import {
 } from "./effects/projection-effect.ts";
 import type { RimLightEffect } from "./effects/rim-light-effect.ts";
 import type { SpecularEffect } from "./effects/specular-effect.ts";
-import { createSweepUniforms, writeSweepUniforms } from "./effects/sweep.ts";
+import {
+	createSweepUniforms,
+	sweepActive,
+	sweepComplete,
+	writeSweepUniforms,
+} from "./effects/sweep.ts";
 import type { TriangleFlashEffect } from "./effects/triangle-flash-effect.ts";
 import type { TriangleShatterEffect } from "./effects/triangle-shatter-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
@@ -104,6 +110,7 @@ export interface ModelResources {
 	baseBuffers: NodeBuffers[];
 	voxelBuffers: NodeBuffers[] | null;
 	voxelActive: NodeBuffers[] | null;
+	voxelDual: NodeBuffers[] | null;
 	voxelKey: string;
 	bounds: WorldBounds;
 	paletteKey: string;
@@ -125,9 +132,11 @@ export class Renderer {
 	private shatterActive = false;
 	private shatterProgress = 0;
 	private dissolveProgress = 0;
+	private deformProgress = 1;
 	private readonly nodeUniforms = {
 		u_worldMatrix: mat4.create() as mat4,
 		u_nodeBits: 0,
+		u_voxelSide: -1,
 	};
 	/** Per-node effect selection bits for the current frame. */
 	private readonly nodeBits = new Map<SceneNode, number>();
@@ -153,15 +162,7 @@ export class Renderer {
 		u_boundsMinY: 0,
 		u_boundsSpanY: 1,
 
-		u_deformEnabled: false,
-		u_deformBarrel: 0,
-		u_deformBarrelAxis: 1,
-		u_deformSpherify: 0,
-		u_deformTwist: 0,
-		u_deformTwistAxis: 1,
-		u_deformTwistPhase: 0,
-		u_deformCenter: [0, 0, 0] as Color3,
-		u_deformHalfExt: [1, 1, 1] as Color3,
+		...createMeshDeformUniforms(),
 
 		u_shatterEnabled: false,
 		u_shatterProgress: 0,
@@ -304,15 +305,7 @@ export class Renderer {
 		u_dissolveSmooth: false,
 		u_dissolveMask: 0,
 
-		u_deformEnabled: false,
-		u_deformBarrel: 0,
-		u_deformBarrelAxis: 1,
-		u_deformSpherify: 0,
-		u_deformTwist: 0,
-		u_deformTwistAxis: 1,
-		u_deformTwistPhase: 0,
-		u_deformCenter: [0, 0, 0] as Color3,
-		u_deformHalfExt: [1, 1, 1] as Color3,
+		...createMeshDeformUniforms(),
 	};
 	/** Camera-facing rotation basis for the billboard effect, as columns. */
 	private readonly billboardBasis = new Float32Array(9);
@@ -349,12 +342,14 @@ export class Renderer {
 			bgIsTransparent: false,
 			cameraFwd: [0, 0, -1],
 			cameraRight: [1, 0, 0],
+			cameraPos: [0, 0, 0],
 			cameraUp: [0, 1, 0],
 			cameraAzimuth: 0,
 			cameraElevation: 0,
 			palette: new Float32Array(0),
 			paletteBlend: 0,
 			meshDeform: null,
+			deformProgress: 1,
 			shatterActive: false,
 		};
 	}
@@ -376,6 +371,7 @@ export class Renderer {
 			baseBuffers,
 			voxelBuffers: null,
 			voxelActive: null,
+			voxelDual: null,
 			voxelKey: "",
 			bounds: computeWorldBounds(model.root),
 			paletteKey: "",
@@ -462,12 +458,18 @@ export class Renderer {
 			? resolveCycleProgress(shatter.progress, shatter.cycle, time)
 			: 0;
 		this.shatterActive =
-			(shatter?.enabled ?? false) && this.shatterProgress > 0;
+			shatter?.enabled === true &&
+			sweepActive(shatter.sweep, this.shatterProgress);
 
 		const dissolve = settings.dissolve;
 		this.dissolveProgress = dissolve
 			? resolveCycleProgress(dissolve.progress, dissolve.cycle, time)
 			: 0;
+
+		const deform = settings.meshDeform;
+		this.deformProgress = deform
+			? resolveCycleProgress(deform.progress, deform.cycle, time)
+			: 1;
 
 		updateRenderState(model.root);
 		this.applyBillboard(settings, model.root, v);
@@ -523,7 +525,11 @@ export class Renderer {
 		mat4.copy(ctx.projectionMatrix, camera.getProjectionMatrix(aspect));
 		mat4.invert(ctx.invProjectionMatrix, ctx.projectionMatrix);
 		ctx.meshDeform = settings.meshDeform;
+		ctx.deformProgress = this.deformProgress;
 		ctx.shatterActive = this.shatterActive;
+		ctx.cameraPos[0] = mu.u_cameraPos[0];
+		ctx.cameraPos[1] = mu.u_cameraPos[1];
+		ctx.cameraPos[2] = mu.u_cameraPos[2];
 		ctx.cameraFwd[0] = mu.u_cameraFwd[0];
 		ctx.cameraFwd[1] = mu.u_cameraFwd[1];
 		ctx.cameraFwd[2] = mu.u_cameraFwd[2];
@@ -644,6 +650,7 @@ export class Renderer {
 			deleteNodeBuffers(gl, resources.voxelBuffers);
 			resources.voxelBuffers = null;
 			resources.voxelActive = null;
+			resources.voxelDual = null;
 			resources.voxelKey = "";
 		}
 		resources.nodeBuffers = [];
@@ -853,8 +860,12 @@ export class Renderer {
 		const deform = settings.meshDeform;
 		const voxel = deform?.enabled ? deform.voxel : null;
 
-		if (!voxel?.enabled) {
-			resources.nodeBuffers = resources.baseBuffers;
+		if (
+			!deform ||
+			!voxel?.enabled ||
+			!sweepActive(deform.sweep, this.deformProgress)
+		) {
+			this.useDrawList(resources, resources.baseBuffers, false);
 			return;
 		}
 
@@ -892,10 +903,45 @@ export class Renderer {
 
 			resources.voxelBuffers = voxels;
 			resources.voxelActive = active;
+			resources.voxelDual = [...voxels, ...resources.baseBuffers];
 			resources.voxelKey = key;
 		}
 
-		resources.nodeBuffers = resources.voxelActive ?? resources.baseBuffers;
+		// Until the sweep has covered everything, every selected node draws
+		// from both representations, each keeping its side of the front.
+		const partial = !sweepComplete(deform.sweep, this.deformProgress);
+		this.useDrawList(
+			resources,
+			(partial ? resources.voxelDual : resources.voxelActive) ??
+				resources.baseBuffers,
+			partial,
+		);
+	}
+
+	/**
+	 * Makes a buffer list the frame's draw list and marks which side of the
+	 * voxel sweep front each entry owns.
+	 *
+	 * @param resources - The GPU resources for the current model.
+	 * @param list - The buffers to draw this frame.
+	 * @param split - Whether selected nodes are drawn from both representations.
+	 */
+	private useDrawList(
+		resources: ModelResources,
+		list: NodeBuffers[],
+		split: boolean,
+	): void {
+		resources.nodeBuffers = list;
+		for (const nb of list) {
+			if (!split) {
+				nb.voxelSide = -1;
+			} else if (nb.bakedUvs) {
+				nb.voxelSide = 1;
+			} else {
+				const bits = this.nodeBits.get(nb.node) ?? 0;
+				nb.voxelSide = (bits & NODE_BIT.meshDeform) !== 0 ? 0 : -1;
+			}
+		}
 	}
 
 	/**
@@ -1028,7 +1074,7 @@ export class Renderer {
 
 		const dissolve = settings.dissolve;
 		const dissolveOn = dissolve
-			? dissolve.enabled && this.dissolveProgress > 0
+			? dissolve.enabled && sweepActive(dissolve.sweep, this.dissolveProgress)
 			: false;
 		u.u_dissolveEnabled = dissolveOn;
 		if (dissolve && dissolveOn) {
@@ -1123,10 +1169,17 @@ export class Renderer {
 		const u = this.modelUniforms;
 		const palette = model.texture.colors;
 
-		writeMeshDeformUniforms(u, settings.meshDeform, resources.bounds, u.u_time);
+		writeMeshDeformUniforms(
+			u,
+			settings.meshDeform,
+			resources.bounds,
+			u.u_time,
+			this.deformProgress,
+			u.u_cameraPos,
+		);
 
 		const shatter = settings.triangleShatter;
-		u.u_shatterEnabled = shatter?.enabled ?? false;
+		u.u_shatterEnabled = this.shatterActive;
 		if (shatter?.enabled) {
 			u.u_shatterProgress = Math.min(Math.max(this.shatterProgress, 0), 1);
 			u.u_shatterMode =
@@ -1203,6 +1256,7 @@ export class Renderer {
 
 			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
 			this.nodeUniforms.u_nodeBits = this.nodeBits.get(nb.node) ?? 0;
+			this.nodeUniforms.u_voxelSide = nb.voxelSide ?? -1;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -1278,6 +1332,8 @@ export class Renderer {
 			settings.meshDeform,
 			resources.bounds,
 			mu.u_time,
+			this.deformProgress,
+			mu.u_cameraPos,
 		);
 	}
 
@@ -1310,6 +1366,7 @@ export class Renderer {
 
 			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
 			this.nodeUniforms.u_nodeBits = bits;
+			this.nodeUniforms.u_voxelSide = nb.voxelSide ?? -1;
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];

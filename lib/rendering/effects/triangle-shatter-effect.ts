@@ -51,6 +51,7 @@ export const TRIANGLE_SHATTER_DEFAULTS = deepFreeze<
 		point: [0, 0, 0],
 		scale: 8,
 		softness: 0.15,
+		wave: 0,
 		invert: false,
 	},
 	mode: "normal",

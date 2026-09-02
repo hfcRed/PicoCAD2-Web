@@ -47,9 +47,8 @@ float applyDissolveCutout(float colorIdx, vec3 worldPos, vec3 meshPos) {
         return 0.0;
     }
 
-    float v = sweepValue(u_dissolveSweep, worldPos, meshPos);
-    float threshold = sweepThreshold(u_dissolveSweep, progress);
-    return clamp(1.0 - (v - threshold) / u_dissolveEdgeWidth, 0.0, 1.0);
+    float d = sweepDistance(u_dissolveSweep, progress, worldPos, meshPos);
+    return clamp(1.0 - d / u_dissolveEdgeWidth, 0.0, 1.0);
 }
 
 /** Paints the dissolve edge over the final color. */

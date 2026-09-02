@@ -16,6 +16,7 @@ export const SWEEP_DEFAULTS = deepFreeze<DeepRequired<SweepOptions>>({
 	point: [0, 0, 0],
 	scale: 8,
 	softness: 0.15,
+	wave: 0,
 	invert: false,
 });
 
@@ -28,9 +29,65 @@ export interface SweepUniforms {
 	point: Color3;
 	invRange: number;
 	rangeBias: number;
-	flipScale: number;
-	flipOffset: number;
 	softness: number;
+	wave: number;
+	invert: boolean;
+}
+
+/**
+ * Whether the sweep runs as a traveling wave. Only the positional modes
+ * have a band to move, noise and uniform ignore the wave width.
+ *
+ * @param sweep - The sweep settings.
+ * @returns True when a wave crosses the model instead of a front.
+ */
+export function sweepHasWave(sweep: Required<SweepOptions>): boolean {
+	return (
+		sweep.wave > 0 &&
+		(sweep.mode === "directional" ||
+			sweep.mode === "point" ||
+			sweep.mode === "proximity")
+	);
+}
+
+/**
+ * Whether the sweep touches the model at all at a progress. A front
+ * touches nothing at 0, a wave nothing while its band is outside the
+ * model at either end, and inverting swaps the touched and untouched
+ * sides. Effects skip their work when this is false, which keeps the
+ * resting states exact instead of leaving a soft band at the model's edge.
+ *
+ * @param sweep - The sweep settings.
+ * @param progress - The effect's progress this frame, after its cycle.
+ * @returns True when some part of the model is swept.
+ */
+export function sweepActive(
+	sweep: Required<SweepOptions>,
+	progress: number,
+): boolean {
+	if (sweepHasWave(sweep)) {
+		return sweep.invert || (progress > 0 && progress < 1);
+	}
+	return sweep.invert ? progress < 1 : progress > 0;
+}
+
+/**
+ * Whether the sweep has swept the whole model at a progress. A front at 1,
+ * an inverted front at 0, and an inverted wave whenever its band sits
+ * outside the model. A wave that is not inverted never covers everything.
+ *
+ * @param sweep - The sweep settings.
+ * @param progress - The effect's progress this frame, after its cycle.
+ * @returns True when every part of the model is swept.
+ */
+export function sweepComplete(
+	sweep: Required<SweepOptions>,
+	progress: number,
+): boolean {
+	if (sweepHasWave(sweep)) {
+		return sweep.invert && (progress <= 0 || progress >= 1);
+	}
+	return sweep.invert ? progress <= 0 : progress >= 1;
 }
 
 const SWEEP_MODE_INDEX: Record<SweepMode, number> = {
@@ -55,9 +112,9 @@ export function createSweepUniforms(): SweepUniforms {
 		point: [0, 0, 0],
 		invRange: 1,
 		rangeBias: 0,
-		flipScale: 1,
-		flipOffset: 0,
 		softness: 0.15,
+		wave: 0,
+		invert: false,
 	};
 }
 
@@ -68,8 +125,8 @@ export function createSweepUniforms(): SweepUniforms {
  * of 0 to 1 spans the whole model. Directional projects the bounds onto
  * the direction, point measures to the farthest bounds corner, and
  * proximity measures from the camera across the bounds sphere, so it
- * re-anchors whenever the camera moves. `invert` folds into a scale and
- * offset so the shader needs no branch for it.
+ * re-anchors whenever the camera moves. The wave width and softness are
+ * fractions of that span, and `invert` mirrors the cut in the shader.
  *
  * @param u - The uniform struct to write.
  * @param sweep - The sweep settings.
@@ -85,8 +142,8 @@ export function writeSweepUniforms(
 	u.mode = SWEEP_MODE_INDEX[sweep.mode] ?? 0;
 	u.scale = Math.max(sweep.scale, 0.01);
 	u.softness = Math.max(sweep.softness, 0);
-	u.flipScale = sweep.invert ? -1 : 1;
-	u.flipOffset = sweep.invert ? 1 : 0;
+	u.wave = Math.min(Math.max(sweep.wave, 0), 1);
+	u.invert = sweep.invert;
 
 	if (sweep.mode === "directional") {
 		writeDirectional(u, sweep.direction, bounds);

@@ -19,16 +19,16 @@ const int SWEEP_DIRECTIONAL = 2;
 const int SWEEP_DISTANCE = 3;
 
 struct Sweep {
-    int mode;
+    highp int mode; // precisions must match
     float scale;
     vec3 axis;
     float axisOffset;
     vec3 point;
     float invRange;
     float rangeBias;
-    float flipScale;
-    float flipOffset;
     float softness;
+    float wave;
+    bool invert;
 };
 
 /**
@@ -37,35 +37,48 @@ struct Sweep {
  * modes read worldPos. Uniform mode has no coordinate and returns 0.
  */
 float sweepValue(Sweep s, vec3 worldPos, vec3 meshPos) {
-    float v;
     if (s.mode == SWEEP_NOISE) {
-        v = hash13(floor(meshPos * s.scale) + 17.17);
-    } else if (s.mode == SWEEP_DIRECTIONAL) {
-        v = dot(worldPos, s.axis) + s.axisOffset;
-    } else if (s.mode == SWEEP_DISTANCE) {
-        v = length(worldPos - s.point) * s.invRange + s.rangeBias;
-    } else {
-        return 0.0;
+        return hash13(floor(meshPos * s.scale) + 17.17);
     }
-    return v * s.flipScale + s.flipOffset;
+    if (s.mode == SWEEP_DIRECTIONAL) {
+        return dot(worldPos, s.axis) + s.axisOffset;
+    }
+    if (s.mode == SWEEP_DISTANCE) {
+        return length(worldPos - s.point) * s.invRange + s.rangeBias;
+    }
+    return 0.0;
 }
 
 /**
- * The coordinate the front has reached at a progress. Overshoots by the
- * softness band so progress 1 sweeps every position, band included.
+ * The signed distance from the cut at a progress, in sweep units.
+ * Positive on the untouched side, negative once swept, with the softness
+ * ramp spanning 0 to -softness. A front overshoots by the softness band
+ * so progress 1 sweeps every position. A wave is a band as wide as the
+ * wave setting that enters at progress 0 and has left at progress 1, with
+ * the ramps inside it, so the model restores behind it. Inverting mirrors the cut so the
+ * swept and untouched sides swap. Not defined for the uniform mode.
  */
-float sweepThreshold(Sweep s, float progress) {
-    return progress * (1.0 + max(s.softness, 0.0001));
-}
-
-/**
- * The local progress at a position. 0 ahead of the front, 1 behind it,
- * rising across the softness band in between. Uniform mode returns the
- * global progress everywhere.
- */
-float sweepProgress(Sweep s, float progress, vec3 worldPos, vec3 meshPos) {
-    if (s.mode == SWEEP_UNIFORM) return progress;
+float sweepDistance(Sweep s, float progress, vec3 worldPos, vec3 meshPos) {
     float soft = max(s.softness, 0.0001);
     float v = sweepValue(s, worldPos, meshPos);
-    return clamp((sweepThreshold(s, progress) - v) / soft, 0.0, 1.0);
+    float d;
+    if (s.wave > 0.0 && s.mode != SWEEP_NOISE) {
+        float halfWidth = s.wave * 0.5;
+        float center = progress * (1.0 + s.wave) - halfWidth;
+        d = -min(v - (center - halfWidth), (center + halfWidth) - v);
+    } else {
+        d = v - progress * (1.0 + soft);
+    }
+    return s.invert ? -d - soft : d;
+}
+
+/**
+ * The local progress at a position. 0 on the untouched side, 1 once
+ * swept, rising across the softness ramp in between. Uniform mode returns
+ * the global progress everywhere, inverted when the sweep is.
+ */
+float sweepProgress(Sweep s, float progress, vec3 worldPos, vec3 meshPos) {
+    if (s.mode == SWEEP_UNIFORM) return s.invert ? 1.0 - progress : progress;
+    float soft = max(s.softness, 0.0001);
+    return clamp(-sweepDistance(s, progress, worldPos, meshPos) / soft, 0.0, 1.0);
 }

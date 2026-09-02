@@ -54,6 +54,7 @@ export const DISSOLVE_DEFAULTS = deepFreeze<DeepRequired<DissolveOptions>>({
 		point: [0, 0, 0],
 		scale: 8,
 		softness: 0.15,
+		wave: 0,
 		invert: false,
 	},
 	edgeWidth: 0.1,

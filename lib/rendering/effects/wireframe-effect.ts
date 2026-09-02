@@ -10,7 +10,10 @@ import {
 	deepFreeze,
 	resetEffect,
 } from "./effect-defaults.ts";
-import { writeMeshDeformUniforms } from "./mesh-deform-effect.ts";
+import {
+	createMeshDeformUniforms,
+	writeMeshDeformUniforms,
+} from "./mesh-deform-effect.ts";
 import type { EffectContext, SceneEffect } from "./types.ts";
 
 /**
@@ -29,16 +32,8 @@ export class WireframeEffect implements SceneEffect {
 		u_vp: mat4.create() as mat4,
 		u_worldMatrix: mat4.create() as mat4,
 		u_color: [1, 1, 1] as Color3,
-
-		u_deformEnabled: false,
-		u_deformBarrel: 0,
-		u_deformBarrelAxis: 1,
-		u_deformSpherify: 0,
-		u_deformTwist: 0,
-		u_deformTwistAxis: 1,
-		u_deformTwistPhase: 0,
-		u_deformCenter: [0, 0, 0] as Color3,
-		u_deformHalfExt: [1, 1, 1] as Color3,
+		u_voxelSide: -1,
+		...createMeshDeformUniforms(),
 	};
 
 	constructor() {
@@ -87,12 +82,15 @@ export class WireframeEffect implements SceneEffect {
 			ctx.meshDeform,
 			resources.bounds,
 			ctx.time,
+			ctx.deformProgress,
+			ctx.cameraPos,
 		);
 
 		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.renderVisible || nb.node.ghost || !nb.wireframe) continue;
 
 			uniforms.u_worldMatrix = nb.node.worldMatrix;
+			uniforms.u_voxelSide = nb.voxelSide ?? -1;
 
 			twgl.setBuffersAndAttributes(gl, this.program!, nb.wireframe);
 			twgl.setUniforms(this.program!, uniforms);

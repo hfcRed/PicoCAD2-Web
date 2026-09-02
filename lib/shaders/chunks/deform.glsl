@@ -7,10 +7,14 @@
  *
  * Deforms are centered on the model's rest-pose bounds and applied after
  * the node transform, so hierarchy and animation stay correct. Normals
- * are left alone, under flat shading the error is invisible.
+ * are left alone, under flat shading the error is invisible. Each warp
+ * scales by the local progress of the deform's sweep at the vertex, so a
+ * moving front bends the model instead of tearing it. Both triangles of a
+ * shared edge evaluate the same field at the same position.
  */
 
 #include node-bits.glsl;
+#include deform-sweep.glsl;
 
 uniform bool u_deformEnabled;
 uniform float u_deformBarrel;
@@ -43,20 +47,23 @@ float deformHalfExtent(int axis) {
 vec3 applyMeshDeform(vec3 p) {
     if (!u_deformEnabled || !inNodeSet(NODE_DEFORM)) return p;
 
+    float local = deformProgress(p);
+    if (local <= 0.0) return p;
+
     vec3 rel = p - u_deformCenter;
 
     if (u_deformSpherify > 0.0) {
         float len = length(rel);
         if (len > 1e-5) {
             float radius = length(u_deformHalfExt);
-            rel = mix(rel, rel * (radius / len), u_deformSpherify);
+            rel = mix(rel, rel * (radius / len), u_deformSpherify * local);
         }
     }
 
     if (u_deformBarrel != 0.0) {
         vec3 ax = deformAxis(u_deformBarrelAxis);
         float h = clamp(dot(rel, ax) / deformHalfExtent(u_deformBarrelAxis), -1.0, 1.0);
-        float bulge = 1.0 + u_deformBarrel * (1.0 - h * h);
+        float bulge = 1.0 + u_deformBarrel * local * (1.0 - h * h);
         vec3 axial = ax * dot(rel, ax);
         rel = axial + (rel - axial) * bulge;
     }
@@ -64,7 +71,7 @@ vec3 applyMeshDeform(vec3 p) {
     if (u_deformTwist != 0.0 || u_deformTwistPhase != 0.0) {
         vec3 ax = deformAxis(u_deformTwistAxis);
         float h = dot(rel, ax) / deformHalfExtent(u_deformTwistAxis);
-        float angle = h * (u_deformTwist * 3.14159265 + u_deformTwistPhase);
+        float angle = h * (u_deformTwist * 3.14159265 + u_deformTwistPhase) * local;
         rel = rotateAround(rel, ax, angle);
     }
 

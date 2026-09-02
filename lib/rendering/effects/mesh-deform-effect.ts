@@ -1,11 +1,22 @@
 import type { WorldBounds } from "../../scene/scene-graph.ts";
-import type { MeshDeformOptions } from "../../types/options.ts";
+import type {
+	CycleOptions,
+	MeshDeformOptions,
+	SweepOptions,
+} from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import { CYCLE_DEFAULTS } from "./cycle.ts";
 import {
 	type DeepRequired,
 	deepFreeze,
 	resetEffect,
 } from "./effect-defaults.ts";
+import {
+	createSweepUniforms,
+	type SweepUniforms,
+	sweepActive,
+	writeSweepUniforms,
+} from "./sweep.ts";
 
 export type DeformAxis = "x" | "y" | "z";
 
@@ -20,6 +31,15 @@ export type DeformAxis = "x" | "y" | "z";
  * through a shared shader chunk (and shows the voxel cube edges). The
  * vertex warps apply on top of the voxelized mesh, so a voxel model can
  * still bulge and twist.
+ *
+ * {@link progress} runs the whole deform from 0 (untouched) to 1 (full),
+ * by hand or through {@link cycle}, and the {@link sweep} decides where
+ * the front is. The warps scale by the local progress at each vertex, so
+ * a directional sweep bends the model from one end. Voxelization cannot
+ * be weighted per vertex, so while the progress is partial the renderer
+ * draws a selected node from both its base mesh and its voxel stand-in
+ * and each draw keeps its side of the front, cut through the shading
+ * checkerboard.
  *
  * Deliberately unmaskable. Adjacent faces share coincident positions, so
  * deforming a masked face next to an unmasked neighbor would tear their
@@ -37,6 +57,8 @@ export class MeshDeformEffect {
 }
 
 export interface MeshDeformEffect extends Required<MeshDeformOptions> {
+	cycle: Required<CycleOptions>;
+	sweep: Required<SweepOptions>;
 	voxel: { enabled: boolean; gridSize: number };
 	barrel: { amount: number; axis: DeformAxis };
 	spherify: { amount: number };
@@ -48,6 +70,17 @@ export const MESH_DEFORM_DEFAULTS = deepFreeze<DeepRequired<MeshDeformOptions>>(
 	{
 		enabled: false,
 		nodes: [],
+		progress: 1,
+		cycle: { ...CYCLE_DEFAULTS },
+		sweep: {
+			mode: "uniform",
+			direction: [0, 1, 0],
+			point: [0, 0, 0],
+			scale: 8,
+			softness: 0.15,
+			wave: 0,
+			invert: false,
+		},
 		voxel: { enabled: false, gridSize: 0.25 },
 		barrel: { amount: 0, axis: "y" },
 		spherify: { amount: 0 },
@@ -57,6 +90,8 @@ export const MESH_DEFORM_DEFAULTS = deepFreeze<DeepRequired<MeshDeformOptions>>(
 
 export interface MeshDeformUniforms {
 	u_deformEnabled: boolean;
+	u_deformProgress: number;
+	u_deformSweep: SweepUniforms;
 	u_deformBarrel: number;
 	u_deformBarrelAxis: number;
 	u_deformSpherify: number;
@@ -70,21 +105,48 @@ export interface MeshDeformUniforms {
 const AXIS_INDEX: Record<DeformAxis, number> = { x: 0, y: 1, z: 2 };
 
 /**
+ * Creates the deform uniforms in their resting state, for every program
+ * that includes the deform chunk.
+ *
+ * @returns The uniforms, deform disabled.
+ */
+export function createMeshDeformUniforms(): MeshDeformUniforms {
+	return {
+		u_deformEnabled: false,
+		u_deformProgress: 1,
+		u_deformSweep: createSweepUniforms(),
+		u_deformBarrel: 0,
+		u_deformBarrelAxis: 1,
+		u_deformSpherify: 0,
+		u_deformTwist: 0,
+		u_deformTwistAxis: 1,
+		u_deformTwistPhase: 0,
+		u_deformCenter: [0, 0, 0],
+		u_deformHalfExt: [1, 1, 1],
+	};
+}
+
+/**
  * Maps a deform settings object onto shader uniforms. Used by both the
- * renderer (model program) and the wireframe effect so the two programs
- * always agree on the deformation. The voxel remesh has no uniforms, it is
- * applied by the renderer as a geometry swap.
+ * renderer (model and fur programs) and the wireframe effect so every
+ * program agrees on the deformation and on the sweep front. The voxel
+ * remesh has no uniforms, it is applied by the renderer as a geometry
+ * swap.
  *
  * @param u - The uniform object to write into.
  * @param deform - The deform settings, or null/disabled for a no-op.
  * @param bounds - The model's rest-pose world bounds.
  * @param time - Elapsed time in seconds, for the animated twist.
+ * @param progress - The deform's progress this frame, after its cycle.
+ * @param cameraPos - The camera's world position, for a proximity sweep.
  */
 export function writeMeshDeformUniforms(
 	u: MeshDeformUniforms,
 	deform: MeshDeformEffect | null,
 	bounds: WorldBounds,
 	time: number,
+	progress: number,
+	cameraPos: Color3,
 ): void {
 	// The bounds center also anchors the radial shatter, so it stays current
 	// whether or not the deform is enabled. The renderer outlives the model.
@@ -96,9 +158,13 @@ export function writeMeshDeformUniforms(
 		);
 	}
 
-	u.u_deformEnabled = deform?.enabled ?? false;
-	if (!deform?.enabled) return;
+	const active =
+		deform?.enabled === true && sweepActive(deform.sweep, progress);
+	u.u_deformEnabled = active;
+	if (!deform || !active) return;
 
+	u.u_deformProgress = Math.min(Math.max(progress, 0), 1);
+	writeSweepUniforms(u.u_deformSweep, deform.sweep, bounds, cameraPos);
 	u.u_deformBarrel = deform.barrel.amount;
 	u.u_deformBarrelAxis = AXIS_INDEX[deform.barrel.axis] ?? 1;
 	u.u_deformSpherify = Math.min(Math.max(deform.spherify.amount, 0), 1);

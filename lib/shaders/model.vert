@@ -61,9 +61,9 @@ bool inFaceMask(int mask, float colorIdx) {
  * along a per-triangle direction.
  */
 vec3 applyShatter(vec3 p, vec3 centroidW, vec3 worldNormal) {
-    float progress = clamp(u_shatterProgress, 0.0, 1.0);
-    if (!u_shatterEnabled || progress <= 0.0) return p;
+    if (!u_shatterEnabled) return p;
     if (!inNodeSet(NODE_SHATTER) || !inFaceMask(u_shatterMask, a_colorIndex)) return p;
+    float progress = clamp(u_shatterProgress, 0.0, 1.0);
 
     progress = sweepProgress(u_shatterSweep, progress, centroidW, a_triCentroid);
     if (progress <= 0.0) return p;

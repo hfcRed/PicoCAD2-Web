@@ -17,6 +17,7 @@ export interface EffectContext {
 	backgroundColor: Color3;
 	isOrthographic: boolean;
 	bgIsTransparent: boolean;
+	cameraPos: Color3;
 	cameraFwd: Color3;
 	cameraRight: Color3;
 	cameraUp: Color3;
@@ -25,6 +26,7 @@ export interface EffectContext {
 	palette: Float32Array;
 	paletteBlend: number;
 	meshDeform: MeshDeformEffect | null;
+	deformProgress: number;
 	shatterActive: boolean;
 }
 

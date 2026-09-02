@@ -25,11 +25,14 @@ uniform float u_furRootShade;
 #include chunks/hash.glsl;
 #include chunks/dissolve.glsl;
 #include chunks/palette-blend.glsl;
+#include chunks/voxel-cut.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
 
 void main() {
+    applyVoxelCut(v_worldPos);
+
     int flags = int(v_faceFlags + 0.5);
     bool noShade = (flags & 1) != 0;
     bool noTex = (flags & 2) != 0;

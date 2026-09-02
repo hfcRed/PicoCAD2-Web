@@ -496,7 +496,7 @@ const material: Scenario[] = [
 		extras: {
 			dissolve: {
 				enabled: true,
-				progress: 0.5,
+				progress: 0.3, // not 0.5, where a coordinate flip and a progress inversion coincide
 				sweep: { mode: "directional", direction: [1, 0.2, 0], invert: true },
 				style: "dithered",
 			},
@@ -538,6 +538,32 @@ const material: Scenario[] = [
 	},
 	// A uniform sweep has no front. The whole surface fades through the
 	// checkerboard, so progress 0.5 keeps exactly one checker phase.
+	// A wave is a band that crosses the model, so the dissolved region has
+	// an ember edge on both sides and the model is whole behind it.
+	{
+		name: "material/dissolve-wave-directional",
+		model: "rig",
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [1, 0, 0], wave: 0.3 },
+			},
+		},
+	},
+	// An inverted dissolve at progress 0 has dissolved everything it masks.
+	{
+		name: "material/dissolve-invert-rest-masked",
+		model: "rig",
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0,
+				sweep: { mode: "directional", invert: true },
+				maskedColors: [7],
+			},
+		},
+	},
 	{
 		name: "material/dissolve-uniform",
 		model: "rig",
@@ -748,6 +774,109 @@ const geometry: Scenario[] = [
 		extras: { meshDeform: { enabled: true, twist: { amount: 1, axis: "z" } } },
 		animationTime: 1,
 	},
+	// Mesh deform sweeps. The warps scale by the front's local progress at
+	// each vertex, and voxelization draws a selected node from both its base
+	// mesh and its stand-in, each cut at the front.
+	{
+		name: "geometry/deform-twist-sweep-directional",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [0, 1, 0], softness: 0.3 },
+				twist: { amount: 1, axis: "y" },
+			},
+		},
+	},
+	{
+		name: "geometry/deform-barrel-sweep-point-cycle",
+		model: "pig",
+		time: 0.55, // progress 0.4 with duration 2 and hold 0.25
+		extras: {
+			meshDeform: {
+				enabled: true,
+				cycle: { enabled: true, duration: 2, hold: 0.25 },
+				sweep: { mode: "point", point: [0, 0, 0], softness: 0.5 },
+				barrel: { amount: 0.8, axis: "y" },
+			},
+		},
+	},
+	// An inverted voxel sweep at progress 0 is fully voxelized, so this must
+	// equal geometry/voxel byte for byte.
+	{
+		name: "geometry/voxel-sweep-invert-rest",
+		model: "pig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0,
+				sweep: { mode: "directional", direction: [0, 1, 0], invert: true },
+				voxel: { enabled: true },
+			},
+		},
+	},
+	{
+		name: "geometry/deform-twist-sweep-wave",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [0, 1, 0], wave: 0.4 },
+				twist: { amount: 1, axis: "y" },
+			},
+		},
+	},
+	{
+		name: "geometry/voxel-sweep-wave-point",
+		model: "pig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "point", point: [0, 0, 0], wave: 0.5 },
+				voxel: { enabled: true },
+			},
+		},
+	},
+	{
+		name: "geometry/voxel-sweep-directional",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [1, 0, 0] },
+				voxel: { enabled: true, gridSize: 0.4 },
+			},
+		},
+	},
+	{
+		name: "geometry/voxel-sweep-uniform-half",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				voxel: { enabled: true, gridSize: 0.4 },
+			},
+		},
+	},
+	{
+		name: "geometry/voxel-sweep-noise-fur-wireframe",
+		model: "pig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "noise", scale: 2, softness: 0.3 },
+				voxel: { enabled: true },
+			},
+			fur: { enabled: true },
+			wireframe: { enabled: true, color: [0, 1, 0] },
+		},
+	},
 	// Triangle flash
 	{
 		name: "geometry/triangle-flash-replace",
@@ -814,9 +943,71 @@ const geometry: Scenario[] = [
 		extras: {
 			triangleShatter: {
 				enabled: true,
-				progress: 0.5,
+				progress: 0.3,
 				mode: "radial",
 				sweep: { mode: "point", point: [0, 0, 0], invert: true },
+			},
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-sweep-wave-cycle",
+		model: "rig",
+		time: 0.55, // progress 0.4 with duration 2 and hold 0.25
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				cycle: { enabled: true, duration: 2, hold: 0.25 },
+				sweep: { mode: "directional", direction: [1, 0, 0], wave: 0.3 },
+			},
+		},
+	},
+	// Inverting a sweep inverts the progress, so an inverted directional
+	// sweep at low progress is a mostly shattered model assembling from
+	// the start side, and an inverted uniform sweep at 0.5 equals the
+	// plain shatter at 0.5 (proved byte-identical to triangle-shatter-normal).
+	{
+		name: "geometry/triangle-shatter-sweep-directional-invert",
+		model: "rig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.3,
+				sweep: { mode: "directional", direction: [1, 0, 0], invert: true },
+			},
+		},
+	},
+	// The resting states of an inverted sweep: fully shattered at progress
+	// 0, which must equal the plain front at progress 1 byte for byte.
+	{
+		name: "geometry/triangle-shatter-sweep-directional-full",
+		model: "rig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 1,
+				sweep: { mode: "directional", direction: [1, 0, 0] },
+			},
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-sweep-invert-rest",
+		model: "rig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0,
+				sweep: { mode: "directional", direction: [1, 0, 0], invert: true },
+			},
+		},
+	},
+	{
+		name: "geometry/triangle-shatter-sweep-uniform-invert",
+		model: "pig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "uniform", invert: true },
 			},
 		},
 	},
@@ -1773,6 +1964,19 @@ const nodes: Scenario[] = [
 		name: "nodes/dissolve-cab",
 		model: "rig",
 		extras: { dissolve: { enabled: true, progress: 0.6, nodes: ["cab"] } },
+	},
+	{
+		name: "nodes/voxel-sweep-cab",
+		model: "rig",
+		extras: {
+			meshDeform: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [0, 1, 0] },
+				voxel: { enabled: true, gridSize: 0.3 },
+				nodes: ["cab"],
+			},
+		},
 	},
 	{
 		name: "nodes/projection-cab",

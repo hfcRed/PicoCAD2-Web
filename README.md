@@ -377,15 +377,16 @@ All material effects support masking, per texel. These post-processing effects s
 
 ### Sweeps
 
-Effects that run a `progress` across the model take a `sweep` group deciding where the front is. `mode` picks the order. `"uniform"` applies to the whole model at once, `"noise"` applies to random mesh-space cells, `"directional"` sweeps a plane along `direction`, `"point"` grows a sphere from a world `point`, and `"proximity"` runs front to back from the camera. Every mode is normalized to the model's bounds, so `progress` 0 to 1 always spans the whole model. `softness` is the width of the front as a fraction of that span, and `invert` reverses the order. A uniform sweep has no front, so the other settings do nothing there.
+Effects that run a `progress` across the model take a `sweep` group deciding where the front is. `mode` picks the order. `"uniform"` applies to the whole model at once, `"noise"` applies to random mesh-space cells, `"directional"` sweeps a plane along `direction`, `"point"` grows a sphere from a world `point`, and `"proximity"` runs front to back from the camera. Every mode is normalized to the model's bounds, so `progress` 0 to 1 always spans the whole model. `softness` is the width of the front as a fraction of that span. `wave` turns the front into a band of that width that enters at progress 0 and has left at 1, so the effect travels through the model and restores it behind the wave. The softness ramps sit inside the band, so a softness wider than half the wave lowers its peak. Waves apply to the directional, point and proximity sweeps. `invert` inverts the progress. At 0 the whole model is swept and it restores as the progress rises, so an inverted shatter assembles the model. A uniform sweep has no front, so `softness` and `wave` do nothing there.
 
 ```typescript
-viewer.extras.dissolve.sweep.mode = "directional"; // Sweep order (default: "uniform"; the dissolve uses "noise", the triangle shatter "uniform")
+viewer.extras.dissolve.sweep.mode = "directional"; // Sweep order (default: "uniform"; the dissolve uses "noise", the triangle shatter and mesh deform "uniform")
 viewer.extras.dissolve.sweep.direction = [0, 1, 0]; // Sweep direction for "directional" (default: [0, 1, 0])
 viewer.extras.dissolve.sweep.point = [0, 0, 0];     // World center for "point" (default: [0, 0, 0])
 viewer.extras.dissolve.sweep.scale = 8;             // Noise cells per mesh unit (default: 8)
 viewer.extras.dissolve.sweep.softness = 0.15;       // Width of the front, 0-1 of the sweep range (default: 0.15)
-viewer.extras.dissolve.sweep.invert = false;        // Reverse the order (default: false)
+viewer.extras.dissolve.sweep.wave = 0;              // Traveling band width, 0-1 of the sweep range, 0 = a front that stays (default: 0)
+viewer.extras.dissolve.sweep.invert = false;        // Invert the progress: swept at 0, restored at 1 (default: false)
 ```
 
 ## Palette Swap & Color Cycling
@@ -587,8 +588,15 @@ Geometry effects reshape or grow the model's own geometry. Masks select by face 
 
 Stackable closed-form deforms, applied in world space after the node transform so hierarchy and animation stay correct. Applied in a fixed order ending with rounding, so voxelation quantizes the other deforms.
 
+`progress` runs the whole deform from 0 (untouched) to 1 (full), by hand or through `cycle`, and the `sweep` group (see [Sweeps](#sweeps)) decides where the front is. The warps scale by the local progress at each vertex, so a directional sweep with the cycle running turns a twist into a wave that travels up the model and unwinds. Voxelization cannot be weighted per vertex, so while the progress is partial every selected node is drawn from both its base mesh and its voxel stand-in.
+
 ```typescript
 viewer.extras.meshDeform.enabled = true;
+viewer.extras.meshDeform.progress = 1;             // 0 = untouched, 1 = fully deformed (default: 1)
+viewer.extras.meshDeform.cycle.enabled = false;    // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.meshDeform.cycle.duration = 4;       // Seconds per full cycle, holds included (default: 4)
+viewer.extras.meshDeform.cycle.hold = 0.5;         // Seconds to rest at each end (default: 0.5)
+viewer.extras.meshDeform.sweep.mode = "uniform";   // Where the front is, see Sweeps (default: "uniform")
 viewer.extras.meshDeform.voxel.enabled = true;     // Remesh into grid-aligned cubes (default: false)
 viewer.extras.meshDeform.voxel.gridSize = 0.25;    // Voxel edge length in world units (default: 0.25)
 viewer.extras.meshDeform.barrel.amount = 0.5;      // Bulge (or pinch when negative) along the axis, -1-1 (default: 0)

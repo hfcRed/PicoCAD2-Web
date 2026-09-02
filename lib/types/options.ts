@@ -297,6 +297,7 @@ export interface SweepOptions {
 	point?: [number, number, number];
 	scale?: number;
 	softness?: number;
+	wave?: number;
 	invert?: boolean;
 }
 
@@ -450,6 +451,9 @@ export interface BillboardOptions {
 export interface MeshDeformOptions {
 	nodes?: string[];
 	enabled?: boolean;
+	progress?: number;
+	cycle?: CycleOptions;
+	sweep?: SweepOptions;
 	voxel?: { enabled?: boolean; gridSize?: number };
 	barrel?: { amount?: number; axis?: DeformAxis };
 	spherify?: { amount?: number };

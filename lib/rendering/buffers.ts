@@ -17,6 +17,12 @@ export interface NodeBuffers {
 	 * "tex" clips must not re-upload the node's face UVs into them.
 	 */
 	bakedUvs?: boolean;
+	/**
+	 * Which side of the voxel sweep's front this draw owns while a node is
+	 * drawn from both its base mesh (0) and its voxel stand-in (1).
+	 * Undefined or -1 draws the whole surface.
+	 */
+	voxelSide?: number;
 }
 
 /**

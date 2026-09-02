@@ -1,7 +1,5 @@
 /**
- * Shared color utilities. Included by patterns.glsl, so shaders that pull
- * in the pattern library must not include this chunk directly
- * (vite-plugin-glsl does not dedupe includes).
+ * Shared color utilities.
  */
 
 /** Rotates a color's hue by an angle in radians (around the gray axis). */

@@ -1,28 +1,16 @@
 /**
- * Texel-level dissolve shared by the model and fur shaders. Computes a
- * 0-1 dissolve coordinate per fragment (low values dissolve first),
- * discards below the progress threshold through the shading
- * checkerboard, and exposes the ember-edge band intensity for the
- * surviving fragments near the cut.
- *
- * Self-contained except for hash13(): the including shader must have
- * included chunks/hash.glsl (directly or via patterns.glsl) beforehand.
+ * Texel-level dissolve shared by the model and fur shaders. Runs the
+ * dissolve's sweep at each fragment, discards behind the front through
+ * the shading checkerboard, and exposes the ember-edge band intensity for
+ * the surviving fragments near the cut.
  */
 
 #include node-bits.glsl;
+#include sweep.glsl;
 
 uniform bool u_dissolveEnabled;
 uniform float u_dissolveProgress; // 0 = intact, 1 = fully dissolved
-uniform int u_dissolveMode; // 0 = noise, 1 = directional, 2 = distance
-uniform float u_dissolveScale;
-uniform vec3 u_dissolveAxis;
-uniform float u_dissolveAxisOffset;
-uniform vec3 u_dissolvePoint; // world center, camera proximity
-uniform float u_dissolveInvRange;
-uniform float u_dissolveRangeBias;
-uniform float u_dissolveFlipScale;
-uniform float u_dissolveFlipOffset;
-uniform float u_dissolveSoftness;
+uniform Sweep u_dissolveSweep;
 uniform float u_dissolveEdgeWidth;
 uniform vec3 u_dissolveEdgeColor;
 uniform bool u_dissolveSmooth;
@@ -41,41 +29,26 @@ bool dissolveDither(float t) {
     return t > (checker < 0.5 ? 0.25 : 0.75);
 }
 
-/** The fragment's 0-1 dissolve coordinate. */
-float dissolveValue(vec3 worldPos, vec3 meshPos) {
-    float v;
-    if (u_dissolveMode == 0) {
-        // Mesh-space cells stay glued under node animation and deform
-        v = hash13(floor(meshPos * u_dissolveScale) + 17.17);
-    } else if (u_dissolveMode == 1) {
-        v = dot(worldPos, u_dissolveAxis) + u_dissolveAxisOffset;
-    } else {
-        v = length(worldPos - u_dissolvePoint) * u_dissolveInvRange
-            + u_dissolveRangeBias;
-    }
-    return v * u_dissolveFlipScale + u_dissolveFlipOffset;
-}
-
 /**
  * Discards dissolved fragments and returns the edge-band intensity for
  * the survivors (0 outside the band). Call before shading, so the
- * discard also keeps depth and the index G-buffer clean. 
- * The threshold overshoots by the softness band so
- * progress 1 removes every fragment, dither band included.
+ * discard also keeps depth and the index G-buffer clean. A uniform sweep
+ * fades the whole surface through the checkerboard and has no edge.
  */
 float applyDissolveCutout(float colorIdx, vec3 worldPos, vec3 meshPos) {
     if (!u_dissolveEnabled || !inNodeSet(NODE_DISSOLVE) || !inDissolveMask(colorIdx)) {
         return 0.0;
     }
 
-    float v = dissolveValue(worldPos, meshPos);
-    float s = max(u_dissolveSoftness, 0.0001);
-    float threshold = clamp(u_dissolveProgress, 0.0, 1.0) * (1.0 + s);
-    float t = (v - threshold + s) / s;
+    float progress = clamp(u_dissolveProgress, 0.0, 1.0);
+    float local = sweepProgress(u_dissolveSweep, progress, worldPos, meshPos);
+    if (!dissolveDither(1.0 - local)) discard;
+    if (u_dissolveEdgeWidth <= 0.0 || u_dissolveSweep.mode == SWEEP_UNIFORM) {
+        return 0.0;
+    }
 
-    if (!dissolveDither(t)) discard;
-    if (u_dissolveEdgeWidth <= 0.0) return 0.0;
-
+    float v = sweepValue(u_dissolveSweep, worldPos, meshPos);
+    float threshold = sweepThreshold(u_dissolveSweep, progress);
     return clamp(1.0 - (v - threshold) / u_dissolveEdgeWidth, 0.0, 1.0);
 }
 

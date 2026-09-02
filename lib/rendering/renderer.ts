@@ -38,6 +38,7 @@ import type { PaletteSwapEffect } from "./effects/palette-swap-effect.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import type { RimLightEffect } from "./effects/rim-light-effect.ts";
 import type { SpecularEffect } from "./effects/specular-effect.ts";
+import { createSweepUniforms, writeSweepUniforms } from "./effects/sweep.ts";
 import type { TriangleFlashEffect } from "./effects/triangle-flash-effect.ts";
 import type { TriangleShatterEffect } from "./effects/triangle-shatter-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
@@ -238,16 +239,7 @@ export class Renderer {
 
 		u_dissolveEnabled: false,
 		u_dissolveProgress: 0,
-		u_dissolveMode: 0,
-		u_dissolveScale: 8,
-		u_dissolveAxis: [0, 1, 0] as Color3,
-		u_dissolveAxisOffset: 0,
-		u_dissolvePoint: [0, 0, 0] as Color3,
-		u_dissolveInvRange: 1,
-		u_dissolveRangeBias: 0,
-		u_dissolveFlipScale: 1,
-		u_dissolveFlipOffset: 0,
-		u_dissolveSoftness: 0.15,
+		u_dissolveSweep: createSweepUniforms(),
 		u_dissolveEdgeWidth: 0,
 		u_dissolveEdgeColor: [1, 1, 1] as Color3,
 		u_dissolveSmooth: false,
@@ -286,16 +278,7 @@ export class Renderer {
 
 		u_dissolveEnabled: false,
 		u_dissolveProgress: 0,
-		u_dissolveMode: 0,
-		u_dissolveScale: 8,
-		u_dissolveAxis: [0, 1, 0] as Color3,
-		u_dissolveAxisOffset: 0,
-		u_dissolvePoint: [0, 0, 0] as Color3,
-		u_dissolveInvRange: 1,
-		u_dissolveRangeBias: 0,
-		u_dissolveFlipScale: 1,
-		u_dissolveFlipOffset: 0,
-		u_dissolveSoftness: 0.15,
+		u_dissolveSweep: createSweepUniforms(),
 		u_dissolveEdgeWidth: 0,
 		u_dissolveEdgeColor: [1, 1, 1] as Color3,
 		u_dissolveSmooth: false,
@@ -1028,17 +1011,7 @@ export class Renderer {
 			: false;
 		u.u_dissolveEnabled = dissolveOn;
 		if (dissolve && dissolveOn) {
-			const b = resources.bounds;
-			const cx = (b.min[0] + b.max[0]) / 2;
-			const cy = (b.min[1] + b.max[1]) / 2;
-			const cz = (b.min[2] + b.max[2]) / 2;
-			const hx = Math.max((b.max[0] - b.min[0]) / 2, 0);
-			const hy = Math.max((b.max[1] - b.min[1]) / 2, 0);
-			const hz = Math.max((b.max[2] - b.min[2]) / 2, 0);
-
 			u.u_dissolveProgress = Math.min(Math.max(this.dissolveProgress, 0), 1);
-			u.u_dissolveScale = Math.max(dissolve.scale, 0.01);
-			u.u_dissolveSoftness = Math.max(dissolve.softness, 0);
 			u.u_dissolveEdgeWidth = Math.max(dissolve.edgeWidth, 0);
 			writeStyledColor(
 				u.u_dissolveEdgeColor,
@@ -1048,70 +1021,12 @@ export class Renderer {
 			);
 			u.u_dissolveSmooth = dissolve.style === "smooth";
 			u.u_dissolveMask = packColorMask(dissolve.maskedColors);
-			u.u_dissolveFlipScale = dissolve.invert ? -1 : 1;
-			u.u_dissolveFlipOffset = dissolve.invert ? 1 : 0;
-
-			if (dissolve.mode === "noise") {
-				u.u_dissolveMode = 0;
-			} else if (dissolve.mode === "directional") {
-				// Remap the world-space sweep to 0-1 across the bounds'
-				// projection onto the direction.
-				u.u_dissolveMode = 1;
-				let [dx, dy, dz] = dissolve.direction;
-				const len = Math.hypot(dx, dy, dz);
-				if (len < 1e-6) {
-					dx = 0;
-					dy = 1;
-					dz = 0;
-				} else {
-					dx /= len;
-					dy /= len;
-					dz /= len;
-				}
-				const centerDot = dx * cx + dy * cy + dz * cz;
-				const halfSpan =
-					Math.abs(dx) * hx + Math.abs(dy) * hy + Math.abs(dz) * hz;
-				const span = Math.max(halfSpan * 2, 1e-6);
-				u.u_dissolveAxis[0] = dx / span;
-				u.u_dissolveAxis[1] = dy / span;
-				u.u_dissolveAxis[2] = dz / span;
-				u.u_dissolveAxisOffset = -(centerDot - halfSpan) / span;
-			} else {
-				// Point and proximity share the distance form. The sweep is
-				// the normalized distance to a world point (the camera for
-				// proximity, refreshed every frame).
-				u.u_dissolveMode = 2;
-				let px: number;
-				let py: number;
-				let pz: number;
-				let minDist = 0;
-				let maxDist: number;
-				if (dissolve.mode === "point") {
-					[px, py, pz] = dissolve.point;
-					let maxSq = 0;
-					for (let corner = 0; corner < 8; corner++) {
-						const ex = (corner & 1 ? b.max : b.min)[0] - px;
-						const ey = (corner & 2 ? b.max : b.min)[1] - py;
-						const ez = (corner & 4 ? b.max : b.min)[2] - pz;
-						maxSq = Math.max(maxSq, ex * ex + ey * ey + ez * ez);
-					}
-					maxDist = Math.sqrt(maxSq);
-				} else {
-					px = u.u_cameraPos[0];
-					py = u.u_cameraPos[1];
-					pz = u.u_cameraPos[2];
-					const r = Math.hypot(hx, hy, hz);
-					const c = Math.hypot(px - cx, py - cy, pz - cz);
-					minDist = Math.max(c - r, 0);
-					maxDist = c + r;
-				}
-				const range = Math.max(maxDist - minDist, 1e-6);
-				u.u_dissolvePoint[0] = px;
-				u.u_dissolvePoint[1] = py;
-				u.u_dissolvePoint[2] = pz;
-				u.u_dissolveInvRange = 1 / range;
-				u.u_dissolveRangeBias = -minDist / range;
-			}
+			writeSweepUniforms(
+				u.u_dissolveSweep,
+				dissolve.sweep,
+				resources.bounds,
+				u.u_cameraPos,
+			);
 		}
 
 		const emission = settings.emission;
@@ -1294,19 +1209,11 @@ export class Renderer {
 		u.u_furMask = packColorMask(fur.maskedColors);
 
 		// Fur follows the model's dissolve, so the shells reuse the already
-		// resolved model uniforms verbatim (the vec3s share references).
+		// resolved model uniforms verbatim (the sweep struct and the vec3s
+		// share references).
 		u.u_dissolveEnabled = mu.u_dissolveEnabled;
 		u.u_dissolveProgress = mu.u_dissolveProgress;
-		u.u_dissolveMode = mu.u_dissolveMode;
-		u.u_dissolveScale = mu.u_dissolveScale;
-		u.u_dissolveAxis = mu.u_dissolveAxis;
-		u.u_dissolveAxisOffset = mu.u_dissolveAxisOffset;
-		u.u_dissolvePoint = mu.u_dissolvePoint;
-		u.u_dissolveInvRange = mu.u_dissolveInvRange;
-		u.u_dissolveRangeBias = mu.u_dissolveRangeBias;
-		u.u_dissolveFlipScale = mu.u_dissolveFlipScale;
-		u.u_dissolveFlipOffset = mu.u_dissolveFlipOffset;
-		u.u_dissolveSoftness = mu.u_dissolveSoftness;
+		u.u_dissolveSweep = mu.u_dissolveSweep;
 		u.u_dissolveEdgeWidth = mu.u_dissolveEdgeWidth;
 		u.u_dissolveEdgeColor = mu.u_dissolveEdgeColor;
 		u.u_dissolveSmooth = mu.u_dissolveSmooth;

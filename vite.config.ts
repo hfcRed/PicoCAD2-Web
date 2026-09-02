@@ -5,7 +5,10 @@ import glsl from "vite-plugin-glsl";
 export default defineConfig(({ command, mode }) => ({
 	plugins: [
 		dts({ tsconfigPath: "tsconfig.lib.json" }),
-		glsl({ minify: command === "build" || mode === "test" }),
+		glsl({
+			minify: command === "build" || mode === "test",
+			removeDuplicatedImports: true,
+		}),
 	],
 	build: {
 		copyPublicDir: false,

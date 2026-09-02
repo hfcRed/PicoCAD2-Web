@@ -375,6 +375,19 @@ viewer.extras.glitch.maskedColors = [12];
 
 All material effects support masking, per texel. These post-processing effects support it: bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, pixelation, chromatic aberration, depth fog, edge detection, and sharpen. Video effects are unmasked by design (they simulate the entire display), but they carry the palette index through their warps so masked effects later in the chain stay correct.
 
+### Sweeps
+
+Effects that run a `progress` across the model take a `sweep` group deciding where the front is. `mode` picks the order. `"uniform"` applies to the whole model at once, `"noise"` applies to random mesh-space cells, `"directional"` sweeps a plane along `direction`, `"point"` grows a sphere from a world `point`, and `"proximity"` runs front to back from the camera. Every mode is normalized to the model's bounds, so `progress` 0 to 1 always spans the whole model. `softness` is the width of the front as a fraction of that span, and `invert` reverses the order. A uniform sweep has no front, so the other settings do nothing there.
+
+```typescript
+viewer.extras.dissolve.sweep.mode = "directional"; // Sweep order (default: "uniform", the dissolve uses "noise")
+viewer.extras.dissolve.sweep.direction = [0, 1, 0]; // Sweep direction for "directional" (default: [0, 1, 0])
+viewer.extras.dissolve.sweep.point = [0, 0, 0];     // World center for "point" (default: [0, 0, 0])
+viewer.extras.dissolve.sweep.scale = 8;             // Noise cells per mesh unit (default: 8)
+viewer.extras.dissolve.sweep.softness = 0.15;       // Width of the front, 0-1 of the sweep range (default: 0.15)
+viewer.extras.dissolve.sweep.invert = false;        // Reverse the order (default: false)
+```
+
 ## Palette Swap & Color Cycling
 
 `extras.paletteSwap` recolors the model PICO-8 `pal()` style, by rewriting the palette lookup table. A swapped index renders with the target's color *and* the target's shade ramp, so recolored materials shade correctly. Everything that reads the palette follows the swap. The model (including shading), particles, and palette-style effects like SSAO. Effect masks keep matching the original palette indices, which the swap does not change.
@@ -421,21 +434,15 @@ viewer.extras.dissolve.progress = 0.5;             // 0 = intact, 1 = fully diss
 viewer.extras.dissolve.cycle.enabled = false;      // Run progress 0 → 1 → 0 automatically (default: false)
 viewer.extras.dissolve.cycle.duration = 4;         // Seconds per full cycle, holds included (default: 4)
 viewer.extras.dissolve.cycle.hold = 0.5;           // Seconds to rest at each end (default: 0.5)
-viewer.extras.dissolve.mode = "noise";             // Dissolve order (default: "noise")
-// Available modes: "noise" (random cells) | "directional" (world-space sweep) |
-// "point" (sphere growing from a world point) | "proximity" (front-to-back from the camera)
-viewer.extras.dissolve.scale = 8;                  // Noise cells per mesh unit (default: 8)
-viewer.extras.dissolve.direction = [0, 1, 0];      // Sweep direction for "directional" (default: [0, 1, 0])
-viewer.extras.dissolve.point = [0, 0, 0];          // World center for "point" (default: [0, 0, 0])
-viewer.extras.dissolve.invert = false;             // Reverse the sweep (default: false)
-viewer.extras.dissolve.softness = 0.15;            // Dithered boundary band width, 0-1 (default: 0.15)
+viewer.extras.dissolve.sweep.mode = "noise";       // Dissolve order, see Sweeps (default: "noise")
+viewer.extras.dissolve.sweep.softness = 0.15;      // Dithered boundary band width, 0-1 (default: 0.15)
 viewer.extras.dissolve.edgeWidth = 0.1;            // Ember edge band width, 0 = no edge (default: 0.1)
 viewer.extras.dissolve.edgeColor = [1, 0.65, 0.2]; // Edge color (default: [1, 0.65, 0.2])
 viewer.extras.dissolve.maskedColors = [7];         // Only these colors dissolve (default: [] = all)
-viewer.extras.dissolve.nodes = ["arm"];          // Only within these nodes (default: [] = all nodes)
+viewer.extras.dissolve.nodes = ["arm"];            // Only within these nodes (default: [] = all nodes)
 ```
 
-The directional, point and proximity sweeps are normalized to the model's bounds, so `progress` always spans the whole model. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
+The `sweep` group decides which texels go first (see [Sweeps](#sweeps)). The dissolve defaults to `"noise"`. A `"uniform"` sweep has no front, so the whole surface fades through the checkerboard instead and shows no edge. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
 
 ### Interior
 

@@ -6,10 +6,7 @@ export { BloomEffect } from "./bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./chromatic-aberration-effect.ts";
 export { ColorGradingEffect } from "./color-grading-effect.ts";
 export { CRTEffect } from "./crt-effect.ts";
-export {
-	DissolveEffect,
-	type DissolveMode,
-} from "./dissolve-effect.ts";
+export { DissolveEffect } from "./dissolve-effect.ts";
 export { DitheringEffect } from "./dithering-effect.ts";
 export {
 	type EmissionBlinkMode,
@@ -30,6 +27,7 @@ export type { PixelShape } from "./pixelation-effect.ts";
 export { PixelationEffect } from "./pixelation-effect.ts";
 export { PosterizationEffect } from "./posterization-effect.ts";
 export { SSAOEffect, type SSAOSamples } from "./ssao-effect.ts";
+export type { SweepMode } from "./sweep.ts";
 export type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
 export {
 	type GameboyPalette,

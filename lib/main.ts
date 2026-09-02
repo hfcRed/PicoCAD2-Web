@@ -36,7 +36,6 @@ export {
 export {
 	DISSOLVE_DEFAULTS,
 	DissolveEffect,
-	type DissolveMode,
 } from "./rendering/effects/dissolve-effect.ts";
 export {
 	DITHERING_DEFAULTS,
@@ -148,6 +147,10 @@ export {
 	type SSAOSamples,
 } from "./rendering/effects/ssao-effect.ts";
 export {
+	SWEEP_DEFAULTS,
+	type SweepMode,
+} from "./rendering/effects/sweep.ts";
+export {
 	TRIANGLE_FLASH_DEFAULTS,
 	TriangleFlashEffect,
 	type TriangleFlashMode,
@@ -192,6 +195,7 @@ export type {
 	ColorGradingOptions,
 	ColorTintOptions,
 	CRTOptions,
+	CycleOptions,
 	DepthFogOptions,
 	DissolveOptions,
 	DitheringOptions,
@@ -221,6 +225,7 @@ export type {
 	SharpenOptions,
 	SpecularEnvironmentOptions,
 	SpecularOptions,
+	SweepOptions,
 	TriangleFlashOptions,
 	TriangleShatterOptions,
 	VideoEffectsOptions,

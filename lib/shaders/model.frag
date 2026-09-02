@@ -18,6 +18,7 @@ uniform bool u_shadingEnabled;
 uniform int u_renderMode; // 0 = texture, 1 = color
 uniform int u_cutoutMask;
 
+#include chunks/node-bits.glsl;
 #include chunks/material-effects.glsl;
 #include chunks/palette-blend.glsl;
 

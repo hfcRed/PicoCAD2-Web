@@ -2,7 +2,6 @@ import type { PicoCAD2Context } from "../context.ts";
 import type { BillboardMode } from "../rendering/effects/billboard-effect.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
-import type { DissolveMode } from "../rendering/effects/dissolve-effect.ts";
 import type { EmissionBlinkMode } from "../rendering/effects/emission-effect.ts";
 import type {
 	GlitterShape,
@@ -21,6 +20,7 @@ import type {
 import type { PixelShape } from "../rendering/effects/pixelation-effect.ts";
 import type { BackgroundPattern } from "../rendering/effects/procedural-background-effect.ts";
 import type { SSAOSamples } from "../rendering/effects/ssao-effect.ts";
+import type { SweepMode } from "../rendering/effects/sweep.ts";
 import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
 import type { TriangleShatterMode } from "../rendering/effects/triangle-shatter-effect.ts";
 import type {
@@ -287,17 +287,21 @@ export interface CycleOptions {
 	hold?: number;
 }
 
+export interface SweepOptions {
+	mode?: SweepMode;
+	direction?: [number, number, number];
+	point?: [number, number, number];
+	scale?: number;
+	softness?: number;
+	invert?: boolean;
+}
+
 export interface DissolveOptions {
 	nodes?: string[];
 	enabled?: boolean;
 	progress?: number;
 	cycle?: CycleOptions;
-	mode?: DissolveMode;
-	scale?: number;
-	direction?: [number, number, number];
-	point?: [number, number, number];
-	invert?: boolean;
-	softness?: number;
+	sweep?: SweepOptions;
 	edgeWidth?: number;
 	edgeColor?: Color3;
 	style?: MaterialStyle;

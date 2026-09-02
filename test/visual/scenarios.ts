@@ -394,7 +394,9 @@ const material: Scenario[] = [
 		name: "material/dissolve-noise-transparent",
 		model: "pig",
 		settings: { backgroundColor: TRANSPARENT_BLACK, outlineSize: 1 },
-		extras: { dissolve: { enabled: true, progress: 0.6, scale: 4 } },
+		extras: {
+			dissolve: { enabled: true, progress: 0.6, sweep: { scale: 4 } },
+		},
 	},
 	{
 		name: "material/dissolve-directional-invert-dithered",
@@ -402,10 +404,8 @@ const material: Scenario[] = [
 		extras: {
 			dissolve: {
 				enabled: true,
-				mode: "directional",
 				progress: 0.5,
-				direction: [1, 0.2, 0],
-				invert: true,
+				sweep: { mode: "directional", direction: [1, 0.2, 0], invert: true },
 				style: "dithered",
 			},
 		},
@@ -416,9 +416,8 @@ const material: Scenario[] = [
 		extras: {
 			dissolve: {
 				enabled: true,
-				mode: "point",
 				progress: 0.55,
-				point: [0.5, 0.5, 0],
+				sweep: { mode: "point", point: [0.5, 0.5, 0] },
 				style: "smooth",
 				edgeWidth: 0.2,
 				edgeColor: [0, 1, 1],
@@ -431,9 +430,8 @@ const material: Scenario[] = [
 		extras: {
 			dissolve: {
 				enabled: true,
-				mode: "proximity",
 				progress: 0.4,
-				softness: 0,
+				sweep: { mode: "proximity", softness: 0 },
 				edgeWidth: 0,
 			},
 		},
@@ -444,6 +442,15 @@ const material: Scenario[] = [
 		extras: {
 			dissolve: { enabled: true, progress: 0.5, maskedColors: [9] },
 			fur: { enabled: true },
+		},
+	},
+	// A uniform sweep has no front. The whole surface fades through the
+	// checkerboard, so progress 0.5 keeps exactly one checker phase.
+	{
+		name: "material/dissolve-uniform",
+		model: "rig",
+		extras: {
+			dissolve: { enabled: true, progress: 0.5, sweep: { mode: "uniform" } },
 		},
 	},
 	// Dissolve cycle: custom duration 2 with hold 0.25 rises over 0.25-1.0,
@@ -467,7 +474,7 @@ const material: Scenario[] = [
 		extras: {
 			dissolve: {
 				enabled: true,
-				mode: "directional",
+				sweep: { mode: "directional" },
 				cycle: { enabled: true, duration: 2, hold: 0.25 },
 			},
 		},

@@ -10,10 +10,6 @@
  * blob, tile or edge the pixel belongs to, 0.5 = neutral) through the
  * five-argument patternField overload, which consumers can turn into
  * per-feature hue rotation with hueRotate().
- *
- * Includes hash.glsl and color.glsl, so this must be the only path through
- * which those chunks enter a compilation unit (vite-plugin-glsl does not
- * dedupe).
  */
 
 #include hash.glsl;

@@ -13,6 +13,7 @@ uniform mat4 u_vp;
 uniform mat4 u_worldMatrix;
 uniform float u_time; // shared with the fragment stage's declaration
 
+#include chunks/node-bits.glsl;
 #include chunks/deform.glsl;
 #include chunks/hash.glsl;
 

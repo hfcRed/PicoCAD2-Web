@@ -4,9 +4,6 @@
  * palette of the upcoming cycle step. While a dithered blend runs, a 4x4
  * Bayer threshold flips pixels to the target rows one dither level at a
  * time, so the transition dissolves in instead of snapping.
- *
- * Declares u_paletteBlend, so this must be the only path through which it
- * enters a compilation unit (vite-plugin-glsl does not dedupe).
  */
 
 uniform float u_paletteBlend;

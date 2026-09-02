@@ -21,6 +21,7 @@ uniform int u_furMask;
 uniform float u_furDensity;
 uniform float u_furRootShade;
 
+#include chunks/node-bits.glsl;
 #include chunks/hash.glsl;
 #include chunks/dissolve.glsl;
 #include chunks/palette-blend.glsl;

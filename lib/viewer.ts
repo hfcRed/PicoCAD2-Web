@@ -1294,9 +1294,10 @@ export class PicoCAD2Viewer {
 		assign(this.extras.edgeDetection, extras.edgeDetection);
 
 		if (extras.dissolve) {
-			const { cycle, ...dissolve } = extras.dissolve;
+			const { cycle, sweep, ...dissolve } = extras.dissolve;
 			assign(this.extras.dissolve, dissolve);
 			assign(this.extras.dissolve.cycle, cycle);
+			assign(this.extras.dissolve.sweep, sweep);
 		}
 
 		if (extras.specular) {

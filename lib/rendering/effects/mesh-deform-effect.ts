@@ -100,6 +100,7 @@ export interface MeshDeformUniforms {
 	u_deformTwistPhase: number;
 	u_deformCenter: Color3;
 	u_deformHalfExt: Color3;
+	u_voxelGrid: number;
 }
 
 const AXIS_INDEX: Record<DeformAxis, number> = { x: 0, y: 1, z: 2 };
@@ -123,6 +124,7 @@ export function createMeshDeformUniforms(): MeshDeformUniforms {
 		u_deformTwistPhase: 0,
 		u_deformCenter: [0, 0, 0],
 		u_deformHalfExt: [1, 1, 1],
+		u_voxelGrid: 1,
 	};
 }
 
@@ -164,6 +166,7 @@ export function writeMeshDeformUniforms(
 	if (!deform || !active) return;
 
 	u.u_deformProgress = Math.min(Math.max(progress, 0), 1);
+	u.u_voxelGrid = Math.max(deform.voxel.gridSize, 1e-3);
 	writeSweepUniforms(u.u_deformSweep, deform.sweep, bounds, cameraPos);
 	u.u_deformBarrel = deform.barrel.amount;
 	u.u_deformBarrelAxis = AXIS_INDEX[deform.barrel.axis] ?? 1;

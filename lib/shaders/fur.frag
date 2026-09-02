@@ -31,11 +31,11 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
 
 void main() {
-    applyVoxelCut(v_worldPos);
-
     int flags = int(v_faceFlags + 0.5);
     bool noShade = (flags & 1) != 0;
     bool noTex = (flags & 2) != 0;
+
+    applyVoxelCut(v_worldPos, normalize(v_normal), (flags & 4) != 0);
 
     float colorIdx;
     bool fromTexture = (u_renderMode == 0 && !noTex);

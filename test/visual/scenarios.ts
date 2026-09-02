@@ -852,15 +852,25 @@ const geometry: Scenario[] = [
 			},
 		},
 	},
+	// A uniform sweep has no cells to move through, so the hard cut flips
+	// the whole model at progress 0.5. Past it the dual draw must equal the
+	// fully voxelized single draw byte for byte.
 	{
-		name: "geometry/voxel-sweep-uniform-half",
+		name: "geometry/voxel-sweep-uniform-flipped",
 		model: "rig",
 		extras: {
 			meshDeform: {
 				enabled: true,
-				progress: 0.5,
+				progress: 0.6,
 				voxel: { enabled: true, gridSize: 0.4 },
 			},
+		},
+	},
+	{
+		name: "geometry/voxel-sweep-uniform-complete",
+		model: "rig",
+		extras: {
+			meshDeform: { enabled: true, voxel: { enabled: true, gridSize: 0.4 } },
 		},
 	},
 	{

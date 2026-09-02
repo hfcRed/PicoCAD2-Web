@@ -588,7 +588,7 @@ Geometry effects reshape or grow the model's own geometry. Masks select by face 
 
 Stackable closed-form deforms, applied in world space after the node transform so hierarchy and animation stay correct. Applied in a fixed order ending with rounding, so voxelation quantizes the other deforms.
 
-`progress` runs the whole deform from 0 (untouched) to 1 (full), by hand or through `cycle`, and the `sweep` group (see [Sweeps](#sweeps)) decides where the front is. The warps scale by the local progress at each vertex, so a directional sweep with the cycle running turns a twist into a wave that travels up the model and unwinds. Voxelization cannot be weighted per vertex, so while the progress is partial every selected node is drawn from both its base mesh and its voxel stand-in.
+`progress` runs the whole deform from 0 (untouched) to 1 (full), by hand or through `cycle`, and the `sweep` group (see [Sweeps](#sweeps)) decides where the front is. The warps scale by the local progress at each vertex, so a directional sweep with the cycle running turns a twist into a wave that travels up the model and unwinds. Voxelization cannot be weighted per vertex, so while the progress is partial every selected node is drawn from both its base mesh and its voxel stand-in. The cut is decided per voxel cell, so whole cubes appear and disappear as the front passes.
 
 ```typescript
 viewer.extras.meshDeform.enabled = true;

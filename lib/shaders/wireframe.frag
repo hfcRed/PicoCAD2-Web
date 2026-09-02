@@ -10,6 +10,6 @@ uniform vec3 u_color;
 out vec4 fragColor;
 
 void main() {
-    applyVoxelCut(v_worldPos);
+    applyVoxelCut(v_worldPos, vec3(0.0), false);
     fragColor = vec4(u_color, 1.0);
 }

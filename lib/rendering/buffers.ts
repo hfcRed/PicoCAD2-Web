@@ -228,7 +228,10 @@ export function buildNodeBuffers(
 		if (!normal) continue;
 
 		const group = getFaceGroup(face);
-		const flags = (face.noShading ? 1 : 0) | (face.noTexture ? 2 : 0);
+		const flags =
+			(face.noShading ? 1 : 0) |
+			(face.noTexture ? 2 : 0) |
+			(face.interior ? 4 : 0);
 
 		// Fan triangulation of the face into triangles
 		const numTriangles = face.vertexIndices.length - 2;

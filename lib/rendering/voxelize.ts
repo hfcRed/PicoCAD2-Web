@@ -45,11 +45,14 @@ function isTransparentTexel(
  *
  * Cubes belong to the node that won their cell and are emitted in that
  * node's mesh space through the inverse rest transform, so they still
- * follow the node's animation. Faces between two occupied cells are culled
- * regardless of owner, back-to-back interface faces would poke through
- * their neighbors at grazing angles and z-fight, leaving one closed shell
- * over the whole model. Cube corners are shared per node, which welds the
- * wireframe and lets the smoothed fur normals average across faces.
+ * follow the node's animation. Faces between two occupied cells are
+ * emitted with the `interior` flag, regardless of owner. The fragment
+ * shader hides them while both cubes show, since back-to-back interface
+ * faces would poke through their neighbors at grazing angles and z-fight,
+ * and draws them while a voxel sweep still shows the neighbor's cell as
+ * the base mesh, so a cube never opens toward a missing neighbor. Cube
+ * corners are shared per node, which welds the wireframe and lets the
+ * smoothed fur normals average across faces.
  *
  * @param root - The scene graph root.
  * @param gridSize - Voxel edge length in world units.
@@ -242,7 +245,7 @@ function sampleMesh(
 /**
  * Emits the cube geometry for one node's cells as a regular mesh in that
  * node's rest-pose mesh space, with faces against any occupied neighbor
- * cell culled and corner vertices shared.
+ * cell flagged as interior and corner vertices shared.
  */
 function buildCubeMesh(
 	nodeCells: CellSample[],
@@ -351,8 +354,6 @@ function buildCubeMesh(
 
 		for (const dir of DIRS) {
 			const nKey = `${cell.x + dir.n[0]},${cell.y + dir.n[1]},${cell.z + dir.n[2]}`;
-			if (allCells.has(nKey)) continue;
-
 			const vertexIndices = dir.q.map(([ox, oy, oz]) =>
 				corner(cell.x + ox, cell.y + oy, cell.z + oz),
 			);
@@ -366,6 +367,7 @@ function buildCubeMesh(
 				priority: src.priority,
 				noShading: src.noShading,
 				noTexture: src.noTexture,
+				interior: allCells.has(nKey),
 			});
 		}
 	}

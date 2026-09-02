@@ -23,6 +23,7 @@ export interface Face {
 	priority: boolean;
 	noShading: boolean;
 	noTexture: boolean;
+	interior?: boolean;
 }
 
 export interface Mesh {

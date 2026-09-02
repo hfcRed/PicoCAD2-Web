@@ -2,8 +2,11 @@ import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 import glsl from "vite-plugin-glsl";
 
-export default defineConfig({
-	plugins: [dts({ tsconfigPath: "tsconfig.lib.json" }), glsl()],
+export default defineConfig(({ command, mode }) => ({
+	plugins: [
+		dts({ tsconfigPath: "tsconfig.lib.json" }),
+		glsl({ minify: command === "build" || mode === "test" }),
+	],
 	build: {
 		copyPublicDir: false,
 		assetsInlineLimit: 100000,
@@ -13,4 +16,4 @@ export default defineConfig({
 			fileName: "main",
 		},
 	},
-});
+}));

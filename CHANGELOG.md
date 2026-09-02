@@ -39,6 +39,7 @@
 ### Changed
 
 - **Render statistics count the whole frame** — `context.stats` now includes every draw a frame issues, not just the base model. Fur shells, wireframe lines, particles, the outline, every post-processing pass and the final composite. `polyCount` includes effect geometry. Fur shells multiply the model's triangles by the layer count and particles add their shapes, while fullscreen passes and wireframe lines add draw calls only. Custom effects can add their own draws through the new `EffectContext.stats`.
+- **Smaller bundle** — Shader sources ship stripped of comments and whitespace, taking about 13% off the raw bundle and 5 KB off the gzipped size. Rendering is unchanged.
 
 ### Deprecated
 

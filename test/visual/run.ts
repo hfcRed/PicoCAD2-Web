@@ -253,6 +253,7 @@ async function main(): Promise<number> {
 	const server = await createServer({
 		configFile: join(root, "vite.config.ts"),
 		root,
+		mode: "test",
 		logLevel: "error",
 		server: { port: 5199, strictPort: false, host: "127.0.0.1", open: false },
 	});

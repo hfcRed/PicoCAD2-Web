@@ -128,6 +128,10 @@ import {
 	TriangleShatterEffect,
 } from "./rendering/effects/triangle-shatter-effect.ts";
 import {
+	VERTEX_GLITCH_DEFAULTS,
+	VertexGlitchEffect,
+} from "./rendering/effects/vertex-glitch-effect.ts";
+import {
 	VIDEO_EFFECTS_DEFAULTS,
 	VideoEffectsEffect,
 } from "./rendering/effects/video-effects-effect.ts";
@@ -174,6 +178,7 @@ export class ViewerExtras {
 	readonly meshDeform: MeshDeformEffect;
 	readonly triangleFlash: TriangleFlashEffect;
 	readonly triangleShatter: TriangleShatterEffect;
+	readonly vertexGlitch: VertexGlitchEffect;
 	readonly billboard: BillboardEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly proceduralBackground: ProceduralBackgroundEffect;
@@ -233,6 +238,7 @@ export class ViewerExtras {
 		this.meshDeform = new MeshDeformEffect();
 		this.triangleFlash = new TriangleFlashEffect();
 		this.triangleShatter = new TriangleShatterEffect();
+		this.vertexGlitch = new VertexGlitchEffect();
 
 		// CPU matrix exclusion, applied by the renderer after the scene
 		// graph update.
@@ -343,6 +349,7 @@ export const EXTRAS_DEFAULTS = Object.freeze({
 	meshDeform: MESH_DEFORM_DEFAULTS,
 	triangleFlash: TRIANGLE_FLASH_DEFAULTS,
 	triangleShatter: TRIANGLE_SHATTER_DEFAULTS,
+	vertexGlitch: VERTEX_GLITCH_DEFAULTS,
 	billboard: BILLBOARD_DEFAULTS,
 	gradientOutline: GRADIENT_OUTLINE_DEFAULTS,
 	ssao: SSAO_DEFAULTS,

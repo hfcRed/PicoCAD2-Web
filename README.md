@@ -648,6 +648,27 @@ viewer.extras.triangleShatter.maskedColors = [7];  // Only these face colors exp
 viewer.extras.triangleShatter.nodes = ["wall"];   // Only within these nodes (default: [] = all nodes)
 ```
 
+### Vertex Glitch
+
+Rhythmic mesh spikes. Time is cut into beats at `rate` per second, every beat picks a `density` fraction of units at random, and each picked unit spikes out for `duration` seconds, snapping there or easing out and back with `softness`. `unit` decides what moves, `"triangle"` pushes whole triangles along their face normal, which tears the mesh apart and hides the wireframe and fur while it runs, while `"vertex"` pushes every corner at a mesh position along the same hashed direction, so welds hold and the wireframe and fur follow. `progress`, `cycle` and the `sweep` group (see [Sweeps](#sweeps)) scale the spikes across the model the way they do for the mesh deform.
+
+```typescript
+viewer.extras.vertexGlitch.enabled = true;
+viewer.extras.vertexGlitch.unit = "vertex";         // "triangle" | "vertex" (default: "vertex")
+viewer.extras.vertexGlitch.strength = 0.2;          // Spike length in world units (default: 0.2)
+viewer.extras.vertexGlitch.rate = 8;                // Beats per second (default: 8)
+viewer.extras.vertexGlitch.density = 0.3;           // Fraction of units picked per beat, 0-1 (default: 0.3)
+viewer.extras.vertexGlitch.duration = 0.1;          // Seconds a spike lasts (default: 0.1)
+viewer.extras.vertexGlitch.softness = 0;            // 0 snaps out and back, 1 eases over the whole spike (default: 0)
+viewer.extras.vertexGlitch.progress = 1;            // 0 = still, 1 = full (default: 1)
+viewer.extras.vertexGlitch.cycle.enabled = false;   // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.vertexGlitch.sweep.mode = "uniform";  // Where the spikes are, see Sweeps (default: "uniform")
+viewer.extras.vertexGlitch.maskedColors = [7];      // Only faces of these colors spike (default: [] = all)
+viewer.extras.vertexGlitch.nodes = ["antenna"];     // Only within these nodes (default: [] = all nodes)
+```
+
+A face-color mask in vertex mode tears the mesh at the mask boundary, since a shared corner moves with its masked face only, and hides the wireframe, which has no face colors.
+
 ### Fur
 
 Shell-textured fur grown from the model's surfaces. The model is drawn again as a stack of instanced shells into strands of varying height. Strand roots darken through the palette's shade rows with checkerboard dithering. The fur stays palette-pure. Fur follows the mesh deform and hides while a triangle shatter is in progress.
@@ -1041,7 +1062,7 @@ When multiple effects are active, they are applied in this fixed order:
 18. Glitch
 19. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform, vertex glitch and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

@@ -35,6 +35,10 @@ export { SSAOEffect, type SSAOSamples } from "./ssao-effect.ts";
 export type { SweepMode } from "./sweep.ts";
 export type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
 export {
+	VertexGlitchEffect,
+	type VertexGlitchUnit,
+} from "./vertex-glitch-effect.ts";
+export {
 	type GameboyPalette,
 	type ScreenType,
 	VideoEffectsEffect,

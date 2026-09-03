@@ -17,6 +17,7 @@ uniform float u_time; // shared with the fragment stage's declaration
 #include chunks/deform.glsl;
 #include chunks/hash.glsl;
 #include chunks/sweep.glsl;
+#include chunks/vertex-glitch.glsl;
 
 uniform bool u_shatterEnabled;
 uniform float u_shatterProgress; // 0 = intact, 1 = fully dispersed
@@ -125,7 +126,11 @@ void main() {
 
     worldPos = applyMeshDeform(worldPos);
     centroidW = applyMeshDeform(centroidW);
-    worldPos = applyShatter(worldPos, centroidW, normalize(worldNormal));
+    
+    vec3 n = normalize(worldNormal);
+    worldPos = glitchTriangle(worldPos, centroidW, a_triCentroid, n, a_triId, a_colorIndex);
+    worldPos = glitchVertex(worldPos, a_position, a_colorIndex);
+    worldPos = applyShatter(worldPos, centroidW, n);
 
     gl_Position = u_vp * vec4(worldPos, 1.0);
 

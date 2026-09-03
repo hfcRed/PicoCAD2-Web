@@ -209,6 +209,7 @@ export class PicoCAD2Viewer {
 		meshDeform: null,
 		triangleFlash: null,
 		triangleShatter: null,
+		vertexGlitch: null,
 		paletteSwap: null,
 		fur: null,
 		billboard: null,
@@ -519,6 +520,7 @@ export class PicoCAD2Viewer {
 		settings.meshDeform = this._extras.meshDeform;
 		settings.triangleFlash = this._extras.triangleFlash;
 		settings.triangleShatter = this._extras.triangleShatter;
+		settings.vertexGlitch = this._extras.vertexGlitch;
 		settings.paletteSwap = this._extras.paletteSwap;
 		settings.fur = this._extras.fur;
 		settings.billboard = this._extras.billboard;
@@ -1329,6 +1331,13 @@ export class PicoCAD2Viewer {
 			assign(this.extras.triangleShatter, shatter);
 			assign(this.extras.triangleShatter.cycle, cycle);
 			assign(this.extras.triangleShatter.sweep, sweep);
+		}
+
+		if (extras.vertexGlitch) {
+			const { cycle, sweep, ...glitch } = extras.vertexGlitch;
+			assign(this.extras.vertexGlitch, glitch);
+			assign(this.extras.vertexGlitch.cycle, cycle);
+			assign(this.extras.vertexGlitch.sweep, sweep);
 		}
 
 		assign(this.extras.billboard, extras.billboard);

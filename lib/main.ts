@@ -173,6 +173,11 @@ export type {
 	SceneEffect,
 } from "./rendering/effects/types.ts";
 export {
+	VERTEX_GLITCH_DEFAULTS,
+	VertexGlitchEffect,
+	type VertexGlitchUnit,
+} from "./rendering/effects/vertex-glitch-effect.ts";
+export {
 	type GameboyPalette,
 	type ScreenType,
 	VIDEO_EFFECTS_DEFAULTS,
@@ -236,6 +241,7 @@ export type {
 	SweepOptions,
 	TriangleFlashOptions,
 	TriangleShatterOptions,
+	VertexGlitchOptions,
 	VideoEffectsOptions,
 	ViewerSettings,
 	VignetteOptions,

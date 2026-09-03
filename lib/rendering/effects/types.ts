@@ -1,7 +1,8 @@
 import type { mat4 } from "gl-matrix";
-import type { Color3 } from "../../types/scene.ts";
+import type { Color3, SceneNode } from "../../types/scene.ts";
 import type { ModelResources, RenderStats } from "../renderer.ts";
 import type { MeshDeformEffect } from "./mesh-deform-effect.ts";
+import type { VertexGlitchEffect } from "./vertex-glitch-effect.ts";
 
 export interface EffectContext {
 	gl: WebGL2RenderingContext;
@@ -28,6 +29,10 @@ export interface EffectContext {
 	meshDeform: MeshDeformEffect | null;
 	deformProgress: number;
 	shatterActive: boolean;
+	vertexGlitch: VertexGlitchEffect | null;
+	glitchProgress: number;
+	glitchActive: boolean;
+	nodeBits: ReadonlyMap<SceneNode, number>;
 }
 
 export interface PostProcessEffect {

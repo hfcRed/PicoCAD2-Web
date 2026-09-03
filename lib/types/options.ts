@@ -27,6 +27,7 @@ import type { SSAOSamples } from "../rendering/effects/ssao-effect.ts";
 import type { SweepMode } from "../rendering/effects/sweep.ts";
 import type { TriangleFlashMode } from "../rendering/effects/triangle-flash-effect.ts";
 import type { TriangleShatterMode } from "../rendering/effects/triangle-shatter-effect.ts";
+import type { VertexGlitchUnit } from "../rendering/effects/vertex-glitch-effect.ts";
 import type {
 	GameboyPalette,
 	ScreenType,
@@ -489,6 +490,21 @@ export interface TriangleShatterOptions {
 	maskedColors?: number[];
 }
 
+export interface VertexGlitchOptions {
+	nodes?: string[];
+	enabled?: boolean;
+	progress?: number;
+	cycle?: CycleOptions;
+	sweep?: SweepOptions;
+	unit?: VertexGlitchUnit;
+	strength?: number;
+	rate?: number;
+	density?: number;
+	duration?: number;
+	softness?: number;
+	maskedColors?: number[];
+}
+
 export interface ExtrasOptions {
 	wireframe?: WireframeOptions;
 	particles?: ParticlesOptions;
@@ -507,6 +523,7 @@ export interface ExtrasOptions {
 	meshDeform?: MeshDeformOptions;
 	triangleFlash?: TriangleFlashOptions;
 	triangleShatter?: TriangleShatterOptions;
+	vertexGlitch?: VertexGlitchOptions;
 	billboard?: BillboardOptions;
 	gradientOutline?: GradientOutlineOptions;
 	ssao?: SSAOOptions;

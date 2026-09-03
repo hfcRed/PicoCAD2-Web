@@ -887,6 +887,76 @@ const geometry: Scenario[] = [
 			wireframe: { enabled: true, color: [0, 1, 0] },
 		},
 	},
+	// The wireframe follows the deform chain.
+	{
+		name: "geometry/twist-wireframe",
+		model: "pig",
+		extras: {
+			meshDeform: { enabled: true, twist: { amount: 1, axis: "y" } },
+			wireframe: { enabled: true, color: [0, 1, 0] },
+		},
+	},
+	// Vertex glitch: beats at rate 8 last 0.125 s and a spike 0.1 s, so
+	// time 0.3 (beat 2, age 0.05) and 0.55 (beat 4, age 0.05) both spike.
+	{
+		name: "geometry/vertex-glitch-triangle",
+		model: "rig",
+		extras: { vertexGlitch: { enabled: true, unit: "triangle" } },
+		time: 0.3,
+	},
+	// Softness eases a spike out and back: at time 0.27 (beat 2, age 0.02,
+	// phase 0.2) a fully soft spike stands at 40% of its height.
+	{
+		name: "geometry/vertex-glitch-soft",
+		model: "rig",
+		extras: {
+			vertexGlitch: {
+				enabled: true,
+				unit: "triangle",
+				density: 0.6,
+				softness: 1,
+			},
+		},
+		time: 0.27,
+	},
+	{
+		name: "geometry/vertex-glitch-vertex-wireframe-fur",
+		model: "pig",
+		extras: {
+			vertexGlitch: { enabled: true, unit: "vertex", strength: 0.3 },
+			wireframe: { enabled: true, color: [0, 1, 0] },
+			fur: { enabled: true },
+		},
+		time: 0.3,
+	},
+	{
+		name: "geometry/vertex-glitch-sweep-wave-cycle",
+		model: "rig",
+		time: 0.55, // progress 0.4 with duration 2 and hold 0.25
+		extras: {
+			vertexGlitch: {
+				enabled: true,
+				strength: 0.4,
+				density: 0.6,
+				cycle: { enabled: true, duration: 2, hold: 0.25 },
+				sweep: { mode: "directional", direction: [1, 0, 0], wave: 0.3 },
+			},
+		},
+	},
+	{
+		name: "geometry/vertex-glitch-masked-invert",
+		model: "rig",
+		extras: {
+			vertexGlitch: {
+				enabled: true,
+				progress: 0.3,
+				density: 0.8,
+				maskedColors: [7],
+				sweep: { mode: "point", point: [0, 0, 0], invert: true },
+			},
+		},
+		time: 0.3,
+	},
 	// Triangle flash
 	{
 		name: "geometry/triangle-flash-replace",
@@ -1987,6 +2057,14 @@ const nodes: Scenario[] = [
 				nodes: ["cab"],
 			},
 		},
+	},
+	{
+		name: "nodes/vertex-glitch-cab",
+		model: "rig",
+		extras: {
+			vertexGlitch: { enabled: true, density: 0.8, nodes: ["cab"] },
+		},
+		time: 0.3,
 	},
 	{
 		name: "nodes/projection-cab",

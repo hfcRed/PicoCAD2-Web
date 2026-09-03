@@ -20,6 +20,7 @@ const int NODE_FLASH = 512;
 const int NODE_SHATTER = 1024;
 const int NODE_DEFORM = 2048;
 const int NODE_PROJECTION = 4096;
+const int NODE_GLITCH = 8192;
 
 bool inNodeSet(int bit) {
     return (u_nodeBits & bit) != 0;

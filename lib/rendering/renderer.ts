@@ -50,6 +50,11 @@ import {
 import type { TriangleFlashEffect } from "./effects/triangle-flash-effect.ts";
 import type { TriangleShatterEffect } from "./effects/triangle-shatter-effect.ts";
 import type { EffectContext } from "./effects/types.ts";
+import {
+	createVertexGlitchUniforms,
+	type VertexGlitchEffect,
+	writeVertexGlitchUniforms,
+} from "./effects/vertex-glitch-effect.ts";
 import { computeNodeBits, NODE_BIT } from "./node-selection.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import {
@@ -79,6 +84,7 @@ export interface RenderSettings {
 	meshDeform: MeshDeformEffect | null;
 	triangleFlash: TriangleFlashEffect | null;
 	triangleShatter: TriangleShatterEffect | null;
+	vertexGlitch: VertexGlitchEffect | null;
 	paletteSwap: PaletteSwapEffect | null;
 	fur: FurEffect | null;
 	billboard: BillboardEffect | null;
@@ -133,6 +139,8 @@ export class Renderer {
 	private shatterProgress = 0;
 	private dissolveProgress = 0;
 	private deformProgress = 1;
+	private glitchProgress = 1;
+	private glitchActive = false;
 	private readonly nodeUniforms = {
 		u_worldMatrix: mat4.create() as mat4,
 		u_nodeBits: 0,
@@ -175,6 +183,8 @@ export class Renderer {
 		u_shatterShrink: 0,
 		u_shatterMask: 0,
 		u_shatterSweep: createSweepUniforms(),
+
+		...createVertexGlitchUniforms(),
 
 		u_flashEnabled: false,
 		u_flashRate: 0,
@@ -296,6 +306,9 @@ export class Renderer {
 		u_furDensity: 1,
 		u_furRootShade: 0,
 		u_furMask: 0,
+		u_time: 0,
+
+		...createVertexGlitchUniforms(),
 
 		u_dissolveEnabled: false,
 		u_dissolveProgress: 0,
@@ -350,6 +363,10 @@ export class Renderer {
 			paletteBlend: 0,
 			meshDeform: null,
 			deformProgress: 1,
+			vertexGlitch: null,
+			glitchProgress: 1,
+			glitchActive: false,
+			nodeBits: this.nodeBits,
 			shatterActive: false,
 		};
 	}
@@ -471,6 +488,14 @@ export class Renderer {
 			? resolveCycleProgress(deform.progress, deform.cycle, time)
 			: 1;
 
+		const glitch = settings.vertexGlitch;
+		this.glitchProgress = glitch
+			? resolveCycleProgress(glitch.progress, glitch.cycle, time)
+			: 1;
+		this.glitchActive =
+			glitch?.enabled === true &&
+			sweepActive(glitch.sweep, this.glitchProgress);
+
 		updateRenderState(model.root);
 		this.applyBillboard(settings, model.root, v);
 		computeNodeBits(settings, model.root, this.nodeBits);
@@ -526,6 +551,9 @@ export class Renderer {
 		mat4.invert(ctx.invProjectionMatrix, ctx.projectionMatrix);
 		ctx.meshDeform = settings.meshDeform;
 		ctx.deformProgress = this.deformProgress;
+		ctx.vertexGlitch = settings.vertexGlitch;
+		ctx.glitchProgress = this.glitchProgress;
+		ctx.glitchActive = this.glitchActive;
 		ctx.shatterActive = this.shatterActive;
 		ctx.cameraPos[0] = mu.u_cameraPos[0];
 		ctx.cameraPos[1] = mu.u_cameraPos[1];
@@ -757,8 +785,10 @@ export class Renderer {
 		twgl.setUniforms(this.programs.model, uniforms);
 
 		const fur = settings.fur;
+		const glitchHidesFur =
+			this.glitchActive && settings.vertexGlitch?.unit === "triangle";
 		const furLayers =
-			fur?.enabled && !this.shatterActive && fur.length > 0
+			fur?.enabled && !this.shatterActive && !glitchHidesFur && fur.length > 0
 				? Math.min(Math.max(Math.round(fur.layers), 1), 16)
 				: 0;
 		if (furLayers > 0 && fur) {
@@ -1212,6 +1242,15 @@ export class Renderer {
 			);
 		}
 
+		writeVertexGlitchUniforms(
+			u,
+			settings.vertexGlitch,
+			this.glitchActive,
+			this.glitchProgress,
+			resources.bounds,
+			u.u_cameraPos,
+		);
+
 		const flash = settings.triangleFlash;
 		u.u_flashEnabled = flash?.enabled ?? false;
 
@@ -1333,6 +1372,15 @@ export class Renderer {
 			resources.bounds,
 			mu.u_time,
 			this.deformProgress,
+			mu.u_cameraPos,
+		);
+		u.u_time = mu.u_time;
+		writeVertexGlitchUniforms(
+			u,
+			settings.vertexGlitch,
+			this.glitchActive,
+			this.glitchProgress,
+			resources.bounds,
 			mu.u_cameraPos,
 		);
 	}

@@ -15,6 +15,10 @@ import {
 	writeMeshDeformUniforms,
 } from "./mesh-deform-effect.ts";
 import type { EffectContext, SceneEffect } from "./types.ts";
+import {
+	createVertexGlitchUniforms,
+	writeVertexGlitchUniforms,
+} from "./vertex-glitch-effect.ts";
 
 /**
  * Renders wireframe edges over the model as GL_LINES.
@@ -33,7 +37,10 @@ export class WireframeEffect implements SceneEffect {
 		u_worldMatrix: mat4.create() as mat4,
 		u_color: [1, 1, 1] as Color3,
 		u_voxelSide: -1,
+		u_nodeBits: 0,
+		u_time: 0,
 		...createMeshDeformUniforms(),
+		...createVertexGlitchUniforms(),
 	};
 
 	constructor() {
@@ -67,6 +74,15 @@ export class WireframeEffect implements SceneEffect {
 	render(ctx: EffectContext, vpMatrix: mat4, resources: ModelResources): void {
 		if (ctx.shatterActive) return;
 
+		const glitch = ctx.vertexGlitch;
+		if (
+			ctx.glitchActive &&
+			glitch &&
+			(glitch.unit === "triangle" || glitch.maskedColors.length > 0)
+		) {
+			return;
+		}
+
 		const gl = ctx.gl;
 
 		gl.useProgram(this.program!.program);
@@ -85,11 +101,21 @@ export class WireframeEffect implements SceneEffect {
 			ctx.deformProgress,
 			ctx.cameraPos,
 		);
+		uniforms.u_time = ctx.time;
+		writeVertexGlitchUniforms(
+			uniforms,
+			ctx.vertexGlitch,
+			ctx.glitchActive,
+			ctx.glitchProgress,
+			resources.bounds,
+			ctx.cameraPos,
+		);
 
 		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.renderVisible || nb.node.ghost || !nb.wireframe) continue;
 
 			uniforms.u_worldMatrix = nb.node.worldMatrix;
+			uniforms.u_nodeBits = ctx.nodeBits.get(nb.node) ?? 0;
 			uniforms.u_voxelSide = nb.voxelSide ?? -1;
 
 			twgl.setBuffersAndAttributes(gl, this.program!, nb.wireframe);

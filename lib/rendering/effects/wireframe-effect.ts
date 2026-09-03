@@ -97,7 +97,7 @@ export class WireframeEffect implements SceneEffect {
 			uniforms,
 			ctx.meshDeform,
 			resources.bounds,
-			ctx.deformProgress,
+			ctx.deformPhase,
 			ctx.cameraPos,
 		);
 		uniforms.u_time = ctx.time;
@@ -105,7 +105,7 @@ export class WireframeEffect implements SceneEffect {
 			uniforms,
 			ctx.vertexGlitch,
 			ctx.glitchActive,
-			ctx.glitchProgress,
+			ctx.glitchPhase,
 			resources.bounds,
 			ctx.cameraPos,
 		);

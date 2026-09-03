@@ -18,7 +18,7 @@ import {
 import type { BillboardEffect } from "./effects/billboard-effect.ts";
 import type { ColorCutoutEffect } from "./effects/color-cutout-effect.ts";
 import { packColorMask } from "./effects/color-mask.ts";
-import { resolveCycleProgress } from "./effects/cycle.ts";
+import { type CyclePhase, resolveCyclePhase } from "./effects/cycle.ts";
 import type { DissolveEffect } from "./effects/dissolve-effect.ts";
 import type { EmissionEffect } from "./effects/emission-effect.ts";
 import {
@@ -148,10 +148,13 @@ export class Renderer {
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private readonly effectCtx: EffectContext;
 	private shatterActive = false;
-	private shatterProgress = 0;
-	private dissolveProgress = 0;
-	private deformProgress = 1;
-	private glitchProgress = 1;
+	private readonly shatterPhase: CyclePhase = { progress: 0, returning: false };
+	private readonly dissolvePhase: CyclePhase = {
+		progress: 0,
+		returning: false,
+	};
+	private readonly deformPhase: CyclePhase = { progress: 1, returning: false };
+	private readonly glitchPhase: CyclePhase = { progress: 1, returning: false };
 	private glitchActive = false;
 	private furLayers = 0;
 	private cullOff = false;
@@ -383,9 +386,9 @@ export class Renderer {
 			palette: new Float32Array(0),
 			paletteBlend: 0,
 			meshDeform: null,
-			deformProgress: 1,
+			deformPhase: { progress: 1, returning: false },
 			vertexGlitch: null,
-			glitchProgress: 1,
+			glitchPhase: { progress: 1, returning: false },
 			glitchActive: false,
 			nodeBits: this.nodeBits,
 			shatterActive: false,
@@ -492,30 +495,41 @@ export class Renderer {
 		mat4.copy(mu.u_vp, vpMatrix);
 
 		const shatter = settings.triangleShatter;
-		this.shatterProgress = shatter
-			? resolveCycleProgress(shatter.progress, shatter.cycle, time)
-			: 0;
+		resolveCyclePhase(
+			this.shatterPhase,
+			shatter?.progress ?? 0,
+			shatter?.cycle,
+			time,
+		);
 		this.shatterActive =
 			shatter?.enabled === true &&
-			sweepActive(shatter.sweep, this.shatterProgress);
+			sweepActive(shatter.sweep, this.shatterPhase);
 
 		const dissolve = settings.dissolve;
-		this.dissolveProgress = dissolve
-			? resolveCycleProgress(dissolve.progress, dissolve.cycle, time)
-			: 0;
+		resolveCyclePhase(
+			this.dissolvePhase,
+			dissolve?.progress ?? 0,
+			dissolve?.cycle,
+			time,
+		);
 
 		const deform = settings.meshDeform;
-		this.deformProgress = deform
-			? resolveCycleProgress(deform.progress, deform.cycle, time)
-			: 1;
+		resolveCyclePhase(
+			this.deformPhase,
+			deform?.progress ?? 1,
+			deform?.cycle,
+			time,
+		);
 
 		const glitch = settings.vertexGlitch;
-		this.glitchProgress = glitch
-			? resolveCycleProgress(glitch.progress, glitch.cycle, time)
-			: 1;
+		resolveCyclePhase(
+			this.glitchPhase,
+			glitch?.progress ?? 1,
+			glitch?.cycle,
+			time,
+		);
 		this.glitchActive =
-			glitch?.enabled === true &&
-			sweepActive(glitch.sweep, this.glitchProgress);
+			glitch?.enabled === true && sweepActive(glitch.sweep, this.glitchPhase);
 
 		updateRenderState(model.root);
 		this.applyBillboard(settings, model.root, v);
@@ -571,9 +585,9 @@ export class Renderer {
 		mat4.copy(ctx.projectionMatrix, camera.getProjectionMatrix(aspect));
 		mat4.invert(ctx.invProjectionMatrix, ctx.projectionMatrix);
 		ctx.meshDeform = settings.meshDeform;
-		ctx.deformProgress = this.deformProgress;
+		ctx.deformPhase = this.deformPhase;
 		ctx.vertexGlitch = settings.vertexGlitch;
-		ctx.glitchProgress = this.glitchProgress;
+		ctx.glitchPhase = this.glitchPhase;
 		ctx.glitchActive = this.glitchActive;
 		ctx.shatterActive = this.shatterActive;
 		ctx.cameraPos[0] = mu.u_cameraPos[0];
@@ -1153,7 +1167,7 @@ export class Renderer {
 		if (
 			!deform ||
 			!voxel?.enabled ||
-			!sweepActive(deform.sweep, this.deformProgress)
+			!sweepActive(deform.sweep, this.deformPhase)
 		) {
 			this.useDrawList(resources, resources.baseBuffers, false);
 			return;
@@ -1199,7 +1213,7 @@ export class Renderer {
 
 		// Until the sweep has covered everything, every selected node draws
 		// from both representations, each keeping its side of the front.
-		const partial = !sweepComplete(deform.sweep, this.deformProgress);
+		const partial = !sweepComplete(deform.sweep, this.deformPhase);
 		this.useDrawList(
 			resources,
 			(partial ? resources.voxelDual : resources.voxelActive) ??
@@ -1364,11 +1378,14 @@ export class Renderer {
 
 		const dissolve = settings.dissolve;
 		const dissolveOn = dissolve
-			? dissolve.enabled && sweepActive(dissolve.sweep, this.dissolveProgress)
+			? dissolve.enabled && sweepActive(dissolve.sweep, this.dissolvePhase)
 			: false;
 		u.u_dissolveEnabled = dissolveOn;
 		if (dissolve && dissolveOn) {
-			u.u_dissolveProgress = Math.min(Math.max(this.dissolveProgress, 0), 1);
+			u.u_dissolveProgress = Math.min(
+				Math.max(this.dissolvePhase.progress, 0),
+				1,
+			);
 			u.u_dissolveEdgeWidth = Math.max(dissolve.edgeWidth, 0);
 			writeStyledColor(
 				u.u_dissolveEdgeColor,
@@ -1381,6 +1398,7 @@ export class Renderer {
 			writeSweepUniforms(
 				u.u_dissolveSweep,
 				dissolve.sweep,
+				this.dissolvePhase,
 				resources.bounds,
 				u.u_cameraPos,
 			);
@@ -1463,14 +1481,17 @@ export class Renderer {
 			u,
 			settings.meshDeform,
 			resources.bounds,
-			this.deformProgress,
+			this.deformPhase,
 			u.u_cameraPos,
 		);
 
 		const shatter = settings.triangleShatter;
 		u.u_shatterEnabled = this.shatterActive;
 		if (shatter?.enabled) {
-			u.u_shatterProgress = Math.min(Math.max(this.shatterProgress, 0), 1);
+			u.u_shatterProgress = Math.min(
+				Math.max(this.shatterPhase.progress, 0),
+				1,
+			);
 			u.u_shatterMode =
 				shatter.mode === "normal" ? 0 : shatter.mode === "radial" ? 1 : 2;
 
@@ -1496,6 +1517,7 @@ export class Renderer {
 			writeSweepUniforms(
 				u.u_shatterSweep,
 				shatter.sweep,
+				this.shatterPhase,
 				resources.bounds,
 				u.u_cameraPos,
 			);
@@ -1505,7 +1527,7 @@ export class Renderer {
 			u,
 			settings.vertexGlitch,
 			this.glitchActive,
-			this.glitchProgress,
+			this.glitchPhase,
 			resources.bounds,
 			u.u_cameraPos,
 		);
@@ -1630,7 +1652,7 @@ export class Renderer {
 			u,
 			settings.meshDeform,
 			resources.bounds,
-			this.deformProgress,
+			this.deformPhase,
 			mu.u_cameraPos,
 		);
 		u.u_time = mu.u_time;
@@ -1638,7 +1660,7 @@ export class Renderer {
 			u,
 			settings.vertexGlitch,
 			this.glitchActive,
-			this.glitchProgress,
+			this.glitchPhase,
 			resources.bounds,
 			mu.u_cameraPos,
 		);

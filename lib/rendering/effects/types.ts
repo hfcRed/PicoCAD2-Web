@@ -1,6 +1,7 @@
 import type { mat4 } from "gl-matrix";
 import type { Color3, SceneNode } from "../../types/scene.ts";
 import type { ModelResources, RenderStats } from "../renderer.ts";
+import type { CyclePhase } from "./cycle.ts";
 import type { MeshDeformEffect } from "./mesh-deform-effect.ts";
 import type { VertexGlitchEffect } from "./vertex-glitch-effect.ts";
 
@@ -27,10 +28,10 @@ export interface EffectContext {
 	palette: Float32Array;
 	paletteBlend: number;
 	meshDeform: MeshDeformEffect | null;
-	deformProgress: number;
+	deformPhase: CyclePhase;
 	shatterActive: boolean;
 	vertexGlitch: VertexGlitchEffect | null;
-	glitchProgress: number;
+	glitchPhase: CyclePhase;
 	glitchActive: boolean;
 	nodeBits: ReadonlyMap<SceneNode, number>;
 }

@@ -597,6 +597,21 @@ const material: Scenario[] = [
 			},
 		},
 	},
+	// A loop cycle restores along the sweep's own direction on its returning
+	// pass, so the lower part has healed while the top is still gone and the
+	// edge sits at the front, instead of the top healing first.
+	{
+		name: "material/dissolve-cycle-loop-returning",
+		model: "pig",
+		time: 1.55, // returning pass, progress 0.4
+		extras: {
+			dissolve: {
+				enabled: true,
+				sweep: { mode: "directional" },
+				cycle: { enabled: true, mode: "loop", duration: 2, hold: 0.25 },
+			},
+		},
+	},
 	// Interior
 	{
 		name: "material/interior-stars-palette",
@@ -788,6 +803,21 @@ const geometry: Scenario[] = [
 				cycle: { enabled: true, duration: 2, hold: 0.25 },
 				sweep: { mode: "point", point: [0, 0, 0], softness: 0.5 },
 				barrel: { amount: 0.8, axis: "y" },
+			},
+		},
+	},
+	// A loop's returning pass unwinds the twist from the same end it wound up
+	// from. The lower part is straight again while the top still turns.
+	{
+		name: "geometry/deform-twist-sweep-cycle-loop",
+		model: "pig",
+		time: 1.55, // returning pass, progress 0.4
+		extras: {
+			meshDeform: {
+				enabled: true,
+				cycle: { enabled: true, mode: "loop", duration: 2, hold: 0.25 },
+				sweep: { mode: "directional", softness: 0.3 },
+				twist: { amount: 1, axis: "y" },
 			},
 		},
 	},
@@ -1026,6 +1056,20 @@ const geometry: Scenario[] = [
 			triangleShatter: {
 				enabled: true,
 				cycle: { enabled: true, duration: 2, hold: 0.25 },
+				sweep: { mode: "directional", direction: [1, 0, 0], wave: 0.3 },
+			},
+		},
+	},
+	// A wave restores behind itself, so a loop's returning pass sends it across
+	// the model the same way again instead of back.
+	{
+		name: "geometry/triangle-shatter-sweep-wave-cycle-loop",
+		model: "rig",
+		time: 1.775, // returning pass, progress 0.7
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				cycle: { enabled: true, mode: "loop", duration: 2, hold: 0.25 },
 				sweep: { mode: "directional", direction: [1, 0, 0], wave: 0.3 },
 			},
 		},

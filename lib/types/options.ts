@@ -1,6 +1,7 @@
 import type { PicoCAD2Context } from "../context.ts";
 import type { BillboardMode } from "../rendering/effects/billboard-effect.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
+import type { CycleMode } from "../rendering/effects/cycle.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
 import type { EmissionBlinkMode } from "../rendering/effects/emission-effect.ts";
 import type {
@@ -288,6 +289,7 @@ export interface ColorCutoutOptions {
 
 export interface CycleOptions {
 	enabled?: boolean;
+	mode?: CycleMode;
 	duration?: number;
 	hold?: number;
 }

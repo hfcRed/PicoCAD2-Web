@@ -6,7 +6,7 @@ import type {
 } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
 import { packColorMask } from "./color-mask.ts";
-import { CYCLE_DEFAULTS } from "./cycle.ts";
+import { CYCLE_DEFAULTS, type CyclePhase } from "./cycle.ts";
 import {
 	type DeepRequired,
 	deepFreeze,
@@ -123,7 +123,7 @@ export function createVertexGlitchUniforms(): VertexGlitchUniforms {
  * @param glitch - The glitch settings, or null for a no-op.
  * @param active - Whether the glitch touches the model this frame, from
  *   the renderer's sweep gate.
- * @param progress - The glitch's progress this frame, after its cycle.
+ * @param phase - The glitch's phase this frame, after its cycle.
  * @param bounds - The model's rest-pose world bounds.
  * @param cameraPos - The camera's world position, for a proximity sweep.
  */
@@ -131,15 +131,15 @@ export function writeVertexGlitchUniforms(
 	u: VertexGlitchUniforms,
 	glitch: VertexGlitchEffect | null,
 	active: boolean,
-	progress: number,
+	phase: CyclePhase,
 	bounds: WorldBounds,
 	cameraPos: Color3,
 ): void {
 	u.u_glitchEnabled = active;
 	if (!glitch || !active) return;
 
-	u.u_glitchProgress = Math.min(Math.max(progress, 0), 1);
-	writeSweepUniforms(u.u_glitchSweep, glitch.sweep, bounds, cameraPos);
+	u.u_glitchProgress = Math.min(Math.max(phase.progress, 0), 1);
+	writeSweepUniforms(u.u_glitchSweep, glitch.sweep, phase, bounds, cameraPos);
 	u.u_glitchUnit = glitch.unit === "vertex" ? 1 : 0;
 	u.u_glitchStrength = glitch.strength;
 	u.u_glitchRate = Math.max(glitch.rate, 0);

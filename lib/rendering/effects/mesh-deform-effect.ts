@@ -5,7 +5,7 @@ import type {
 	SweepOptions,
 } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
-import { CYCLE_DEFAULTS } from "./cycle.ts";
+import { CYCLE_DEFAULTS, type CyclePhase } from "./cycle.ts";
 import {
 	type DeepRequired,
 	deepFreeze,
@@ -136,14 +136,14 @@ export function createMeshDeformUniforms(): MeshDeformUniforms {
  * @param u - The uniform object to write into.
  * @param deform - The deform settings, or null/disabled for a no-op.
  * @param bounds - The model's rest-pose world bounds.
- * @param progress - The deform's progress this frame, after its cycle.
+ * @param phase - The deform's phase this frame, after its cycle.
  * @param cameraPos - The camera's world position, for a proximity sweep.
  */
 export function writeMeshDeformUniforms(
 	u: MeshDeformUniforms,
 	deform: MeshDeformEffect | null,
 	bounds: WorldBounds,
-	progress: number,
+	phase: CyclePhase,
 	cameraPos: Color3,
 ): void {
 	// The bounds center also anchors the radial shatter, so it stays current
@@ -156,14 +156,13 @@ export function writeMeshDeformUniforms(
 		);
 	}
 
-	const active =
-		deform?.enabled === true && sweepActive(deform.sweep, progress);
+	const active = deform?.enabled === true && sweepActive(deform.sweep, phase);
 	u.u_deformEnabled = active;
 	if (!deform || !active) return;
 
-	u.u_deformProgress = Math.min(Math.max(progress, 0), 1);
+	u.u_deformProgress = Math.min(Math.max(phase.progress, 0), 1);
 	u.u_voxelGrid = Math.max(deform.voxel.gridSize, 1e-3);
-	writeSweepUniforms(u.u_deformSweep, deform.sweep, bounds, cameraPos);
+	writeSweepUniforms(u.u_deformSweep, deform.sweep, phase, bounds, cameraPos);
 	u.u_deformBarrel = deform.barrel.amount;
 	u.u_deformBarrelAxis = AXIS_INDEX[deform.barrel.axis] ?? 1;
 	u.u_deformSpherify = Math.min(Math.max(deform.spherify.amount, 0), 1);

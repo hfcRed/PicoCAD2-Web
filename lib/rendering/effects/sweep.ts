@@ -1,6 +1,7 @@
 import type { WorldBounds } from "../../scene/scene-graph.ts";
 import type { SweepOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import type { CyclePhase } from "./cycle.ts";
 import { type DeepRequired, deepFreeze } from "./effect-defaults.ts";
 
 export type SweepMode =
@@ -51,43 +52,65 @@ export function sweepHasWave(sweep: Required<SweepOptions>): boolean {
 }
 
 /**
- * Whether the sweep touches the model at all at a progress. A front
- * touches nothing at 0, a wave nothing while its band is outside the
- * model at either end, and inverting swaps the touched and untouched
- * sides. Effects skip their work when this is false, which keeps the
- * resting states exact instead of leaving a soft band at the model's edge.
+ * Whether the sweep runs inverted this frame. The setting mirrors the cut,
+ * and a loop cycle's returning pass mirrors it again, so that pass
+ * restores the model along the same path the first pass swept it. A wave
+ * restores behind itself already, so on a returning pass it just crosses
+ * the model once more.
  *
  * @param sweep - The sweep settings.
- * @param progress - The effect's progress this frame, after its cycle.
+ * @param phase - The effect's phase this frame, after its cycle.
+ * @returns True when the swept and untouched sides swap.
+ */
+export function sweepInverted(
+	sweep: Required<SweepOptions>,
+	phase: CyclePhase,
+): boolean {
+	return sweep.invert !== (phase.returning && !sweepHasWave(sweep));
+}
+
+/**
+ * Whether the sweep touches the model at all this frame. A front touches
+ * nothing at 0, a wave nothing while its band is outside the model at
+ * either end, and inverting swaps the touched and untouched sides.
+ * Effects skip their work when this is false, which keeps the resting
+ * states exact instead of leaving a soft band at the model's edge.
+ *
+ * @param sweep - The sweep settings.
+ * @param phase - The effect's phase this frame, after its cycle.
  * @returns True when some part of the model is swept.
  */
 export function sweepActive(
 	sweep: Required<SweepOptions>,
-	progress: number,
+	phase: CyclePhase,
 ): boolean {
+	const invert = sweepInverted(sweep, phase);
+	const progress = phase.progress;
 	if (sweepHasWave(sweep)) {
-		return sweep.invert || (progress > 0 && progress < 1);
+		return invert || (progress > 0 && progress < 1);
 	}
-	return sweep.invert ? progress < 1 : progress > 0;
+	return invert ? progress < 1 : progress > 0;
 }
 
 /**
- * Whether the sweep has swept the whole model at a progress. A front at 1,
+ * Whether the sweep has swept the whole model this frame. A front at 1,
  * an inverted front at 0, and an inverted wave whenever its band sits
  * outside the model. A wave that is not inverted never covers everything.
  *
  * @param sweep - The sweep settings.
- * @param progress - The effect's progress this frame, after its cycle.
+ * @param phase - The effect's phase this frame, after its cycle.
  * @returns True when every part of the model is swept.
  */
 export function sweepComplete(
 	sweep: Required<SweepOptions>,
-	progress: number,
+	phase: CyclePhase,
 ): boolean {
+	const invert = sweepInverted(sweep, phase);
+	const progress = phase.progress;
 	if (sweepHasWave(sweep)) {
-		return sweep.invert && (progress <= 0 || progress >= 1);
+		return invert && (progress <= 0 || progress >= 1);
 	}
-	return sweep.invert ? progress <= 0 : progress >= 1;
+	return invert ? progress <= 0 : progress >= 1;
 }
 
 const SWEEP_MODE_INDEX: Record<SweepMode, number> = {
@@ -130,12 +153,14 @@ export function createSweepUniforms(): SweepUniforms {
  *
  * @param u - The uniform struct to write.
  * @param sweep - The sweep settings.
+ * @param phase - The effect's phase this frame, after its cycle.
  * @param bounds - The model's rest-pose world bounds.
  * @param cameraPos - The camera's world position, the center of a proximity sweep.
  */
 export function writeSweepUniforms(
 	u: SweepUniforms,
 	sweep: Required<SweepOptions>,
+	phase: CyclePhase,
 	bounds: WorldBounds,
 	cameraPos: Color3,
 ): void {
@@ -143,7 +168,7 @@ export function writeSweepUniforms(
 	u.scale = Math.max(sweep.scale, 0.01);
 	u.softness = Math.max(sweep.softness, 0);
 	u.wave = Math.min(Math.max(sweep.wave, 0), 1);
-	u.invert = sweep.invert;
+	u.invert = sweepInverted(sweep, phase);
 
 	if (sweep.mode === "directional") {
 		writeDirectional(u, sweep.direction, bounds);

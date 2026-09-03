@@ -433,6 +433,7 @@ Dissolves the model texel by texel as `progress` runs from 0 (intact) to 1 (gone
 viewer.extras.dissolve.enabled = true;
 viewer.extras.dissolve.progress = 0.5;             // 0 = intact, 1 = fully dissolved (default: 0)
 viewer.extras.dissolve.cycle.enabled = false;      // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.dissolve.cycle.mode = "pingpong";    // How the progress comes back, "pingpong" retraces the sweep, "loop" restores along the same direction (default: "pingpong")
 viewer.extras.dissolve.cycle.duration = 4;         // Seconds per full cycle, holds included (default: 4)
 viewer.extras.dissolve.cycle.hold = 0.5;           // Seconds to rest at each end (default: 0.5)
 viewer.extras.dissolve.sweep.mode = "noise";       // Which texels go first, see Sweeps (default: "noise")
@@ -442,7 +443,7 @@ viewer.extras.dissolve.maskedColors = [7];         // Only these colors dissolve
 viewer.extras.dissolve.nodes = ["arm"];            // Only within these nodes (default: [] = all nodes)
 ```
 
-The `sweep` group decides which texels go first (see [Sweeps](#sweeps)). The dissolve defaults to `"noise"`. A `"uniform"` sweep has no front, so the whole surface fades through the checkerboard instead and shows no edge. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
+The `sweep` group decides which texels go first (see [Sweeps](#sweeps)). The dissolve defaults to `"noise"`. A `"uniform"` sweep has no front, so the whole surface fades through the checkerboard instead and shows no edge. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. `cycle.mode` decides how the progress comes back. `"pingpong"` runs it from 1 back to 0, so the sweep retraces its path, and `"loop"` runs the sweep forward a second time to restore the model. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
 
 ### Interior
 
@@ -593,6 +594,7 @@ Stackable closed-form deforms, applied in world space after the node transform s
 viewer.extras.meshDeform.enabled = true;
 viewer.extras.meshDeform.progress = 1;             // 0 = untouched, 1 = fully deformed (default: 1)
 viewer.extras.meshDeform.cycle.enabled = false;    // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.meshDeform.cycle.mode = "pingpong";  // How the progress comes back, "pingpong" retraces the sweep, "loop" restores along the same direction (default: "pingpong")
 viewer.extras.meshDeform.cycle.duration = 4;       // Seconds per full cycle, holds included (default: 4)
 viewer.extras.meshDeform.cycle.hold = 0.5;         // Seconds to rest at each end (default: 0.5)
 viewer.extras.meshDeform.sweep.mode = "uniform";   // Where the front is, see Sweeps (default: "uniform")
@@ -631,6 +633,7 @@ Blows the model apart into its triangles. Rendering is forced double-sided and t
 viewer.extras.triangleShatter.enabled = true;
 viewer.extras.triangleShatter.progress = 0.5;      // 0 = intact, 1 = fully dispersed (default: 0)
 viewer.extras.triangleShatter.cycle.enabled = false; // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.triangleShatter.cycle.mode = "pingpong"; // How the progress comes back, "pingpong" retraces the sweep, "loop" restores along the same direction (default: "pingpong")
 viewer.extras.triangleShatter.cycle.duration = 4;  // Seconds per full cycle, holds included (default: 4)
 viewer.extras.triangleShatter.cycle.hold = 0.5;    // Seconds to rest at each end (default: 0.5)
 viewer.extras.triangleShatter.sweep.mode = "uniform"; // Which triangles go first, see Sweeps (default: "uniform")
@@ -660,6 +663,7 @@ viewer.extras.vertexGlitch.duration = 0.1;          // Seconds a spike lasts (de
 viewer.extras.vertexGlitch.softness = 0;            // 0 snaps out and back, 1 eases over the whole spike (default: 0)
 viewer.extras.vertexGlitch.progress = 1;            // 0 = still, 1 = full (default: 1)
 viewer.extras.vertexGlitch.cycle.enabled = false;   // Run progress 0 → 1 → 0 automatically (default: false)
+viewer.extras.vertexGlitch.cycle.mode = "pingpong"; // How the progress comes back, "pingpong" retraces the sweep, "loop" restores along the same direction (default: "pingpong")
 viewer.extras.vertexGlitch.sweep.mode = "uniform";  // Where the spikes are, see Sweeps (default: "uniform")
 viewer.extras.vertexGlitch.maskedColors = [7];      // Only faces of these colors spike (default: [] = all)
 viewer.extras.vertexGlitch.nodes = ["antenna"];     // Only within these nodes (default: [] = all nodes)

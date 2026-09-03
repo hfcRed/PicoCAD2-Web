@@ -29,6 +29,10 @@ export {
 } from "./rendering/effects/color-tint-effect.ts";
 export { CRTEffect } from "./rendering/effects/crt-effect.ts";
 export {
+	CYCLE_DEFAULTS,
+	type CycleMode,
+} from "./rendering/effects/cycle.ts";
+export {
 	DEPTH_FOG_DEFAULTS,
 	DepthFogEffect,
 	type FogMode,

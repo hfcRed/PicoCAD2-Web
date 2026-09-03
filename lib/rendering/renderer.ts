@@ -1463,7 +1463,6 @@ export class Renderer {
 			u,
 			settings.meshDeform,
 			resources.bounds,
-			u.u_time,
 			this.deformProgress,
 			u.u_cameraPos,
 		);
@@ -1631,7 +1630,6 @@ export class Renderer {
 			u,
 			settings.meshDeform,
 			resources.bounds,
-			mu.u_time,
 			this.deformProgress,
 			mu.u_cameraPos,
 		);

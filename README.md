@@ -603,7 +603,6 @@ viewer.extras.meshDeform.barrel.axis = "y";        // "x" | "y" | "z" (default: 
 viewer.extras.meshDeform.spherify.amount = 0.5;    // Lerp toward the bounding sphere, 0-1 (default: 0)
 viewer.extras.meshDeform.twist.amount = 0.5;       // Rotations across the model height (default: 0)
 viewer.extras.meshDeform.twist.axis = "y";         // "x" | "y" | "z" (default: "y")
-viewer.extras.meshDeform.twist.speed = 1;          // Animates the twist into a tornado (default: 0)
 viewer.extras.meshDeform.nodes = ["propeller"];        // Only within these nodes (default: [] = all nodes)
 ```
 

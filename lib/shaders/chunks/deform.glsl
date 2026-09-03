@@ -22,7 +22,6 @@ uniform int u_deformBarrelAxis; // 0 = x, 1 = y, 2 = z
 uniform float u_deformSpherify;
 uniform float u_deformTwist;
 uniform int u_deformTwistAxis;
-uniform float u_deformTwistPhase; // time * twist.speed
 uniform vec3 u_deformCenter;
 uniform vec3 u_deformHalfExt;
 
@@ -68,10 +67,10 @@ vec3 applyMeshDeform(vec3 p) {
         rel = axial + (rel - axial) * bulge;
     }
 
-    if (u_deformTwist != 0.0 || u_deformTwistPhase != 0.0) {
+    if (u_deformTwist != 0.0) {
         vec3 ax = deformAxis(u_deformTwistAxis);
         float h = dot(rel, ax) / deformHalfExtent(u_deformTwistAxis);
-        float angle = h * (u_deformTwist * 3.14159265 + u_deformTwistPhase) * local;
+        float angle = h * (u_deformTwist * 3.14159265) * local;
         rel = rotateAround(rel, ax, angle);
     }
 

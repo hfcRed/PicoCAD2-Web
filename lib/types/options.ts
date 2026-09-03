@@ -483,7 +483,7 @@ export interface MeshDeformOptions {
 	voxel?: { enabled?: boolean; gridSize?: number };
 	barrel?: { amount?: number; axis?: DeformAxis };
 	spherify?: { amount?: number };
-	twist?: { amount?: number; axis?: DeformAxis; speed?: number };
+	twist?: { amount?: number; axis?: DeformAxis };
 }
 
 export interface TriangleFlashOptions {

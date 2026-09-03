@@ -62,7 +62,7 @@ export interface MeshDeformEffect extends Required<MeshDeformOptions> {
 	voxel: { enabled: boolean; gridSize: number };
 	barrel: { amount: number; axis: DeformAxis };
 	spherify: { amount: number };
-	twist: { amount: number; axis: DeformAxis; speed: number };
+	twist: { amount: number; axis: DeformAxis };
 }
 
 /** Default settings for {@link MeshDeformEffect}. */
@@ -84,7 +84,7 @@ export const MESH_DEFORM_DEFAULTS = deepFreeze<DeepRequired<MeshDeformOptions>>(
 		voxel: { enabled: false, gridSize: 0.25 },
 		barrel: { amount: 0, axis: "y" },
 		spherify: { amount: 0 },
-		twist: { amount: 0, axis: "y", speed: 0 },
+		twist: { amount: 0, axis: "y" },
 	},
 );
 
@@ -97,7 +97,6 @@ export interface MeshDeformUniforms {
 	u_deformSpherify: number;
 	u_deformTwist: number;
 	u_deformTwistAxis: number;
-	u_deformTwistPhase: number;
 	u_deformCenter: Color3;
 	u_deformHalfExt: Color3;
 	u_voxelGrid: number;
@@ -121,7 +120,6 @@ export function createMeshDeformUniforms(): MeshDeformUniforms {
 		u_deformSpherify: 0,
 		u_deformTwist: 0,
 		u_deformTwistAxis: 1,
-		u_deformTwistPhase: 0,
 		u_deformCenter: [0, 0, 0],
 		u_deformHalfExt: [1, 1, 1],
 		u_voxelGrid: 1,
@@ -138,7 +136,6 @@ export function createMeshDeformUniforms(): MeshDeformUniforms {
  * @param u - The uniform object to write into.
  * @param deform - The deform settings, or null/disabled for a no-op.
  * @param bounds - The model's rest-pose world bounds.
- * @param time - Elapsed time in seconds, for the animated twist.
  * @param progress - The deform's progress this frame, after its cycle.
  * @param cameraPos - The camera's world position, for a proximity sweep.
  */
@@ -146,7 +143,6 @@ export function writeMeshDeformUniforms(
 	u: MeshDeformUniforms,
 	deform: MeshDeformEffect | null,
 	bounds: WorldBounds,
-	time: number,
 	progress: number,
 	cameraPos: Color3,
 ): void {
@@ -173,5 +169,4 @@ export function writeMeshDeformUniforms(
 	u.u_deformSpherify = Math.min(Math.max(deform.spherify.amount, 0), 1);
 	u.u_deformTwist = deform.twist.amount;
 	u.u_deformTwistAxis = AXIS_INDEX[deform.twist.axis] ?? 1;
-	u.u_deformTwistPhase = time * deform.twist.speed;
 }

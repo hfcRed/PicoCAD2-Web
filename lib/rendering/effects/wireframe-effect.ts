@@ -97,7 +97,6 @@ export class WireframeEffect implements SceneEffect {
 			uniforms,
 			ctx.meshDeform,
 			resources.bounds,
-			ctx.time,
 			ctx.deformProgress,
 			ctx.cameraPos,
 		);

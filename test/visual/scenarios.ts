@@ -758,17 +758,6 @@ const geometry: Scenario[] = [
 		extras: { meshDeform: { enabled: true, spherify: { amount: 0.7 } } },
 	},
 	{
-		name: "geometry/twist-time",
-		model: "pig",
-		extras: {
-			meshDeform: {
-				enabled: true,
-				twist: { amount: 1.5, axis: "y", speed: 1 },
-			},
-		},
-		time: 0.5,
-	},
-	{
 		name: "geometry/twist-z-animated-model",
 		model: "helicopter_takeoff",
 		extras: { meshDeform: { enabled: true, twist: { amount: 1, axis: "z" } } },
@@ -1751,7 +1740,11 @@ const post: Scenario[] = [
 		model: "pig",
 		extras: {
 			videoEffects: { enabled: true, screenType: "gameboy", modelOnly: false },
-			meshDeform: { enabled: true, twist: { amount: 0.5, speed: 2 } },
+			meshDeform: {
+				enabled: true,
+				cycle: { enabled: true, duration: 2, hold: 0 },
+				twist: { amount: 0.5 },
+			},
 		},
 		warmupFrames: 6,
 		frameStep: 1 / 30,

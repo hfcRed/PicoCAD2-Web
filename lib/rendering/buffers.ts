@@ -184,6 +184,31 @@ function computeSmoothedNormals(
 }
 
 /**
+ * Looks up the normalized smoothed normal at a position. Opposing faces
+ * can cancel the average out, so it falls back to the face normal to keep
+ * an offset direction.
+ *
+ * @param smoothedNormals - The summed normals per position key.
+ * @param x - The position's x.
+ * @param y - The position's y.
+ * @param z - The position's z.
+ * @param fallback - The face normal used when the average is degenerate.
+ * @returns The normalized smoothed normal.
+ */
+function smoothedNormalAt(
+	smoothedNormals: Map<string, [number, number, number]>,
+	x: number,
+	y: number,
+	z: number,
+	fallback: Float32Array,
+): [number, number, number] {
+	const sum = smoothedNormals.get(`${x},${y},${z}`);
+	const len = sum ? Math.hypot(sum[0], sum[1], sum[2]) : 0;
+	if (!sum || len <= 1e-5) return [fallback[0], fallback[1], fallback[2]];
+	return [sum[0] / len, sum[1] / len, sum[2] / len];
+}
+
+/**
  * Builds GPU buffers for a single mesh by fan-triangulating its faces
  * and sorting them into render groups.
  *
@@ -219,8 +244,8 @@ export function buildNodeBuffers(
 	);
 	const smoothedNormals = computeSmoothedNormals(mesh, faceNormals);
 
-	// Wireframe line positions
 	const wirePositions: number[] = [];
+	const wireSmoothNormals: number[] = [];
 
 	for (let f = 0; f < mesh.faces.length; f++) {
 		const face = mesh.faces[f];
@@ -262,19 +287,9 @@ export function buildNodeBuffers(
 				groupTriIds[group].push(triId);
 				groupTriCentroids[group].push(cx, cy, cz);
 
-				// Opposing faces can cancel the averaged normal out. Fall
-				// back to the face normal so the offset direction persists.
-				const sum = smoothedNormals.get(`${px},${py},${pz}`);
-				const len = sum ? Math.hypot(sum[0], sum[1], sum[2]) : 0;
-				if (sum && len > 1e-5) {
-					groupSmoothNormals[group].push(
-						sum[0] / len,
-						sum[1] / len,
-						sum[2] / len,
-					);
-				} else {
-					groupSmoothNormals[group].push(normal[0], normal[1], normal[2]);
-				}
+				groupSmoothNormals[group].push(
+					...smoothedNormalAt(smoothedNormals, px, py, pz, normal),
+				);
 			}
 		}
 
@@ -282,14 +297,15 @@ export function buildNodeBuffers(
 		for (let i = 0; i < face.vertexIndices.length; i++) {
 			const i0 = face.vertexIndices[i] * 3;
 			const i1 = face.vertexIndices[(i + 1) % face.vertexIndices.length] * 3;
-			wirePositions.push(
-				mesh.vertices[i0],
-				mesh.vertices[i0 + 1],
-				mesh.vertices[i0 + 2],
-				mesh.vertices[i1],
-				mesh.vertices[i1 + 1],
-				mesh.vertices[i1 + 2],
-			);
+			for (const idx of [i0, i1]) {
+				const x = mesh.vertices[idx];
+				const y = mesh.vertices[idx + 1];
+				const z = mesh.vertices[idx + 2];
+				wirePositions.push(x, y, z);
+				wireSmoothNormals.push(
+					...smoothedNormalAt(smoothedNormals, x, y, z, normal),
+				);
+			}
 		}
 	}
 
@@ -342,6 +358,10 @@ export function buildNodeBuffers(
 	if (wirePositions.length > 0) {
 		wireframe = twgl.createBufferInfoFromArrays(gl, {
 			a_position: { numComponents: 3, data: new Float32Array(wirePositions) },
+			a_smoothNormal: {
+				numComponents: 3,
+				data: new Float32Array(wireSmoothNormals),
+			},
 		});
 	}
 

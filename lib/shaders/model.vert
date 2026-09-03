@@ -3,6 +3,7 @@ precision highp float;
 
 in vec3 a_position;
 in vec3 a_normal;
+in vec3 a_smoothNormal;
 in vec2 a_texCoord;
 in float a_colorIndex;
 in float a_faceFlags;
@@ -128,8 +129,9 @@ void main() {
     centroidW = applyMeshDeform(centroidW);
     
     vec3 n = normalize(worldNormal);
+    vec3 smoothN = normalize(mat3(u_worldMatrix) * a_smoothNormal);
     worldPos = glitchTriangle(worldPos, centroidW, a_triCentroid, n, a_triId, a_colorIndex);
-    worldPos = glitchVertex(worldPos, a_position, a_colorIndex);
+    worldPos = glitchVertex(worldPos, a_position, smoothN, a_colorIndex);
     worldPos = applyShatter(worldPos, centroidW, n);
 
     gl_Position = u_vp * vec4(worldPos, 1.0);

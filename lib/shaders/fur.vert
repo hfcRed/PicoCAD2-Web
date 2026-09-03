@@ -37,7 +37,7 @@ void main() {
     vec3 worldPos = (u_worldMatrix * vec4(a_position, 1.0)).xyz;
     worldPos += shellNormal * (u_furLength * t) + u_furGravity * (u_furLength * t * t);
     worldPos = applyMeshDeform(worldPos);
-    worldPos = glitchVertex(worldPos, a_position, a_colorIndex);
+    worldPos = glitchVertex(worldPos, a_position, shellNormal, a_colorIndex);
 
     gl_Position = u_vp * vec4(worldPos, 1.0);
 

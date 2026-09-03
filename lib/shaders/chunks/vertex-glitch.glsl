@@ -65,11 +65,12 @@ vec3 glitchTriangle(
 }
 
 /**
- * The vertex unit, every corner at a mesh position spikes along the same
- * hashed direction, so welds hold and buffers without triangle ids (the
- * wireframe, the fur shells) follow.
+ * The vertex unit, every corner at a mesh position spikes outward along
+ * the smoothed normal, the average of every face sharing that position,
+ * so welds hold and buffers without triangle ids (the wireframe, the fur
+ * shells) follow. The normal is in world space and normalized.
  */
-vec3 glitchVertex(vec3 worldPos, vec3 meshPos, float colorIdx) {
+vec3 glitchVertex(vec3 worldPos, vec3 meshPos, vec3 smoothNormal, float colorIdx) {
     if (!u_glitchEnabled || u_glitchUnit != 1) return worldPos;
     if (!inNodeSet(NODE_GLITCH) || !inGlitchMask(colorIdx)) return worldPos;
 
@@ -77,7 +78,5 @@ vec3 glitchVertex(vec3 worldPos, vec3 meshPos, float colorIdx) {
     float spike = glitchSpike(id, worldPos, meshPos);
     if (spike <= 0.0) return worldPos;
 
-    float bucket = floor(u_time * max(u_glitchRate, 0.001));
-    vec3 dir = normalize(hash33(vec3(id, bucket * 0.317, 7.7)) * 2.0 - 1.0);
-    return worldPos + dir * (u_glitchStrength * spike);
+    return worldPos + smoothNormal * (u_glitchStrength * spike);
 }

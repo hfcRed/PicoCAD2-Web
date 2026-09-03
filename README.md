@@ -650,7 +650,7 @@ viewer.extras.triangleShatter.nodes = ["wall"];   // Only within these nodes (de
 
 ### Vertex Glitch
 
-Rhythmic mesh spikes. Time is cut into beats at `rate` per second, every beat picks a `density` fraction of units at random, and each picked unit spikes out for `duration` seconds, snapping there or easing out and back with `softness`. `unit` decides what moves, `"triangle"` pushes whole triangles along their face normal, which tears the mesh apart and hides the wireframe and fur while it runs, while `"vertex"` pushes every corner at a mesh position along the same hashed direction, so welds hold and the wireframe and fur follow. `progress`, `cycle` and the `sweep` group (see [Sweeps](#sweeps)) scale the spikes across the model the way they do for the mesh deform.
+Rhythmic mesh spikes. Time is cut into beats at `rate` per second, every beat picks a `density` fraction of units at random, and each picked unit spikes out for `duration` seconds, snapping there or easing out and back with `softness`. `unit` decides what moves, `"triangle"` pushes whole triangles along their face normal, which tears the mesh apart and hides the wireframe and fur while it runs, while `"vertex"` pushes every corner at a mesh position outward along the average normal of the faces sharing that position, so welds hold and the wireframe and fur follow. `progress`, `cycle` and the `sweep` group (see [Sweeps](#sweeps)) scale the spikes across the model the way they do for the mesh deform.
 
 ```typescript
 viewer.extras.vertexGlitch.enabled = true;

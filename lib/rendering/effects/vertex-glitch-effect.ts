@@ -30,8 +30,9 @@ export type VertexGlitchUnit = "triangle" | "vertex";
  * {@link unit} decides what moves. "triangle" pushes whole triangles along
  * their face normal, which tears the mesh apart on purpose and hides the
  * wireframe and fur while it runs. "vertex" pushes every corner at a mesh
- * position along the same hashed direction, so welds hold and the
- * wireframe and fur follow through the shared vertex chain.
+ * position outward along the smoothed normal, the average of every face
+ * sharing that position, so welds hold and the wireframe and fur follow
+ * through the shared vertex chain.
  *
  * {@link progress}, {@link cycle} and the {@link sweep} scale the spikes
  * across the model the way they do for the mesh deform, so a wave runs a

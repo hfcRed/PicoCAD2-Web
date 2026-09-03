@@ -1,33 +1,10 @@
 import * as twgl from "twgl.js";
+import blitFrag from "../../shaders/effects/blit.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
 import type { Color3 } from "../../types/scene.ts";
 import type { RenderStats } from "../renderer.ts";
 import { FramebufferPool } from "./framebuffer-pool.ts";
 import type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
-
-/** Composite fragment shader that blends the FBO over the background color using alpha. */
-const BLIT_FRAG = `#version 300 es
-precision highp float;
-
-in vec2 v_texCoord;
-uniform sampler2D u_texture;
-uniform vec3 u_backgroundColor;
-uniform float u_bgIsTransparent;
-out vec4 fragColor;
-
-void main() {
-    vec4 col = texture(u_texture, v_texCoord);
-
-    // Opaque background: the chain holds straight alpha where alpha masks the
-    // model, so composite over the background color at full opacity.
-    // Transparent background: the chain is already premultiplied with alpha as
-    // coverage (which effects may have grown or made fractional), so pass it
-    // through unchanged. The drawing buffer expects premultiplied alpha.
-    vec3 opaqueRgb = mix(u_backgroundColor, col.rgb, col.a);
-    float outAlpha = mix(1.0, col.a, u_bgIsTransparent);
-    fragColor = vec4(mix(opaqueRgb, col.rgb, u_bgIsTransparent), outAlpha);
-}
-`;
 
 /**
  * Manages and executes a chain of post-process effects using framebuffer ping-pong.
@@ -205,10 +182,7 @@ export class PostProcessPipeline {
 		stats?: RenderStats,
 	): void {
 		if (!this.blitProgram) {
-			this.blitProgram = twgl.createProgramInfo(gl, [
-				fullscreenVert,
-				BLIT_FRAG,
-			]);
+			this.blitProgram = twgl.createProgramInfo(gl, [fullscreenVert, blitFrag]);
 			this.emptyVao = gl.createVertexArray();
 		}
 

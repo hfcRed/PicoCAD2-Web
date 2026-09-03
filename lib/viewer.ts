@@ -213,6 +213,7 @@ export class PicoCAD2Viewer {
 		paletteSwap: null,
 		fur: null,
 		billboard: null,
+		floor: null,
 	};
 
 	private readonly boundHandlers: {
@@ -524,6 +525,7 @@ export class PicoCAD2Viewer {
 		settings.paletteSwap = this._extras.paletteSwap;
 		settings.fur = this._extras.fur;
 		settings.billboard = this._extras.billboard;
+		settings.floor = this._extras.floor;
 
 		if (this.clampCameraDistance.enabled && this.model) {
 			this.clampCameraToSurfaces(this.model.root);
@@ -1341,6 +1343,14 @@ export class PicoCAD2Viewer {
 		}
 
 		assign(this.extras.billboard, extras.billboard);
+
+		if (extras.floor) {
+			const { grid, shadow, reflection, ...floor } = extras.floor;
+			assign(this.extras.floor, floor);
+			assign(this.extras.floor.grid, grid);
+			assign(this.extras.floor.shadow, shadow);
+			assign(this.extras.floor.reflection, reflection);
+		}
 
 		if (extras.videoEffects) {
 			const { crt, gameboy, tn, oled, projector, ...video } =

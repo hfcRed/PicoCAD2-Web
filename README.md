@@ -728,6 +728,33 @@ viewer.extras.particles.paletteIndices = [7];  // Color source: particles sample
 
 Unlike effect masks, `paletteIndices` is a color source, not a mask: particles are painted with the model's palette colors at those indices.
 
+### Floor
+
+A pedestal plane under the model, placed at the lowest point of its rest-pose bounds and sized from its footprint, or stretched to the horizon with `infinite`. The plate carries optional world-space grid lines, a shadow of the model cast along a direction, and the model's mirror image, and it fades out toward its edge through an ordered dither. Shadow and reflection show through the same ordered dither by their `strength`, or blend in smooth style. Grid lines inside the shadow take it at half strength, so they read as darker lines, and a grid thins out where its cells shrink toward a pixel instead of flooding the plate. With `surface` off the plate itself is invisible and only the grid, the shadow and the reflection render. The plate is scenery, it writes the no-model palette index, so color masks, ambient occlusion and the drop shadow do not touch it, while depth fog reaches it through the depth buffer and outlines trace its edge like any content. Seen from below, the plate is opaque and shows neither shadow nor reflection.
+
+```typescript
+viewer.extras.floor.enabled = true;
+viewer.extras.floor.surface = true;                    // Draw the plate surface; off leaves only the grid, shadow and reflection (default: true)
+viewer.extras.floor.infinite = false;                  // Extend the plate to the horizon, ignoring size and fade (default: false)
+viewer.extras.floor.offset = 0;                        // Distance below the model's lowest point, in world units (default: 0)
+viewer.extras.floor.size = 2;                          // Plate width as a multiple of the model's larger horizontal extent (default: 2)
+viewer.extras.floor.color = [0.4, 0.4, 0.45];          // Plate color (default: [0.4, 0.4, 0.45])
+viewer.extras.floor.fade = 0.5;                        // Outer fraction of the plate that fades out, 0-1 (default: 0.5)
+viewer.extras.floor.grid.enabled = true;               // World-space grid lines (default: true)
+viewer.extras.floor.grid.spacing = 1;                  // Grid cell size in world units (default: 1)
+viewer.extras.floor.grid.thickness = 1;                // Line width in render pixels (default: 1)
+viewer.extras.floor.grid.color = [0.55, 0.55, 0.6];    // Grid line color (default: [0.55, 0.55, 0.6])
+viewer.extras.floor.shadow.enabled = true;             // Shadow of the model on the plate (default: true)
+viewer.extras.floor.shadow.direction = [0.5, -1, 0.3]; // Direction the shadow is cast along, must point down (default: [0.5, -1, 0.3])
+viewer.extras.floor.shadow.color = [0.2, 0.2, 0.25];   // Shadow color (default: [0.2, 0.2, 0.25])
+viewer.extras.floor.shadow.strength = 1;               // Shadow coverage, dithered below 1 (default: 1)
+viewer.extras.floor.reflection.enabled = false;        // Mirror image of the model in the plate (default: false)
+viewer.extras.floor.reflection.strength = 0.5;         // 1 = mirror, lower = water, dithered (default: 0.5)
+viewer.extras.floor.style = "palette";                 // "palette" | "dithered" | "smooth" (default: "palette")
+```
+
+The shadow and reflection each redraw the whole model, so a plate with both costs three model draws per frame.
+
 ## Post-Processing Effects
 
 ### Procedural Background
@@ -1062,7 +1089,7 @@ When multiple effects are active, they are applied in this fixed order:
 18. Glitch
 19. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform, vertex glitch and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform, vertex glitch and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. The floor renders its shadow map and reflection before the scene pass and draws its plate right after the model. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

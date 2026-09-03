@@ -449,6 +449,30 @@ export interface BillboardOptions {
 	mode?: BillboardMode;
 }
 
+export interface FloorOptions {
+	enabled?: boolean;
+	surface?: boolean;
+	infinite?: boolean;
+	offset?: number;
+	size?: number;
+	color?: Color3;
+	fade?: number;
+	grid?: {
+		enabled?: boolean;
+		spacing?: number;
+		thickness?: number;
+		color?: Color3;
+	};
+	shadow?: {
+		enabled?: boolean;
+		direction?: [number, number, number];
+		color?: Color3;
+		strength?: number;
+	};
+	reflection?: { enabled?: boolean; strength?: number };
+	style?: MaterialStyle;
+}
+
 export interface MeshDeformOptions {
 	nodes?: string[];
 	enabled?: boolean;
@@ -525,6 +549,7 @@ export interface ExtrasOptions {
 	triangleShatter?: TriangleShatterOptions;
 	vertexGlitch?: VertexGlitchOptions;
 	billboard?: BillboardOptions;
+	floor?: FloorOptions;
 	gradientOutline?: GradientOutlineOptions;
 	ssao?: SSAOOptions;
 	colorGrading?: ColorGradingOptions;

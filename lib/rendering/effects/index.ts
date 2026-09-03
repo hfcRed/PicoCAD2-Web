@@ -12,6 +12,7 @@ export {
 	type EmissionBlinkMode,
 	EmissionEffect,
 } from "./emission-effect.ts";
+export { FloorEffect } from "./floor-effect.ts";
 export { FramebufferPool } from "./framebuffer-pool.ts";
 export { FullscreenEffect } from "./fullscreen-effect.ts";
 export { FurEffect } from "./fur-effect.ts";

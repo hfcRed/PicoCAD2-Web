@@ -54,6 +54,10 @@ export {
 	type EmissionBlinkMode,
 	EmissionEffect,
 } from "./rendering/effects/emission-effect.ts";
+export {
+	FLOOR_DEFAULTS,
+	FloorEffect,
+} from "./rendering/effects/floor-effect.ts";
 export { FullscreenEffect } from "./rendering/effects/fullscreen-effect.ts";
 export { FUR_DEFAULTS, FurEffect } from "./rendering/effects/fur-effect.ts";
 export {
@@ -215,6 +219,7 @@ export type {
 	EmissionOptions,
 	ExtrasOptions,
 	ExtrasState,
+	FloorOptions,
 	FurOptions,
 	GlitchOptions,
 	GlitterOptions,

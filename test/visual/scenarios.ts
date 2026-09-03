@@ -1241,6 +1241,125 @@ const post: Scenario[] = [
 		extras: { wireframe: { enabled: true } },
 	},
 	// Particles
+	// Floor. The plate under the model with its grid and the shadow cast
+	// along the default direction from the depth pass.
+	{
+		name: "post/floor-default",
+		model: "rig",
+		extras: { floor: { enabled: true } },
+	},
+	{
+		name: "post/floor-mirror",
+		model: "rig",
+		extras: {
+			floor: {
+				enabled: true,
+				grid: { enabled: false },
+				shadow: { enabled: false },
+				reflection: { enabled: true, strength: 1 },
+			},
+		},
+	},
+	// Transparent path, smooth style. The sideways shadow and the reflection
+	// blend into a tinted plate, and the fur and the twist show in the mirror.
+	{
+		name: "post/floor-water-smooth-fur-twist",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			floor: {
+				enabled: true,
+				style: "smooth",
+				color: [0.2, 0.4, 0.7],
+				fade: 0.3,
+				size: 2.5,
+				grid: { enabled: false },
+				shadow: { direction: [1, -0.6, 0], strength: 0.6 },
+				reflection: { enabled: true, strength: 0.6 },
+			},
+			fur: { enabled: true },
+			meshDeform: { enabled: true, twist: { amount: 0.6, axis: "y" } },
+		},
+	},
+	{
+		name: "post/floor-dithered-offset-grid",
+		model: "rig",
+		extras: {
+			floor: {
+				enabled: true,
+				style: "dithered",
+				offset: 0.5,
+				size: 3,
+				fade: 0.8,
+				color: [0.3, 0.2, 0.2],
+				grid: { spacing: 0.5, color: [0.9, 0.8, 0.5] },
+				shadow: { strength: 0.5, color: [0.1, 0.05, 0.05] },
+				reflection: { enabled: true, strength: 0.25 },
+			},
+		},
+	},
+	// The plate cuts through the model: geometry below it must not show up
+	// in the reflection.
+	{
+		name: "post/floor-plane-through-model",
+		model: "rig",
+		extras: {
+			floor: {
+				enabled: true,
+				offset: -1.5,
+				grid: { enabled: false },
+				reflection: { enabled: true, strength: 1 },
+			},
+		},
+	},
+	{
+		name: "post/floor-ortho",
+		model: "livingroom",
+		settings: { projectionMode: "orthographic" },
+		extras: { floor: { enabled: true, reflection: { enabled: true } } },
+	},
+	// From below the plate is opaque and shows neither reflection nor shadow.
+	{
+		name: "post/floor-from-below",
+		model: "rig",
+		settings: { camera: { theta: -0.7 } },
+		extras: {
+			floor: { enabled: true, reflection: { enabled: true, strength: 1 } },
+		},
+	},
+	// The plate stays while the model is hidden.
+	{
+		name: "post/floor-model-hidden",
+		model: "rig",
+		settings: { renderMode: "none" },
+		extras: { floor: { enabled: true, reflection: { enabled: true } } },
+	},
+	// An infinite plate is centered on the camera and reaches past the far
+	// plane, so no edge is in view; the lines are two pixels wide.
+	{
+		name: "post/floor-infinite-thick-grid",
+		model: "rig",
+		extras: {
+			floor: { enabled: true, infinite: true, grid: { thickness: 2 } },
+		},
+	},
+	// No surface on the transparent path: the grid, the shadow and the
+	// reflection claim whole pixels over the background, in smooth style too.
+	{
+		name: "post/floor-no-surface-smooth",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			floor: {
+				enabled: true,
+				surface: false,
+				style: "smooth",
+				grid: { spacing: 0.5 },
+				shadow: { strength: 0.75 },
+				reflection: { enabled: true, strength: 0.5 },
+			},
+		},
+	},
 	{
 		name: "post/particles-pixel-drift",
 		model: "pig",
@@ -1903,6 +2022,18 @@ const post: Scenario[] = [
 ];
 
 const combos: Scenario[] = [
+	// The plate takes the fog through depth, SSAO skips it through the index
+	// buffer, and the coverage outline traces its edge.
+	{
+		name: "combo/floor-fog-ssao-outline",
+		model: "livingroom",
+		extras: {
+			floor: { enabled: true, reflection: { enabled: true } },
+			depthFog: { enabled: true, near: 15, far: 25 },
+			ssao: { enabled: true },
+			gradientOutline: { enabled: true, size: 2 },
+		},
+	},
 	{
 		name: "combo/material-stack-pig",
 		model: "pig",

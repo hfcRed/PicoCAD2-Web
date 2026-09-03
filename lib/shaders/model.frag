@@ -17,6 +17,7 @@ uniform float u_transparentColor;
 uniform bool u_shadingEnabled;
 uniform int u_renderMode; // 0 = texture, 1 = color
 uniform int u_cutoutMask;
+uniform float u_clipBelowY; // the floor's reflection pass clips real geometry below the plate
 
 #include chunks/node-bits.glsl;
 #include chunks/material-effects.glsl;
@@ -31,6 +32,7 @@ void main() {
     bool noShade = (flags & 1) != 0;
     bool noTex = (flags & 2) != 0;
 
+    if (v_worldPos.y < u_clipBelowY) discard;
     applyVoxelCut(v_worldPos, normalize(v_normal), (flags & 4) != 0);
 
     float colorIdx;

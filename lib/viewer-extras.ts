@@ -44,6 +44,10 @@ import {
 	EMISSION_DEFAULTS,
 	EmissionEffect,
 } from "./rendering/effects/emission-effect.ts";
+import {
+	FLOOR_DEFAULTS,
+	FloorEffect,
+} from "./rendering/effects/floor-effect.ts";
 import { FUR_DEFAULTS, FurEffect } from "./rendering/effects/fur-effect.ts";
 import {
 	GLITCH_DEFAULTS,
@@ -152,9 +156,9 @@ import type { ExtrasOptions, ExtrasState } from "./types/options.ts";
  * Material effects (color cutout, dissolve, projection, emission, interior,
  * gradient light, specular, rim light, glitter) are applied inside the
  * model shader, in that order, before any
- * post-processing. Fur shells and the billboard node exclusion are applied
- * by the renderer alongside the model draw. Scene effects (wireframe,
- * particles) draw into the 3D
+ * post-processing. Fur shells, the billboard node exclusion and the floor
+ * are applied by the renderer alongside the model draw. Scene effects
+ * (wireframe, particles) draw into the 3D
  * scene after the model. Post-process effects are applied in this default order:
  * gradient outline -> procedural background -> ssao -> depth fog -> edge detection ->
  * color grading -> color tint -> posterization -> sharpen -> bloom ->
@@ -180,6 +184,7 @@ export class ViewerExtras {
 	readonly triangleShatter: TriangleShatterEffect;
 	readonly vertexGlitch: VertexGlitchEffect;
 	readonly billboard: BillboardEffect;
+	readonly floor: FloorEffect;
 	readonly gradientOutline: GradientOutlineEffect;
 	readonly proceduralBackground: ProceduralBackgroundEffect;
 	readonly ssao: SSAOEffect;
@@ -243,6 +248,10 @@ export class ViewerExtras {
 		// CPU matrix exclusion, applied by the renderer after the scene
 		// graph update.
 		this.billboard = new BillboardEffect();
+
+		// Pedestal plane, drawn by the renderer with the model together with
+		// its shadow and reflection passes.
+		this.floor = new FloorEffect();
 
 		// Scene reconstruction
 		this.gradientOutline = new GradientOutlineEffect();
@@ -351,6 +360,7 @@ export const EXTRAS_DEFAULTS = Object.freeze({
 	triangleShatter: TRIANGLE_SHATTER_DEFAULTS,
 	vertexGlitch: VERTEX_GLITCH_DEFAULTS,
 	billboard: BILLBOARD_DEFAULTS,
+	floor: FLOOR_DEFAULTS,
 	gradientOutline: GRADIENT_OUTLINE_DEFAULTS,
 	ssao: SSAO_DEFAULTS,
 	colorGrading: COLOR_GRADING_DEFAULTS,

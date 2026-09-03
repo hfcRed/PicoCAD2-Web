@@ -21,6 +21,13 @@ import { packColorMask } from "./effects/color-mask.ts";
 import { resolveCycleProgress } from "./effects/cycle.ts";
 import type { DissolveEffect } from "./effects/dissolve-effect.ts";
 import type { EmissionEffect } from "./effects/emission-effect.ts";
+import {
+	type FloorEffect,
+	type FloorPlane,
+	writeFloorLightVp,
+	writeFloorMirror,
+	writeFloorPlane,
+} from "./effects/floor-effect.ts";
 import type { FurEffect } from "./effects/fur-effect.ts";
 import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
@@ -55,6 +62,7 @@ import {
 	type VertexGlitchEffect,
 	writeVertexGlitchUniforms,
 } from "./effects/vertex-glitch-effect.ts";
+import { FloorResources } from "./floor-resources.ts";
 import { computeNodeBits, NODE_BIT } from "./node-selection.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
 import {
@@ -88,6 +96,7 @@ export interface RenderSettings {
 	paletteSwap: PaletteSwapEffect | null;
 	fur: FurEffect | null;
 	billboard: BillboardEffect | null;
+	floor: FloorEffect | null;
 }
 
 /**
@@ -102,6 +111,9 @@ const LIGHT_DIR_VIEW = vec3.normalize(
 
 /** Ambient light level matching PicoCAD 2. */
 const AMBIENT = 0.15;
+
+/** A clip height no geometry is below, for passes without a floor clip. */
+const NO_CLIP = -1e30;
 
 /** Render groups drawn first, into a depth buffer that is cleared afterwards. */
 const PRIORITY_GROUPS = [2, 3] as const;
@@ -141,6 +153,12 @@ export class Renderer {
 	private deformProgress = 1;
 	private glitchProgress = 1;
 	private glitchActive = false;
+	private furLayers = 0;
+	private cullOff = false;
+	private floor: FloorResources | null = null;
+	private floorShadowOn = false;
+	private floorReflectionOn = false;
+	private readonly floorPlane: FloorPlane = { center: [0, 0, 0], half: 1 };
 	private readonly nodeUniforms = {
 		u_worldMatrix: mat4.create() as mat4,
 		u_nodeBits: 0,
@@ -169,6 +187,7 @@ export class Renderer {
 		u_viewportOrigin: [0, 0] as [number, number],
 		u_boundsMinY: 0,
 		u_boundsSpanY: 1,
+		u_clipBelowY: NO_CLIP,
 
 		...createMeshDeformUniforms(),
 
@@ -307,6 +326,7 @@ export class Renderer {
 		u_furRootShade: 0,
 		u_furMask: 0,
 		u_time: 0,
+		u_clipBelowY: NO_CLIP,
 
 		...createVertexGlitchUniforms(),
 
@@ -571,6 +591,16 @@ export class Renderer {
 		ctx.cameraElevation = camera.theta;
 		ctx.palette = model.texture.colors;
 
+		this.prepareModelUniforms(settings, model, resources);
+
+		const floor = settings.floor;
+		const floorOn = floor?.enabled === true;
+		this.floorShadowOn = false;
+		this.floorReflectionOn = false;
+		if (floor && floorOn && settings.renderMode < 2) {
+			this.drawFloorPasses(floor, resources, vpMatrix, w, h);
+		}
+
 		if (useFbo) {
 			pipeline.pool.ensure(gl, w, h);
 			pipeline.pool.bindScene(gl);
@@ -608,11 +638,16 @@ export class Renderer {
 		}
 
 		if (settings.renderMode < 2) {
-			this.drawModel(settings, model, resources);
+			this.drawModel(resources);
 		}
 
-		// Only the model shader writes the index attachment, later passes
-		// (wireframe, outline, post effects) draw to the color buffer alone.
+		if (floor && floorOn) {
+			this.drawFloorPlane(floor, model, resources, vpMatrix, w, h);
+		}
+
+		// Only the model shader and the floor plate write the index attachment,
+		// later passes (wireframe, outline, post effects) draw to the color
+		// buffer alone.
 		if (useFbo) {
 			pipeline.pool.disableIndexWrites(gl);
 		}
@@ -694,6 +729,11 @@ export class Renderer {
 		gl.deleteProgram(this.programs.outline.program);
 		gl.deleteProgram(this.programs.fur.program);
 
+		if (this.floor) {
+			this.floor.dispose(gl);
+			this.floor = null;
+		}
+
 		if (this.emptyVao) {
 			gl.deleteVertexArray(this.emptyVao);
 			this.emptyVao = null;
@@ -754,25 +794,19 @@ export class Renderer {
 	}
 
 	/**
-	 * Draws the model with the textured/colored shader.
-	 * The view-projection matrix is already uploaded as u_vp by {@link draw}.
+	 * Resolves this frame's model and fur uniforms from the settings, so
+	 * the scene pass and the floor's passes draw the same model state.
+	 * Uploading is left to the passes, which override the view projection.
 	 *
 	 * @param settings - The current render settings.
 	 * @param model - The parsed model.
 	 * @param resources - The GPU resources.
 	 */
-	private drawModel(
+	private prepareModelUniforms(
 		settings: RenderSettings,
 		model: PicoCAD2Model,
 		resources: ModelResources,
 	): void {
-		const gl = this.gl;
-
-		gl.useProgram(this.programs.model.program);
-		gl.enable(gl.DEPTH_TEST);
-		gl.depthFunc(gl.LEQUAL);
-		gl.depthMask(true);
-
 		const uniforms = this.modelUniforms;
 		uniforms.u_indexTexture = resources.indexTexture;
 		uniforms.u_paletteTexture = resources.paletteTexture;
@@ -780,34 +814,249 @@ export class Renderer {
 		uniforms.u_shadingEnabled = settings.shading;
 		uniforms.u_renderMode = settings.renderMode;
 		uniforms.u_cutoutMask = settings.cutoutMask;
+		uniforms.u_clipBelowY = NO_CLIP;
+		this.furUniforms.u_clipBelowY = NO_CLIP;
 		this.updateMaterialUniforms(settings, model, resources);
 		this.updateGeometryUniforms(settings, model, resources);
-		twgl.setUniforms(this.programs.model, uniforms);
 
 		const fur = settings.fur;
 		const glitchHidesFur =
 			this.glitchActive && settings.vertexGlitch?.unit === "triangle";
-		const furLayers =
+		this.furLayers =
 			fur?.enabled && !this.shatterActive && !glitchHidesFur && fur.length > 0
 				? Math.min(Math.max(Math.round(fur.layers), 1), 16)
 				: 0;
-		if (furLayers > 0 && fur) {
-			this.updateFurUniforms(fur, settings, resources, furLayers);
+		if (this.furLayers > 0 && fur) {
+			this.updateFurUniforms(fur, settings, resources, this.furLayers);
 		}
+	}
 
-		// Draw priority faces
-		this.drawGroups(PRIORITY_GROUPS, resources);
-		if (furLayers > 0) this.drawFur(PRIORITY_GROUPS, resources, furLayers);
+	/**
+	 * Draws the model with the textured/colored shader into the bound
+	 * scene target, from the uniforms {@link prepareModelUniforms} resolved.
+	 *
+	 * @param resources - The GPU resources.
+	 */
+	private drawModel(resources: ModelResources): void {
+		const gl = this.gl;
 
-		// Clear depth buffer
-		gl.clear(gl.DEPTH_BUFFER_BIT);
+		gl.useProgram(this.programs.model.program);
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthFunc(gl.LEQUAL);
+		gl.depthMask(true);
+		twgl.setUniforms(this.programs.model, this.modelUniforms);
 
-		// Draw non-priority faces
-		this.drawGroups(NON_PRIORITY_GROUPS, resources);
-		if (furLayers > 0) this.drawFur(NON_PRIORITY_GROUPS, resources, furLayers);
+		this.drawModelPhases(resources);
 
 		gl.disable(gl.DEPTH_TEST);
 		gl.disable(gl.CULL_FACE);
+	}
+
+	/**
+	 * Draws the model's two depth phases with the fur shells. Priority
+	 * faces, a depth clear, then the rest. The model program must be bound
+	 * with its uniforms uploaded.
+	 *
+	 * @param resources - The GPU resources.
+	 */
+	private drawModelPhases(resources: ModelResources): void {
+		const gl = this.gl;
+		const furLayers = this.furLayers;
+
+		this.drawGroups(PRIORITY_GROUPS, resources);
+		if (furLayers > 0) this.drawFur(PRIORITY_GROUPS, resources, furLayers);
+
+		gl.clear(gl.DEPTH_BUFFER_BIT);
+
+		this.drawGroups(NON_PRIORITY_GROUPS, resources);
+		if (furLayers > 0) this.drawFur(NON_PRIORITY_GROUPS, resources, furLayers);
+	}
+
+	/**
+	 * Renders the floor's shadow map and reflection image into the floor's
+	 * own framebuffers before the scene pass. The shadow map is a depth-only
+	 * draw of the model along the shadow direction with culling off, so
+	 * every face occludes. The reflection redraws the model through the
+	 * view projection mirrored across the plate, from the mirrored camera
+	 * and light, with the winding flipped to match and real geometry below
+	 * the plate clipped away. Both skip while the camera looks at the plate
+	 * from below, where it is opaque.
+	 *
+	 * @param floor - The enabled floor settings.
+	 * @param resources - The GPU resources.
+	 * @param vpMatrix - The camera's view-projection matrix, restored afterwards.
+	 * @param w - The render width in pixels.
+	 * @param h - The render height in pixels.
+	 */
+	private drawFloorPasses(
+		floor: FloorEffect,
+		resources: ModelResources,
+		vpMatrix: mat4,
+		w: number,
+		h: number,
+	): void {
+		const gl = this.gl;
+		if (!this.floor) this.floor = new FloorResources();
+		const res = this.floor;
+		const mu = this.modelUniforms;
+		const fu = this.furUniforms;
+
+		writeFloorPlane(this.floorPlane, floor, resources.bounds, mu.u_cameraPos);
+		const planeY = this.floorPlane.center[1];
+		if (mu.u_cameraPos[1] <= planeY) return;
+
+		gl.useProgram(this.programs.model.program);
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthFunc(gl.LEQUAL);
+		gl.depthMask(true);
+
+		const shadow = floor.shadow;
+		if (
+			shadow.enabled &&
+			shadow.strength > 0 &&
+			writeFloorLightVp(res.lightVp, shadow.direction, resources.bounds, planeY)
+		) {
+			mat4.copy(mu.u_vp, res.lightVp);
+			mat4.copy(fu.u_vp, res.lightVp);
+			res.bindShadowMap(gl);
+			this.cullOff = true;
+			twgl.setUniforms(this.programs.model, mu);
+			this.drawModelPhases(resources);
+			this.cullOff = false;
+			this.floorShadowOn = true;
+		}
+
+		const reflection = floor.reflection;
+		if (reflection.enabled && reflection.strength > 0) {
+			writeFloorMirror(res.mirror, planeY);
+			mat4.multiply(mu.u_vp, vpMatrix, res.mirror);
+			mat4.copy(fu.u_vp, mu.u_vp);
+			const originX = mu.u_viewportOrigin[0];
+			const originY = mu.u_viewportOrigin[1];
+			mu.u_viewportOrigin[0] = 0;
+			mu.u_viewportOrigin[1] = 0;
+			mu.u_clipBelowY = planeY;
+			fu.u_clipBelowY = planeY;
+			this.mirrorCameraAcrossFloor(planeY);
+
+			res.bindReflection(gl, w, h);
+			gl.frontFace(gl.CW);
+			twgl.setUniforms(this.programs.model, mu);
+			this.drawModelPhases(resources);
+			gl.frontFace(gl.CCW);
+
+			this.mirrorCameraAcrossFloor(planeY);
+			mu.u_clipBelowY = NO_CLIP;
+			fu.u_clipBelowY = NO_CLIP;
+			mu.u_viewportOrigin[0] = originX;
+			mu.u_viewportOrigin[1] = originY;
+			this.floorReflectionOn = true;
+		}
+
+		mat4.copy(mu.u_vp, vpMatrix);
+		mat4.copy(fu.u_vp, vpMatrix);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.CULL_FACE);
+	}
+
+	/**
+	 * Mirrors the camera position, basis and the headlight across the
+	 * floor plate in place, so a reflection pass sees the model the way the
+	 * mirrored camera would. Applying it twice restores the originals.
+	 *
+	 * @param planeY - The plate's height.
+	 */
+	private mirrorCameraAcrossFloor(planeY: number): void {
+		const mu = this.modelUniforms;
+		mu.u_cameraPos[1] = 2 * planeY - mu.u_cameraPos[1];
+		mu.u_cameraFwd[1] = -mu.u_cameraFwd[1];
+		mu.u_cameraRight[1] = -mu.u_cameraRight[1];
+		this.lightDirWorld[1] = -this.lightDirWorld[1];
+	}
+
+	/**
+	 * Draws the plate into the scene after the model, depth-tested against
+	 * it, showing this frame's shadow map and reflection image. Runs while
+	 * the index attachment is still bound, so the plate writes the no-model
+	 * index itself.
+	 *
+	 * @param floor - The enabled floor settings.
+	 * @param model - The parsed model, for its palette.
+	 * @param resources - The GPU resources.
+	 * @param vpMatrix - The camera's view-projection matrix.
+	 * @param w - The render width in pixels.
+	 * @param h - The render height in pixels.
+	 */
+	private drawFloorPlane(
+		floor: FloorEffect,
+		model: PicoCAD2Model,
+		resources: ModelResources,
+		vpMatrix: mat4,
+		w: number,
+		h: number,
+	): void {
+		const gl = this.gl;
+		if (!this.floor) this.floor = new FloorResources();
+		const res = this.floor;
+		const u = res.uniforms;
+		const palette = model.texture.colors;
+		const plane = this.floorPlane;
+
+		writeFloorPlane(
+			plane,
+			floor,
+			resources.bounds,
+			this.modelUniforms.u_cameraPos,
+		);
+		mat4.copy(u.u_vp, vpMatrix);
+		u.u_floorCenter[0] = plane.center[0];
+		u.u_floorCenter[1] = plane.center[1];
+		u.u_floorCenter[2] = plane.center[2];
+		u.u_floorHalf = plane.half;
+		writeStyledColor(u.u_floorColor, floor.color, floor.style, palette);
+		u.u_floorFade = floor.infinite ? 0 : Math.min(Math.max(floor.fade, 0), 1);
+		u.u_floorSmooth = floor.style === "smooth";
+		u.u_floorSurface = floor.surface;
+		u.u_floorGridOn =
+			floor.grid.enabled && floor.grid.spacing > 0 && floor.grid.thickness > 0;
+		u.u_floorGridSpacing = Math.max(floor.grid.spacing, 1e-4);
+		u.u_floorGridThickness = Math.max(floor.grid.thickness, 0);
+		writeStyledColor(
+			u.u_floorGridColor,
+			floor.grid.color,
+			floor.style,
+			palette,
+		);
+		u.u_floorShadowOn = this.floorShadowOn;
+		u.u_floorShadowMap = res.shadowTexture;
+		writeStyledColor(
+			u.u_floorShadowColor,
+			floor.shadow.color,
+			floor.style,
+			palette,
+		);
+		u.u_floorShadowStrength = Math.min(Math.max(floor.shadow.strength, 0), 1);
+		u.u_floorReflectionOn = this.floorReflectionOn;
+		u.u_floorReflection = res.reflectionTexture;
+		u.u_floorReflectionStrength = Math.min(
+			Math.max(floor.reflection.strength, 0),
+			1,
+		);
+		u.u_resolution[0] = w;
+		u.u_resolution[1] = h;
+		u.u_viewportOrigin[0] = this.modelUniforms.u_viewportOrigin[0];
+		u.u_viewportOrigin[1] = this.modelUniforms.u_viewportOrigin[1];
+
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthFunc(gl.LEQUAL);
+		gl.depthMask(true);
+		gl.disable(gl.CULL_FACE);
+		res.drawPlane(gl);
+		gl.disable(gl.DEPTH_TEST);
+
+		this.stats.drawCalls++;
+		this.stats.polyCount += 2;
 	}
 
 	/**
@@ -1301,7 +1550,8 @@ export class Renderer {
 				const group = nb.groups[groupIdx];
 				if (!group) continue;
 
-				const isDoubleSided = (groupIdx & 1) !== 0 || this.shatterActive;
+				const isDoubleSided =
+					(groupIdx & 1) !== 0 || this.shatterActive || this.cullOff;
 				if (isDoubleSided) {
 					gl.disable(gl.CULL_FACE);
 				} else {
@@ -1420,7 +1670,7 @@ export class Renderer {
 				const group = nb.groups[groupIdx];
 				if (!group) continue;
 
-				const isDoubleSided = (groupIdx & 1) !== 0;
+				const isDoubleSided = (groupIdx & 1) !== 0 || this.cullOff;
 				if (isDoubleSided) {
 					gl.disable(gl.CULL_FACE);
 				} else {

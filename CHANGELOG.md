@@ -43,6 +43,7 @@
 ### Changed
 
 - **Render statistics count the whole frame** — `context.stats` now includes every draw a frame issues, not just the base model. Fur shells, wireframe lines, particles, the outline, every post-processing pass and the final composite. `polyCount` includes effect geometry. Fur shells multiply the model's triangles by the layer count and particles add their shapes, while fullscreen passes and wireframe lines add draw calls only. Custom effects can add their own draws through the new `EffectContext.stats`.
+- **Sparse effects in viewer states** — `getState()` includes only the effect settings that differ from their defaults, so a state carries the effects it uses instead of every setting of every effect. `setState()` accepts a state that lists only the effects it uses and resets the others to their defaults, and `extras` may be left out entirely. States saved by earlier versions still load unchanged.
 - **Smaller bundle** — Shader sources ship stripped of comments and whitespace, taking about 19% off the raw bundle and 14 KB off the gzipped size. Rendering is unchanged.
 
 ### Deprecated

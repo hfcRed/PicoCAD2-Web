@@ -308,7 +308,15 @@ viewer.setState(saved);
 viewer.setState(saved, true);
 ```
 
-The state includes the raw model source string, all rendering settings, camera position, animation state, resolution, bookmark, and extras configuration. Restoring a state resets every effect first, so effects the state does not mention (states saved before an effect existed) come back at their defaults.
+The state includes the raw model source string, all rendering settings, camera position, animation state, resolution, bookmark, and the effect settings that differ from their defaults. Restoring a state resets every effect first, so a state only needs to list the effects it uses:
+
+```typescript
+viewer.setState({
+  source: state.source,
+  settings: state.settings,
+  extras: { bloom: { enabled: true, threshold: 0.6 } },   // every other effect returns to its defaults
+});
+```
 
 ## Image Export
 

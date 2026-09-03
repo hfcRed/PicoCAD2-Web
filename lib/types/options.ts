@@ -653,15 +653,12 @@ export interface ViewerSettings {
 	bookmark: BookmarkSettings;
 }
 
-export type ExtrasState = Omit<Required<ExtrasOptions>, "crt"> & {
-	/** @deprecated Only present in states saved by older versions. */
-	crt?: CRTOptions;
-};
+export type ExtrasState = Omit<Required<ExtrasOptions>, "crt">;
 
 export interface PicoCAD2ViewerState {
 	source: string | null;
 	settings: ViewerSettings;
-	extras: ExtrasState;
+	extras?: ExtrasOptions;
 }
 
 export interface PicoCAD2ViewerOptions {

@@ -5,6 +5,7 @@ import { FISHEYE_STRENGTH, GLOBAL_W } from "./camera/projection.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
 import { packColorMask } from "./rendering/effects/color-mask.ts";
+import { diffFromDefaults } from "./rendering/effects/effect-defaults.ts";
 import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import { collectRayCrossings } from "./scene/raycast.ts";
@@ -17,7 +18,6 @@ import type {
 	CameraControlOptions,
 	CameraDistanceClamp,
 	ExtrasOptions,
-	ExtrasState,
 	ModelInfo,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
@@ -1054,8 +1054,9 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
-	 * Returns a JSON-serializable snapshot of the viewer's complete state,
-	 * including the raw model source, all settings, and extras.
+	 * Returns a JSON-serializable snapshot of the viewer's state: the raw
+	 * model source, all settings, and the effect settings that differ from
+	 * their defaults.
 	 */
 	getState(): PicoCAD2ViewerState {
 		return {
@@ -1135,7 +1136,9 @@ export class PicoCAD2Viewer {
 
 	/**
 	 * Restores the viewer from a previously captured state.
-	 * If the state includes a model source, it will be loaded.
+	 * If the state includes a model source, it will be loaded. Effects the
+	 * state does not list return to their defaults, so a state written by
+	 * hand only needs the effects it uses.
 	 *
 	 * @param state - The state to restore.
 	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
@@ -1219,43 +1222,19 @@ export class PicoCAD2Viewer {
 			this.camera.initFromState(this.model.camera);
 		}
 
-		// A state is a complete snapshot, so effects it does not mention
-		// (states saved before an effect existed) return to their defaults.
+		// A state lists only the effects it uses, so every other effect
+		// returns to its defaults.
 		this._extras.reset();
-		this.applyExtrasOptions(state.extras);
+		this.applyExtrasOptions(state.extras ?? {});
 	}
 
 	/**
-	 * Reads current extras effect properties into a plain object by walking
-	 * the shape of {@link EXTRAS_DEFAULTS}, so the serialized state always
-	 * matches the defaults shape.
+	 * Reads the effect settings that differ from {@link EXTRAS_DEFAULTS}
+	 * into a plain object, so a state carries only the effects in use.
 	 */
-	private getExtrasState(): ExtrasState {
-		// Arrays are copied element by element rather than with structuredClone.
-		// Callers may hand the effects reactive proxies (Svelte, Vue) or typed
-		// arrays, which structuredClone rejects or would not turn into plain
-		// arrays.
-		const copyArray = (value: unknown): unknown =>
-			Array.isArray(value) ? value.map(copyArray) : value;
-
-		const project = (shape: unknown, value: unknown): unknown => {
-			if (Array.isArray(shape)) {
-				return copyArray(value);
-			}
-			if (typeof shape === "object" && shape !== null) {
-				const out: Record<string, unknown> = {};
-				for (const key of Object.keys(shape)) {
-					out[key] = project(
-						(shape as Record<string, unknown>)[key],
-						(value as Record<string, unknown>)[key],
-					);
-				}
-				return out;
-			}
-			return value;
-		};
-
-		return project(EXTRAS_DEFAULTS, this.extras) as ExtrasState;
+	private getExtrasState(): ExtrasOptions {
+		return (diffFromDefaults(EXTRAS_DEFAULTS, this.extras) ??
+			{}) as ExtrasOptions;
 	}
 
 	/**

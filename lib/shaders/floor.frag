@@ -32,6 +32,7 @@ uniform mat4 u_floorLightVp;
 uniform sampler2D u_floorShadowMap;
 uniform vec3 u_floorShadowColor;
 uniform float u_floorShadowStrength;
+uniform float u_floorShadowSoftness; // penumbra radius in shadow map uv
 uniform bool u_floorReflectionOn;
 uniform sampler2D u_floorReflection;
 uniform float u_floorReflectionStrength;
@@ -55,14 +56,32 @@ vec3 styled(vec3 base, vec3 target, float amount, float threshold) {
     return amount > threshold ? target : base;
 }
 
-/** Whether the model's shadow pass saw an occluder between the light and this point. */
-bool inShadow() {
+/** One shadow map tap. 1 where an occluder sits between the light and the point, 0 outside the map. */
+float shadowTap(vec2 uv, float depth) {
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return 0.0;
+    return depth > texture(u_floorShadowMap, uv).r ? 1.0 : 0.0;
+}
+
+/**
+ * How much of this point the model's shadow covers, 0-1. A hard shadow is
+ * a single tap, softness spreads sixteen taps over its radius, so the
+ * edge becomes a penumbra the dither can shape.
+ */
+float shadowCoverage() {
     vec4 clip = u_floorLightVp * vec4(v_worldPos, 1.0);
     vec3 ndc = clip.xyz / clip.w;
     vec2 uv = ndc.xy * 0.5 + 0.5;
-    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return false;
-    float depth = ndc.z * 0.5 + 0.5;
-    return depth - 0.001 > texture(u_floorShadowMap, uv).r;
+    float depth = ndc.z * 0.5 + 0.5 - 0.001;
+    if (u_floorShadowSoftness <= 0.0) return shadowTap(uv, depth);
+
+    float sum = 0.0;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            vec2 offset = (vec2(float(i), float(j)) / 3.0 - 0.5) * 2.0 * u_floorShadowSoftness;
+            sum += shadowTap(uv + offset, depth);
+        }
+    }
+    return sum / 16.0;
 }
 
 void main() {
@@ -83,7 +102,7 @@ void main() {
     float coverage = u_floorFade > 0.0 ? clamp((1.0 - edge) / u_floorFade, 0.0, 1.0) : 1.0;
     if (coverage <= threshold) discard;
 
-    bool shadowed = u_floorShadowOn && inShadow();
+    float shadow = u_floorShadowOn ? shadowCoverage() * u_floorShadowStrength : 0.0;
     vec4 mirror = vec4(0.0);
     if (u_floorReflectionOn) {
         vec2 uv = (gl_FragCoord.xy - u_viewportOrigin) / u_resolution;
@@ -91,18 +110,18 @@ void main() {
     }
     bool mirrored = mirror.a > 0.5;
 
-    vec3 line = shadowed
-        ? styled(u_floorGridColor, u_floorShadowColor, u_floorShadowStrength * 0.5, threshold)
+    vec3 line = shadow > 0.0
+        ? styled(u_floorGridColor, u_floorShadowColor, shadow * 0.5, threshold)
         : u_floorGridColor;
 
     vec3 color = u_floorColor;
     if (u_floorSurface) {
-        if (shadowed) color = styled(color, u_floorShadowColor, u_floorShadowStrength, threshold);
+        if (shadow > 0.0) color = styled(color, u_floorShadowColor, shadow, threshold);
         if (onLine) color = styled(color, line, lineCoverage, threshold);
         if (mirrored) color = styled(color, mirror.rgb, u_floorReflectionStrength, threshold);
     } else {
         bool hit = false;
-        if (shadowed && u_floorShadowStrength > threshold) {
+        if (shadow > threshold) {
             color = u_floorShadowColor;
             hit = true;
         }

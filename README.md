@@ -642,7 +642,7 @@ viewer.extras.triangleShatter.direction = [0, 1, 0]; // For "directional" mode (
 viewer.extras.triangleShatter.distance = 2;        // World units traveled at progress 1 (default: 2)
 viewer.extras.triangleShatter.spread = 0.3;        // Random cone around the direction, 0-1 (default: 0.3)
 viewer.extras.triangleShatter.rotation = 1;        // Tumble revolutions at progress 1 (default: 1)
-viewer.extras.triangleShatter.gravity = 0;         // Downward pull, scaled by distance (default: 0)
+viewer.extras.triangleShatter.gravity = 0;         // Downward pull scaled by distance, negative lifts (default: 0)
 viewer.extras.triangleShatter.shrink = 0;          // Scale toward 0 at progress 1, 0-1 (default: 0)
 viewer.extras.triangleShatter.maskedColors = [7];  // Only these face colors explode (default: [] = all)
 viewer.extras.triangleShatter.nodes = ["wall"];   // Only within these nodes (default: [] = all nodes)
@@ -730,7 +730,7 @@ Unlike effect masks, `paletteIndices` is a color source, not a mask: particles a
 
 ### Floor
 
-A pedestal plane under the model, placed at the lowest point of its rest-pose bounds and sized from its footprint, or stretched to the horizon with `infinite`. The plate carries optional world-space grid lines, a shadow of the model cast along a direction, and the model's mirror image, and it fades out toward its edge through an ordered dither. Shadow and reflection show through the same ordered dither by their `strength`, or blend in smooth style. Grid lines inside the shadow take it at half strength, so they read as darker lines, and a grid thins out where its cells shrink toward a pixel instead of flooding the plate. With `surface` off the plate itself is invisible and only the grid, the shadow and the reflection render. The plate is scenery, it writes the no-model palette index, so color masks, ambient occlusion and the drop shadow do not touch it, while depth fog reaches it through the depth buffer and outlines trace its edge like any content. Seen from below, the plate is opaque and shows neither shadow nor reflection.
+A pedestal plane under the model, placed at the lowest point of its rest-pose bounds and sized from its footprint, or stretched to the horizon with `infinite`. The plate carries optional world-space grid lines, a shadow of the model cast along a direction, and the model's mirror image, and it fades out toward its edge through an ordered dither. Shadow and reflection show through the same ordered dither by their `strength`, or blend in smooth style, and the shadow's `softness` widens its edge into a penumbra shaped the same way. Grid lines inside the shadow take it at half strength, so they read as darker lines, and a grid thins out where its cells shrink toward a pixel instead of flooding the plate. With `surface` off the plate itself is invisible and only the grid, the shadow and the reflection render. The plate is scenery, it writes the no-model palette index, so color masks, ambient occlusion and the drop shadow do not touch it, while depth fog reaches it through the depth buffer and outlines trace its edge like any content. Seen from below, the plate is opaque and shows neither shadow nor reflection.
 
 ```typescript
 viewer.extras.floor.enabled = true;
@@ -748,6 +748,7 @@ viewer.extras.floor.shadow.enabled = true;             // Shadow of the model on
 viewer.extras.floor.shadow.direction = [0.5, -1, 0.3]; // Direction the shadow is cast along, must point down (default: [0.5, -1, 0.3])
 viewer.extras.floor.shadow.color = [0.2, 0.2, 0.25];   // Shadow color (default: [0.2, 0.2, 0.25])
 viewer.extras.floor.shadow.strength = 1;               // Shadow coverage, dithered below 1 (default: 1)
+viewer.extras.floor.shadow.softness = 0;               // Penumbra radius in world units, 0 = hard edge (default: 0)
 viewer.extras.floor.reflection.enabled = false;        // Mirror image of the model in the plate (default: false)
 viewer.extras.floor.reflection.strength = 0.5;         // 1 = mirror, lower = water, dithered (default: 0.5)
 viewer.extras.floor.style = "palette";                 // "palette" | "dithered" | "smooth" (default: "palette")

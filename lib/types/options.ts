@@ -468,6 +468,7 @@ export interface FloorOptions {
 		direction?: [number, number, number];
 		color?: Color3;
 		strength?: number;
+		softness?: number;
 	};
 	reflection?: { enabled?: boolean; strength?: number };
 	style?: MaterialStyle;

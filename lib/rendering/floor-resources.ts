@@ -41,6 +41,7 @@ export class FloorResources {
 		u_floorShadowMap: null as WebGLTexture | null,
 		u_floorShadowColor: [0, 0, 0] as Color3,
 		u_floorShadowStrength: 1,
+		u_floorShadowSoftness: 0,
 		u_floorReflectionOn: false,
 		u_floorReflection: null as WebGLTexture | null,
 		u_floorReflectionStrength: 0,

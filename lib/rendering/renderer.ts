@@ -157,6 +157,7 @@ export class Renderer {
 	private cullOff = false;
 	private floor: FloorResources | null = null;
 	private floorShadowOn = false;
+	private floorShadowReach = 0;
 	private floorReflectionOn = false;
 	private readonly floorPlane: FloorPlane = { center: [0, 0, 0], half: 1 };
 	private readonly nodeUniforms = {
@@ -911,11 +912,16 @@ export class Renderer {
 		gl.depthMask(true);
 
 		const shadow = floor.shadow;
-		if (
-			shadow.enabled &&
-			shadow.strength > 0 &&
-			writeFloorLightVp(res.lightVp, shadow.direction, resources.bounds, planeY)
-		) {
+		const reach =
+			shadow.enabled && shadow.strength > 0
+				? writeFloorLightVp(
+						res.lightVp,
+						shadow.direction,
+						resources.bounds,
+						planeY,
+					)
+				: 0;
+		if (reach > 0) {
 			mat4.copy(mu.u_vp, res.lightVp);
 			mat4.copy(fu.u_vp, res.lightVp);
 			res.bindShadowMap(gl);
@@ -924,6 +930,7 @@ export class Renderer {
 			this.drawModelPhases(resources);
 			this.cullOff = false;
 			this.floorShadowOn = true;
+			this.floorShadowReach = reach;
 		}
 
 		const reflection = floor.reflection;
@@ -1037,6 +1044,10 @@ export class Renderer {
 			palette,
 		);
 		u.u_floorShadowStrength = Math.min(Math.max(floor.shadow.strength, 0), 1);
+		u.u_floorShadowSoftness =
+			this.floorShadowReach > 0
+				? Math.max(floor.shadow.softness, 0) / (2 * this.floorShadowReach)
+				: 0;
 		u.u_floorReflectionOn = this.floorReflectionOn;
 		u.u_floorReflection = res.reflectionTexture;
 		u.u_floorReflectionStrength = Math.min(

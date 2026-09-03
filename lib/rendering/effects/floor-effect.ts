@@ -46,6 +46,7 @@ export interface FloorEffect extends Required<FloorOptions> {
 		direction: [number, number, number];
 		color: Color3;
 		strength: number;
+		softness: number;
 	};
 	reflection: { enabled: boolean; strength: number };
 }
@@ -65,6 +66,7 @@ export const FLOOR_DEFAULTS = deepFreeze<DeepRequired<FloorOptions>>({
 		direction: [0.5, -1, 0.3],
 		color: [0.2, 0.2, 0.25],
 		strength: 1,
+		softness: 0,
 	},
 	reflection: { enabled: false, strength: 0.5 },
 	style: "palette",
@@ -126,17 +128,19 @@ const lightProjection = mat4.create();
  * @param direction - The direction the shadow is cast along.
  * @param bounds - The model's rest-pose world bounds.
  * @param planeY - The plate's height.
- * @returns Whether the direction points down onto the plate at all.
+ * @returns The light frustum's half width in world units, which the
+ *   shadow map spans twice over, or 0 when the direction cannot cast
+ *   onto the plate.
  */
 export function writeFloorLightVp(
 	out: mat4,
 	direction: [number, number, number],
 	bounds: WorldBounds,
 	planeY: number,
-): boolean {
+): number {
 	const [dx, dy, dz] = direction;
 	const len = Math.hypot(dx, dy, dz);
-	if (len < 1e-6 || dy / len > -0.02) return false;
+	if (len < 1e-6 || dy / len > -0.02) return 0;
 
 	const nx = dx / len;
 	const ny = dy / len;
@@ -168,7 +172,7 @@ export function writeFloorLightVp(
 	mat4.lookAt(lightView, lightEye, lightCenter, lightUp);
 	mat4.ortho(lightProjection, -reach, reach, -reach, reach, 0, far);
 	mat4.multiply(out, lightProjection, lightView);
-	return true;
+	return reach;
 }
 
 /**

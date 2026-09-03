@@ -1137,6 +1137,19 @@ const geometry: Scenario[] = [
 			},
 		},
 	},
+	// Negative gravity lifts the pieces instead of dropping them.
+	{
+		name: "geometry/triangle-shatter-negative-gravity",
+		model: "pig",
+		extras: {
+			triangleShatter: {
+				enabled: true,
+				progress: 0.6,
+				gravity: -1,
+				distance: 3,
+			},
+		},
+	},
 	{
 		name: "geometry/triangle-shatter-masked",
 		model: "rig",
@@ -1357,6 +1370,19 @@ const post: Scenario[] = [
 				grid: { spacing: 0.5 },
 				shadow: { strength: 0.75 },
 				reflection: { enabled: true, strength: 0.5 },
+			},
+		},
+	},
+	// A soft shadow: sixteen shadow-map taps spread over the softness radius
+	// dither the edge into a penumbra.
+	{
+		name: "post/floor-soft-shadow",
+		model: "rig",
+		extras: {
+			floor: {
+				enabled: true,
+				grid: { enabled: false },
+				shadow: { softness: 0.8 },
 			},
 		},
 	},

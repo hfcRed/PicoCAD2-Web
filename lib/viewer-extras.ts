@@ -323,14 +323,15 @@ export class ViewerExtras {
 	}
 
 	/**
-	 * Restores every effect's settings to their default values. Each effect
-	 * keeps its enabled state.
+	 * Restores every effect to its defaults, enabled state included. Call an
+	 * effect's own `reset()` to restore its settings while keeping it enabled.
 	 */
 	reset(): void {
 		for (const key of Object.keys(
 			EXTRAS_DEFAULTS,
 		) as (keyof typeof EXTRAS_DEFAULTS)[]) {
 			this[key].reset();
+			this[key].enabled = EXTRAS_DEFAULTS[key].enabled;
 		}
 	}
 }

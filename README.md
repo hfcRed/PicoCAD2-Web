@@ -129,7 +129,7 @@ await viewer.loadFromFile(file);
 viewer.load(modelString, true);
 ```
 
-Loading a model applies its export settings (camera position, outline, scanlines, etc.) to the viewer.
+Loading a model applies its export settings (camera position, outline, scanlines, etc.) to the viewer. Effects are not part of a model, so they keep their configuration across loads, whether they were set up through the constructor or through `viewer.extras`.
 
 ## Viewer Properties
 
@@ -308,7 +308,7 @@ viewer.setState(saved);
 viewer.setState(saved, true);
 ```
 
-The state includes the raw model source string, all rendering settings, camera position, animation state, resolution, bookmark, and extras configuration.
+The state includes the raw model source string, all rendering settings, camera position, animation state, resolution, bookmark, and extras configuration. Restoring a state resets every effect first, so effects the state does not mention (states saved before an effect existed) come back at their defaults.
 
 ## Image Export
 
@@ -1055,7 +1055,7 @@ viewer.extras.noise.modelOnly = false;    // Apply noise to the full viewport
 
 ### Defaults and Reset
 
-Every effect exports its default settings as a deep-frozen constant, and every effect instance has a `reset()` method that restores those defaults, keeping the effect's enabled state:
+Every effect exports its default settings as a deep-frozen constant, and every effect instance has a `reset()` method that restores those defaults, keeping the effect's enabled state. `viewer.extras.reset()` restores every effect at once, enabled state included:
 
 ```typescript
 import { DISSOLVE_DEFAULTS, EXTRAS_DEFAULTS, getDefaultExtras } from "picocad2-web";
@@ -1064,8 +1064,8 @@ DISSOLVE_DEFAULTS.scale;             // 8
 EXTRAS_DEFAULTS.bloom.threshold;     // 0.8
 const extras = getDefaultExtras();   // fresh mutable ExtrasState copy
 
-viewer.extras.dissolve.reset();      // restore one effect's defaults
-viewer.extras.reset();               // restore every effect
+viewer.extras.dissolve.reset();      // restore one effect's defaults, keeping it enabled
+viewer.extras.reset();               // restore every effect, disabling them all
 ```
 
 ### Effect Chain Order

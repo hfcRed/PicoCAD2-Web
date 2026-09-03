@@ -10,6 +10,11 @@
  * Nothing here advances on wall-clock time. The viewer clock is driven
  * exclusively through `advanceTime()`, the animation is paused and pinned
  * to the scenario's pose time, and the camera is set directly.
+ *
+ * Extras go through the constructor, before the model loads, so every effect
+ * scenario doubles as proof that `load()` keeps the configured effects.
+ * Settings are applied after the load, which overwrites them from the
+ * model's export settings.
  */
 
 import { PicoCAD2Context, PicoCAD2Viewer } from "../../lib/main.ts";
@@ -66,33 +71,6 @@ function fetchModel(name: ModelName): Promise<string> {
 	return pending;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		!Array.isArray(value) &&
-		!ArrayBuffer.isView(value)
-	);
-}
-
-/**
- * Assigns every defined property of `source` onto `target`, recursing into
- * nested option groups (`specular.environment`, `meshDeform.voxel`, …) the
- * same way the viewer's own extras application does. Arrays are replaced.
- */
-function applyDeep(target: unknown, source: unknown): void {
-	if (!isPlainObject(target) || !isPlainObject(source)) return;
-	for (const key of Object.keys(source)) {
-		const value = source[key];
-		if (value === undefined) continue;
-		if (isPlainObject(value) && isPlainObject(target[key])) {
-			applyDeep(target[key], value);
-		} else {
-			target[key] = Array.isArray(value) ? structuredClone(value) : value;
-		}
-	}
-}
-
 function bytesToBase64(bytes: Uint8Array): string {
 	let binary = "";
 	const chunk = 0x8000;
@@ -125,6 +103,7 @@ async function capture(scenario: Scenario): Promise<CaptureResult> {
 			scale: resolution.scale ?? 1,
 		},
 		clampCameraDistance: { enabled: false },
+		extras: scenario.extras ?? {},
 	});
 
 	try {
@@ -181,18 +160,6 @@ async function capture(scenario: Scenario): Promise<CaptureResult> {
 					target: new Float32Array(s.camera.target ?? c.target),
 				});
 				if (s.camera.zoom !== undefined) c.zoom = s.camera.zoom;
-			}
-		}
-
-		if (scenario.extras) {
-			for (const key of Object.keys(
-				scenario.extras,
-			) as (keyof Scenario["extras"] & string)[]) {
-				const effect = (viewer.extras as unknown as Record<string, unknown>)[
-					key
-				];
-				if (!effect) throw new Error(`Unknown effect "${key}"`);
-				applyDeep(effect, scenario.extras[key]);
 			}
 		}
 

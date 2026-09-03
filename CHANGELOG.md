@@ -38,12 +38,12 @@
 - **Color cutout effect (`extras.colorCutout`)** — Renders the selected palette colors as additional transparent colors. Applied in the model shader, so it produces real holes that outlines and depth-based effects see. Unlike effect masks, an empty `maskedColors` array cuts nothing.
 - **Palette index buffer for custom effects** — The scene pass now writes a screen-space palette index buffer (R = base palette index, 255 = no model pixel, G = shade row) available to post-process effects as `EffectContext.indexTexture`. `FullscreenEffect` passes it to shaders as `u_indexTexture` together with a `u_colorMask` bitmask packed from the effect's `maskedColors` (helper exported as `packColorMask`).
 - **`modelInfo.palette`** — The model's full color palette as an array of `Color3` values in palette index order, at the full precision of the model source.
-- **Effect defaults and `reset()`** — Every effect exports its default settings as a deep-frozen constant (`DISSOLVE_DEFAULTS`, `BLOOM_DEFAULTS`, …) and has a `reset()` method that restores every setting to its default while keeping the effect's enabled state. `EXTRAS_DEFAULTS` aggregates the defaults of all effects, `getDefaultExtras()` returns a fresh mutable copy (the extras half of a default viewer state), and `viewer.extras.reset()` resets every effect at once.
+- **Effect defaults and `reset()`** — Every effect exports its default settings as a deep-frozen constant (`DISSOLVE_DEFAULTS`, `BLOOM_DEFAULTS`, …) and has a `reset()` method that restores every setting to its default while keeping the effect's enabled state. `EXTRAS_DEFAULTS` aggregates the defaults of all effects, `getDefaultExtras()` returns a fresh mutable copy (the extras half of a default viewer state), and `viewer.extras.reset()` resets every effect at once, enabled state included.
 
 ### Changed
 
 - **Render statistics count the whole frame** — `context.stats` now includes every draw a frame issues, not just the base model. Fur shells, wireframe lines, particles, the outline, every post-processing pass and the final composite. `polyCount` includes effect geometry. Fur shells multiply the model's triangles by the layer count and particles add their shapes, while fullscreen passes and wireframe lines add draw calls only. Custom effects can add their own draws through the new `EffectContext.stats`.
-- **Smaller bundle** — Shader sources ship stripped of comments and whitespace, taking about 13% off the raw bundle and 5 KB off the gzipped size. Rendering is unchanged.
+- **Smaller bundle** — Shader sources ship stripped of comments and whitespace, taking about 19% off the raw bundle and 14 KB off the gzipped size. Rendering is unchanged.
 
 ### Deprecated
 
@@ -55,6 +55,7 @@
 
 ### Fixed
 
+- **Effects survive `load()`** — Loading a model replaced every effect with a fresh instance, so `extras` passed to the constructor, or any effect configured before the first load, were discarded. Effects now persist across loads, keeping their settings and compiled programs. `setState()` still restores every effect from the state and resets the ones the state does not mention.
 - **Glitch bursts on every GPU** — The effect stayed inert for seconds at a time. The hash is now sine-free, so bursts fire at the same steps everywhere.
 - **Noise grain on every GPU** — The grain used a sine-based hash with large arguments, which could band on some hardware. It now uses the shared sine-free hash.
 - **`modelInfo.backgroundColor` full precision** — Now returns the color at the full precision of the model source again when no background color override is set.

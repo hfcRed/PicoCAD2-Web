@@ -186,7 +186,7 @@ export class PicoCAD2Viewer {
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;
-	private _extras!: ViewerExtras;
+	private readonly _extras: ViewerExtras;
 
 	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
 
@@ -359,9 +359,6 @@ export class PicoCAD2Viewer {
 			this.context.disposeModelResources(this.resources);
 			this.resources = null;
 		}
-
-		this.pipeline.clearEffects();
-		this._extras = new ViewerExtras(this.pipeline);
 
 		this.source = source;
 		this.model = parseModel(source);
@@ -1222,6 +1219,9 @@ export class PicoCAD2Viewer {
 			this.camera.initFromState(this.model.camera);
 		}
 
+		// A state is a complete snapshot, so effects it does not mention
+		// (states saved before an effect existed) return to their defaults.
+		this._extras.reset();
 		this.applyExtrasOptions(state.extras);
 	}
 

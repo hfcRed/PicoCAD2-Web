@@ -16,13 +16,12 @@ import {
  * outlines, depth effects and the index G-buffer all see them. Fur
  * strands dissolve with their base surface.
  *
- * The dissolve order is the {@link sweep}. "noise" (the default here)
- * removes hashed mesh-space cells at random, "directional" sweeps a
- * world-space plane, "point" grows a sphere, "proximity" wipes front to
- * back from the camera, and "uniform" fades the whole surface through
- * the checkerboard at once. Survivors near the cut show a dithered
- * {@link edgeColor} band, {@link edgeWidth} wide. A uniform sweep has no
- * cut and so no edge.
+ * The {@link sweep} decides which texels go first, defaulting to "noise".
+ * A uniform sweep has no front, so the whole surface fades through the
+ * checkerboard at once and shows no edge. Every other mode gives each
+ * texel the local progress the front has reached there, and survivors
+ * near the cut show a dithered {@link edgeColor} band, {@link edgeWidth}
+ * wide.
  *
  * {@link cycle} runs the progress from 0 to 1 and back automatically over
  * the elapsed time, ignoring the manual value while enabled.

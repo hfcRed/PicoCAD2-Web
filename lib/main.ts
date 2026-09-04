@@ -27,7 +27,6 @@ export {
 	ColorTintEffect,
 	type ColorTintMode,
 } from "./rendering/effects/color-tint-effect.ts";
-export { CRTEffect } from "./rendering/effects/crt-effect.ts";
 export {
 	CYCLE_DEFAULTS,
 	type CycleMode,
@@ -204,6 +203,7 @@ export {
 export { BitmapFont } from "./rendering/font.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type { WorldBounds } from "./scene/scene-graph.ts";
+export type { RawGraphNode, RawPicoCAD2File } from "./types/model.ts";
 export type {
 	AnimationSettings,
 	BillboardOptions,
@@ -216,7 +216,6 @@ export type {
 	ColorCutoutOptions,
 	ColorGradingOptions,
 	ColorTintOptions,
-	CRTOptions,
 	CycleOptions,
 	DepthFogOptions,
 	DissolveOptions,
@@ -233,7 +232,6 @@ export type {
 	GradientOutlineOptions,
 	HalftoneOptions,
 	InteriorOptions,
-	LegacyViewerSettings,
 	LensDistortionOptions,
 	MeshDeformOptions,
 	ModelInfo,

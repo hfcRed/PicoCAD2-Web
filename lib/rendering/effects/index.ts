@@ -5,7 +5,6 @@ export {
 export { BloomEffect } from "./bloom-effect.ts";
 export { ChromaticAberrationEffect } from "./chromatic-aberration-effect.ts";
 export { ColorGradingEffect } from "./color-grading-effect.ts";
-export { CRTEffect } from "./crt-effect.ts";
 export type { CycleMode } from "./cycle.ts";
 export { DissolveEffect } from "./dissolve-effect.ts";
 export { DitheringEffect } from "./dithering-effect.ts";

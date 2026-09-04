@@ -34,6 +34,7 @@ import type {
 	GameboyPalette,
 	ScreenType,
 } from "../rendering/effects/video-effects-effect.ts";
+import type { RawPicoCAD2File } from "./model.ts";
 import type { CameraMode, Color3, ProjectionMode } from "./scene.ts";
 
 export interface WireframeOptions {
@@ -129,19 +130,6 @@ export interface DitheringOptions {
 	amount?: number;
 	blend?: number;
 	channelAmount?: Color3;
-	maskedColors?: number[];
-}
-
-/**
- * @deprecated Use {@link VideoEffectsOptions} (`videoEffects`) instead.
- * States containing only this key are mapped onto `videoEffects` with
- * `screenType: "crt"` on load.
- */
-export interface CRTOptions {
-	enabled?: boolean;
-	modelOnly?: boolean;
-	curvature?: number;
-	scanlineIntensity?: number;
 	maskedColors?: number[];
 }
 
@@ -556,8 +544,6 @@ export interface ExtrasOptions {
 	bloom?: BloomOptions;
 	dithering?: DitheringOptions;
 	videoEffects?: VideoEffectsOptions;
-	/** @deprecated Use `videoEffects` instead; accepted for legacy states. */
-	crt?: CRTOptions;
 	pixelation?: PixelationOptions;
 	lensDistortion?: LensDistortionOptions;
 	noise?: NoiseOptions;
@@ -654,51 +640,18 @@ export interface ViewerSettings {
 	animationLoop: boolean;
 }
 
-/** @deprecated The flat settings of states saved by earlier versions. */
-export interface LegacyViewerSettings {
-	shading: boolean;
-	renderMode: "texture" | "color" | "none";
-	projectionMode: ProjectionMode;
-	backgroundColor: Color3 | null;
-	outlineSize: number;
-	outlineColor: Color3;
-	scanlines: boolean;
-	scanlineColor: Color3;
-	cameraMode: CameraMode;
-	cameraModeSpeed: number;
-	cameraModeDirection: "left" | "right";
-	leftTag: { text: string; color?: Color3 } | null;
-	rightTag: { text: string; color?: Color3 } | null;
-	animation: {
-		speed: number;
-		time: number;
-		playing: boolean;
-		loop: boolean;
-		loops?: number;
-	};
-	camera: CameraSettings;
-	resolution: ResolutionSettings;
-	maxFps?: number;
-	clampCameraDistance?: CameraDistanceClamp;
-	bookmark: BookmarkSettings;
-}
-
-export type ExtrasState = Omit<Required<ExtrasOptions>, "crt">;
+export type ExtrasState = Required<ExtrasOptions>;
 
 export interface PicoCAD2ViewerState {
-	source: string | null;
+	source: RawPicoCAD2File | null;
 	model?: DeepPartial<ModelSettings>;
 	viewer?: DeepPartial<ViewerSettings>;
 	extras?: ExtrasOptions;
-	/** @deprecated Only present in states saved by earlier versions. */
-	settings?: LegacyViewerSettings;
 }
 
 export interface PicoCAD2ViewerOptions {
 	canvas?: HTMLCanvasElement;
 	context?: PicoCAD2Context;
-	/** @deprecated Use {@link shadingMode}; `true` is on and `false` is off. */
-	shading?: boolean;
 	shadingMode?: number;
 	renderMode?: number;
 	projectionMode?: ProjectionMode;

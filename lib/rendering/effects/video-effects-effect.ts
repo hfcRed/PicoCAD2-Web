@@ -55,8 +55,6 @@ const MIN_GHOST_DT = 1 / 240;
  * full output resolution. At the default `0` there is neither quantization
  * nor grid. Temporal ghosting (CRT phosphor fade, gameboy
  * smear) persists across frames.
- *
- * No color mask. Supersedes the deprecated standalone CRT effect.
  */
 export class VideoEffectsEffect extends FullscreenEffect {
 	private historyGl: WebGL2RenderingContext | null = null;

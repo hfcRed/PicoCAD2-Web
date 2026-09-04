@@ -317,7 +317,7 @@ viewer.setState({
 });
 ```
 
-To turn a group back into complete settings, lay it over its reference with `mergeDefaults`. `modelInfo.settings` for `model`, `getDefaultViewerSettings()` for `viewer` and `getDefaultExtras()` for `extras`. States saved by earlier versions, with one flat `settings` object, still load.
+To turn a group back into complete settings, lay it over its reference with `mergeDefaults`. `modelInfo.settings` for `model`, `getDefaultViewerSettings()` for `viewer` and `getDefaultExtras()` for `extras`.
 
 ## Image Export
 
@@ -903,8 +903,6 @@ viewer.extras.videoEffects.projector.halo = 0.3;          // Light spill around 
 ```
 
 The plain `lcd` type uses only the shared controls: set a `resolution` and the `gridStrength` draws its RGB subpixels and screen-door gaps.
-
-> **Deprecated:** `viewer.extras.crt` is now an alias forwarding to `videoEffects` (enabling it switches `screenType` to `"crt"`) and will be removed in 2.0. States saved by older versions load correctly — their `crt` settings are mapped onto `videoEffects` and render identically; new states save only `videoEffects`. The one exception: the old CRT's `maskedColors` (which restricted scanlines to masked materials) is no longer supported, since the unified effect simulates the whole display.
 
 ### Pixelation
 

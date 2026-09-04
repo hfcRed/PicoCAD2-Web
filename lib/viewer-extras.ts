@@ -22,7 +22,6 @@ import {
 	COLOR_TINT_DEFAULTS,
 	ColorTintEffect,
 } from "./rendering/effects/color-tint-effect.ts";
-import { CRTEffect } from "./rendering/effects/crt-effect.ts";
 import {
 	DEPTH_FOG_DEFAULTS,
 	DepthFogEffect,
@@ -193,8 +192,6 @@ export class ViewerExtras {
 	readonly bloom: BloomEffect;
 	readonly dithering: DitheringEffect;
 	readonly videoEffects: VideoEffectsEffect;
-	/** @deprecated Use {@link videoEffects} with `screenType: "crt"` instead. */
-	readonly crt: CRTEffect;
 	readonly pixelation: PixelationEffect;
 	readonly lensDistortion: LensDistortionEffect;
 	readonly noise: NoiseEffect;
@@ -299,7 +296,6 @@ export class ViewerExtras {
 		// Display simulation
 		this.videoEffects = new VideoEffectsEffect();
 		pipeline.addPostEffect(this.videoEffects);
-		this.crt = new CRTEffect(this.videoEffects);
 
 		this.pixelation = new PixelationEffect();
 		pipeline.addPostEffect(this.pixelation);
@@ -380,7 +376,7 @@ export const EXTRAS_DEFAULTS = Object.freeze({
 	sharpen: SHARPEN_DEFAULTS,
 	glitch: GLITCH_DEFAULTS,
 	vignette: VIGNETTE_DEFAULTS,
-} satisfies DeepReadonly<Omit<Required<ExtrasOptions>, "crt">>);
+} satisfies DeepReadonly<Required<ExtrasOptions>>);
 
 /**
  * Returns a fresh, mutable copy of every effect's default settings.

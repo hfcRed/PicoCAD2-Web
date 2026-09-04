@@ -18,6 +18,7 @@ import {
 	storeStaticTransforms,
 	traverseNode,
 } from "./scene/scene-graph.ts";
+import type { RawPicoCAD2File } from "./types/model.ts";
 import type {
 	BookmarkSettings,
 	CameraControlOptions,
@@ -47,7 +48,6 @@ import {
 	modelSettingsOf,
 	RENDER_MODE,
 	SHADING_MODE,
-	splitLegacySettings,
 	VIEWER_SETTINGS_DEFAULTS,
 } from "./viewer-settings.ts";
 
@@ -188,15 +188,6 @@ export class PicoCAD2Viewer {
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
 
-	/** @deprecated Use {@link shadingMode}. Reads as lit or not, writes on or off. */
-	get shading(): boolean {
-		return this.shadingMode > SHADING_MODE.off;
-	}
-
-	set shading(value: boolean) {
-		this.shadingMode = value ? SHADING_MODE.on : SHADING_MODE.off;
-	}
-
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
 	private ctx2d: CanvasRenderingContext2D;
@@ -301,7 +292,6 @@ export class PicoCAD2Viewer {
 			this.setResolution(resolution.width, resolution.height, resolution.scale);
 		}
 
-		if (options?.shading !== undefined) this.shading = options.shading;
 		if (options?.shadingMode !== undefined) {
 			this.shadingMode = options.shadingMode;
 		}
@@ -1118,7 +1108,7 @@ export class PicoCAD2Viewer {
 	getState(): PicoCAD2ViewerState {
 		const fileSettings = this._modelInfo?.settings ?? MODEL_SETTINGS_DEFAULTS;
 		return {
-			source: JSON.parse(this.source ?? "null"),
+			source: this.source ? (JSON.parse(this.source) as RawPicoCAD2File) : null,
 			model: (diffFromDefaults(fileSettings, this.readModelSettings()) ??
 				{}) as DeepPartial<ModelSettings>,
 			viewer: (diffFromDefaults(
@@ -1141,28 +1131,16 @@ export class PicoCAD2Viewer {
 	setState(state: PicoCAD2ViewerState, useBookmark = false): void {
 		if (!state.source) return;
 
-		// States saved by earlier versions carry one flat settings object and
-		// keep the viewer's current values for the settings they predate.
-		const legacy =
-			state.settings && !state.model && !state.viewer
-				? splitLegacySettings(state.settings)
-				: null;
-		const viewerSettings = mergeDefaults(
-			legacy ? this.readViewerSettings() : getDefaultViewerSettings(),
-			legacy ? legacy.viewer : state.viewer,
-		);
-
 		this.load(JSON.stringify(state.source), useBookmark);
 		if (!this.model || !this._modelInfo) return;
 
 		this.applyModelSettings(
-			mergeDefaults(
-				this._modelInfo.settings,
-				legacy ? legacy.model : state.model,
-			),
+			mergeDefaults(this._modelInfo.settings, state.model),
 			useBookmark,
 		);
-		this.applyViewerSettings(viewerSettings);
+		this.applyViewerSettings(
+			mergeDefaults(getDefaultViewerSettings(), state.viewer),
+		);
 
 		// A state lists only the effects it uses, so every other effect
 		// returns to its defaults.
@@ -1392,15 +1370,6 @@ export class PicoCAD2Viewer {
 			assign(this.extras.videoEffects.tn, tn);
 			assign(this.extras.videoEffects.oled, oled);
 			assign(this.extras.videoEffects.projector, projector);
-		} else if (extras.crt) {
-			// Legacy support
-			const video = this.extras.videoEffects;
-			video.enabled = extras.crt.enabled ?? video.enabled;
-			video.modelOnly = extras.crt.modelOnly ?? video.modelOnly;
-			video.screenType = "crt";
-			video.crt.curvature = extras.crt.curvature ?? video.crt.curvature;
-			video.crt.scanlineIntensity =
-				extras.crt.scanlineIntensity ?? video.crt.scanlineIntensity;
 		}
 	}
 

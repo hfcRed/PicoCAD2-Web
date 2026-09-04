@@ -1,9 +1,27 @@
 # Changelog
 
-## Unreleased
+## 2.0.0
+
+Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a new viewer state format. The two 1.4.0 betas are folded into this entry.
+
+### Breaking
+
+- **Shading and render mode are the file's values** — `shading` is replaced by `shadingMode`, the file's `shading_mode` (`SHADING_MODE.off` 0, `.on` 1), and `renderMode` is now the file's `face_mode` as a number (`RENDER_MODE.none` 0, `.color` 1, `.texture` 2) instead of `"texture" | "color" | "none"`. Loading a model applies both from the file.
+- **Viewer states are `{ source, model, viewer, extras }`** — The flat `settings` object is replaced by two groups that store only what differs. `model` holds the settings the file carries (`ModelSettings`) where they differ from the loaded file. `viewer` holds the viewer's own settings (`ViewerSettings`) where they differ from `VIEWER_SETTINGS_DEFAULTS`. `extras` holds only the effects that differ from their defaults. `getState()` writes those differences, `setState()` loads the source and lays them over the file's settings, the viewer defaults and the effect defaults, so the source alone is a valid state and a state written by hand only needs what it changes. `AnimationSettings` is now `{ time, playing, loops }`. States saved by earlier versions are not migrated. Their model and effects still load, their settings are ignored.
+- **`source` is the parsed file** — `PicoCAD2ViewerState.source` is typed as the raw file object (`RawPicoCAD2File`) that `getState()` always returned, instead of a string.
+- **`extras.crt` is gone** — The CRT screen is `extras.videoEffects` with `screenType: "crt"`. `CRTEffect`, `CRTOptions` and the `crt` state key are removed. The old effect's `maskedColors` has no counterpart.
+- **Inert `modelOnly` settings removed** — The `wireframe` and `particles` effects no longer carry a `modelOnly` property, and `gradientOutline` no longer accepts one in its options or saved state. None of them ever read the value.
+- **Euler rotation order** — Node rotations now compose as Z·Y·X (matching PicoCAD 2.2) instead of X·Y·Z. Models using rotation on more than one axis render differently.
+- **`onFrame` follows the frame cap** — With `maxFps` set, the `onFrame` callback fires once per drawn frame with the elapsed time since the previous drawn frame, instead of once per display refresh.
 
 ### Added
 
+- **PicoCAD 2.2.0-b16 support** — `COMPATIBLE_VERSION` is now `"2.2.0-b16"`. Files saved by PicoCAD 2.1.0 remain fully supported.
+- **Scene graph transform propagation** — Node world matrices now compose with all ancestor matrices, matching PicoCAD 2.2's scene graph and parenting. Animated parent nodes carry their children with them.
+- **UV/spritesheet animation** — Motion clips with the new `"tex"` property animate face UVs frame by frame (`face_id`, `frames`, `step`, `return_uv`), including offset accumulation across clips and per-axis u/v shifting.
+- **`ExportSettings.animateLoops`** — The loop count from PicoCAD 2.2's `"1x"`/`"2x"` animate setting. Also exposed as `viewer.animation.loops` and included in the viewer state (`model.animation.loops`).
+- **`maxFps` viewer option** — Caps how often `startRenderLoop()` draws (default: 60). Previously the loop drew on every animation frame, so high refresh rate displays rendered caused periodic GC stutter in Firefox. Set to 0 to draw at the display refresh rate as before. Also available as `viewer.maxFps` and included in the viewer state (`viewer.maxFps`).
+- **Settings defaults and helpers** — `MODEL_SETTINGS_DEFAULTS` and `VIEWER_SETTINGS_DEFAULTS` with `getDefaultModelSettings()` and `getDefaultViewerSettings()`, `modelInfo.settings` with the settings the loaded file carries, `mergeDefaults()` to resolve a state group into complete settings, and `SHADING_MODE` and `RENDER_MODE` naming the file's values.
 - **Material effects** — Four new effects that render inside the model shader instead of the post-process chain, so they work in every render path, use the model's true normals, and leave the palette index buffer intact for post-effect masks:
   - **Rim light (`extras.rimLight`)** — Fresnel silhouette rim.
   - **Gradient light (`extras.gradientLight`)** — Two-color tint ramp.
@@ -28,7 +46,7 @@
 - **Floor (`extras.floor`)** — A pedestal plane under the model, placed and sized from its bounds (`offset`, `size`, `color`, `fade`), with world-space `grid` lines, a `shadow` of the model cast along a direction from a depth pass, and a `reflection` that redraws the whole model mirrored in the plate. Shadow and reflection come in through an ordered dither by their `strength`, or blend in smooth style, grid lines take the shadow at half strength so they stay readable inside it, and `shadow.softness` widens the shadow's edge into a penumbra. `infinite` stretches the plate to the horizon and `surface` can hide the plate itself, leaving only the grid, shadow and reflection. The plate writes the no-model palette index, so color masks, ambient occlusion and the drop shadow do not affec it.
 - **Interior effect (`extras.interior`)** — Fake depth behind selected palette colors. For masked texels the view ray is marched into the surface and a procedural field (`"stars"`, `"dust"`, `"voronoi"`, `"lava"`, `"grid"`, `"truchet"` or `"constellations"`) is sampled at each depth, with parallax that tracks the camera. The pattern library is shared with the procedural background, both effects expose all seven patterns, `seed` picks the variant of the random patterns, and `randomHue` + `hueRange` shift the interior color's hue (disabled in palette style).
 - **Ambient occlusion (`extras.ssao`)** — Palette-aware screen-space ambient occlusion. Crevices and contact areas darken based on the surrounding geometry, sampled from the depth buffer (`radius` in world units, `samples` 8/16/32, `intensity`, `power`). The default `"palette"` style darkens by re-indexing pixels to deeper shade rows of the palette with checkerboard dithering, so the occlusion stays within the model's 16 colors; `"dithered"` darkens RGB in the same stepped checkerboard without re-indexing. `"smooth"` multiplies RGB. `maskedColors` selects which colors receive occlusion. Works in all three projection modes and runs early in the post chain, so fog and color effects apply over it.
-- **Directional outlines and drop shadows** — `extras.gradientOutline` gains `growthDirection` (degrees) and `growthFactor` (0 = uniform, the previous behavior and default; 1 = one-sided) to grow the outline toward one side, plus a `mode` of `"outline"` or `"dropShadow"` with a `shadowOffset` in pixels — the drop shadow repeats the whole silhouette displaced by the offset for a sticker look. Old saved states load unchanged.
+- **Directional outlines and drop shadows** — `extras.gradientOutline` gains `growthDirection` (degrees) and `growthFactor` (0 = uniform, the previous behavior and default; 1 = one-sided) to grow the outline toward one side, plus a `mode` of `"outline"` or `"dropShadow"` with a `shadowOffset` in pixels — the drop shadow repeats the whole silhouette displaced by the offset for a sticker look.
 - **Palette swap & color cycling (`extras.paletteSwap`)** — Recolors the model PICO-8 `pal()` style by rewriting the palette lookup table on the CPU. A sparse `map` displays one palette index as another, keeping the target's shade ramp so recolored materials shade correctly; `cycleIndices` + `cycleSpeed` rotate a set of colors through each other over time (perfect loop). `cycleStyle` blends each cycle step in over the last `cycleBlendTime` seconds of the previous one. `"dithered"` (default) dissolves pixels to the next colors through an ordered dither, `"smooth"` crossfades the palette RGB, and `"palette"` snaps instantly. The model, particles, and palette-style effects all follow the swap. Effect masks keep matching the original indices.
 - **`clampCameraDistance` viewer option** — When enabled, the camera is kept outside the model's surfaces at all times by zooming out, no matter what moved it inside. Configured as `{ enabled, minimumDistance }`. `minimumDistance` sets how much room the camera keeps to the surfaces it is clamped against, in world units, with the automatic near-plane clearance always acting as a lower bound. Available as a constructor option and `viewer.clampCameraDistance`, included in the viewer state.
 - **Palette color masks (`maskedColors`)** — Bloom, dithering, posterization, color grading, color tint, halftone, noise, glitch, depth fog, edge detection and sharpen now accept a `maskedColors` array of base palette indices (0-15) selecting which colors the effect applies to. An empty array (the default) applies the effect everywhere, preserving existing behavior. Masks match the base palette index, so a color is selected whether lit or in shadow, and non-empty masks only ever match model pixels. Masked bloom acts as an emission mask (`extras.bloom.maskedColors = [10]` makes palette color 10 glow). Masked glitch only displaces and smears the selected colors. Included in options and the viewer state.
@@ -42,20 +60,15 @@
 
 ### Changed
 
+- **Batched shared-context rendering** — All viewers sharing a `PicoCAD2Context` are now driven by a single render loop that draws every due viewer into one atlas frame and captures the drawing buffer with a single `transferToImageBitmap()` per frame, instead of one capture per viewer. Capturing is the dominant per-viewer cost on Firefox, so multi-viewer pages scale dramatically better there.
+- **Reduced per-frame allocations** — Render settings, shader uniform objects, and effect contexts are now reused across frames instead of rebuilt every draw, reducing garbage collection pressure in the render loop.
 - **Render statistics count the whole frame** — `context.stats` now includes every draw a frame issues, not just the base model. Fur shells, wireframe lines, particles, the outline, every post-processing pass and the final composite. `polyCount` includes effect geometry. Fur shells multiply the model's triangles by the layer count and particles add their shapes, while fullscreen passes and wireframe lines add draw calls only. Custom effects can add their own draws through the new `EffectContext.stats`.
-- **Viewer states carry only what differs** — A state is the model source plus three optional groups. `model`, the settings the file carries (`ModelSettings`), stored if they differ from the file. `viewer`, the viewer's own settings (`ViewerSettings`), stored if they differ from `VIEWER_SETTINGS_DEFAULTS`, and `extras`, the effects that differ from their defaults. `getState()` writes those differences, and `setState()` loads the source and lays them over the file's settings, the viewer defaults and the effect defaults, so the source alone is a valid state and a state written by hand only needs what it changes. `modelInfo.settings` exposes the file's settings, `mergeDefaults()` resolves a group into complete settings, and `getDefaultModelSettings()` / `getDefaultViewerSettings()` provide the references. States saved by earlier versions, with one flat `settings` object, still load, and the viewer keeps its current values for the settings those states predate.
-- **Shading and render mode as PicoCAD 2 writes them** — `shading` becomes `shadingMode`, the file's `shading_mode` (`SHADING_MODE.off` 0, `.on` 1), and `renderMode` becomes the file's `face_mode` (`RENDER_MODE.none` 0, `.color` 1, `.texture` 2), which loading a model now applies like its other settings. Both pass a file's value through unchanged, so a value a future PicoCAD 2 writes round-trips intact, an unknown shading mode renders lit and an unknown render mode textured.
 - **Smaller bundle** — Shader sources ship stripped of comments and whitespace, taking about 19% off the raw bundle and 14 KB off the gzipped size. Rendering is unchanged.
-
-### Deprecated
-
-- **`viewer.shading` and the `shading` option** — Superseded by `shadingMode`. The property reads as lit or not and writes `SHADING_MODE.on` or `.off`.
-- **The flat `settings` key in viewer states** — Superseded by the `model` and `viewer` groups. Old states are mapped on load.
-- **`extras.crt`** — Superseded by `extras.videoEffects` with `screenType: "crt"`. The property remains as a forwarding alias. Old saved states load unchanged (their `crt` settings map onto `videoEffects` and render identically). New states save only `videoEffects`. The old CRT's `maskedColors` is no longer supported.
-
-### Removed
-
-- **Inert `modelOnly` settings** — The `wireframe` and `particles` effects no longer carry a `modelOnly` property, and `gradientOutline` no longer accepts one in its options or saved state. None of them ever read the value. Old saved states containing these keys still load, the value is simply ignored.
+- **Scale motion clips** — Scale clip deltas are now multiplied by the node's base scale, matching PicoCAD 2.2.
+- **Orthographic near plane** — Faces at or behind the camera plane are no longer clipped in orthographic projection (matching PicoCAD 2.2).
+- **`animate` export setting** — Parses both the 2.1.0 boolean and the 2.2.0 `"off"`/`"1x"`/`"2x"` string forms. `"off"` no longer counts as enabled.
+- **`motion_duration` fallback** — Files without a timeline length now default to 6.4 seconds (matching PicoCAD 2.2).
+- **Auto-generated shade palettes** — When a file has no `shade_pal_1`/`shade_pal_2`, the second ramp is now derived from the first ramp's matched color darkened by 0.6 (matching PicoCAD 2.2, previously approximated with a single 0.42 factor).
 
 ### Fixed
 
@@ -63,44 +76,8 @@
 - **Glitch bursts on every GPU** — The effect stayed inert for seconds at a time. The hash is now sine-free, so bursts fire at the same steps everywhere.
 - **Noise grain on every GPU** — The grain used a sine-based hash with large arguments, which could band on some hardware. It now uses the shared sine-free hash.
 - **`modelInfo.backgroundColor` full precision** — Now returns the color at the full precision of the model source again when no background color override is set.
-
-## 1.4.0-beta.2
-
-### Added
-
-- **`maxFps` viewer option** — Caps how often `startRenderLoop()` draws (default: 60). Previously the loop drew on every animation frame, so high refresh rate displays rendered caused periodic GC stutter in Firefox. Set to 0 to draw at the display refresh rate as before. Also available as `viewer.maxFps` and included in the viewer state (`settings.maxFps`).
-
-### Changed
-
-- **Batched shared-context rendering** — All viewers sharing a `PicoCAD2Context` are now driven by a single render loop that draws every due viewer into one atlas frame and captures the drawing buffer with a single `transferToImageBitmap()` per frame, instead of one capture per viewer. Capturing is the dominant per-viewer cost on Firefox, so multi-viewer pages scale dramatically better there.
-- **Reduced per-frame allocations** — Render settings, shader uniform objects, and effect contexts are now reused across frames instead of rebuilt every draw, reducing garbage collection pressure in the render loop.
-- **`onFrame` follows the frame cap** — With `maxFps` set, the `onFrame` callback now fires once per drawn frame with the elapsed time since the previous drawn frame, instead of once per display refresh.
-
-### Fixed
-
 - **Non-square resolutions no longer stretch** — The projection was fed the aspect ratio as width / height, but PicoCAD 2's projection matrices expect height / width. Non-square viewports now match PicoCAD 2.
 - **UVs outside the texture clamp instead of tiling** — UVs mapped outside the 128x128 texture space now repeat the texture's edge pixels, matching PicoCAD 2 (LÖVE's default "clamp" wrap mode). Previously the texture tiled.
-
-## 1.4.0-beta.1
-
-### Added
-
-- **PicoCAD 2.2.0-b16 support** — `COMPATIBLE_VERSION` is now `"2.2.0-b16"`. Files saved by PicoCAD 2.1.0 remain fully supported.
-- **Scene graph transform propagation** — Node world matrices now compose with all ancestor matrices, matching PicoCAD 2.2's scene graph and parenting. Animated parent nodes carry their children with them.
-- **UV/spritesheet animation** — Motion clips with the new `"tex"` property animate face UVs frame by frame (`face_id`, `frames`, `step`, `return_uv`), including offset accumulation across clips and per-axis u/v shifting.
-- **`ExportSettings.animateLoops`** — The loop count from PicoCAD 2.2's `"1x"`/`"2x"` animate setting. Also exposed as `viewer.animation.loops` and included in the viewer state (`settings.animation.loops`).
-
-### Changed
-
-- **Euler rotation order** — Node rotations now compose as Z·Y·X (matching PicoCAD 2.2) instead of X·Y·Z. Models using rotation on more than one axis render differently.
-- **Scale motion clips** — Scale clip deltas are now multiplied by the node's base scale, matching PicoCAD 2.2.
-- **Orthographic near plane** — Faces at or behind the camera plane are no longer clipped in orthographic projection, matching PicoCAD 2.2.
-- **`animate` export setting** — Parses both the 2.1.0 boolean and the 2.2.0 `"off"`/`"1x"`/`"2x"` string forms. `"off"` no longer counts as enabled.
-- **`motion_duration` fallback** — Files without a timeline length now default to 6.4 seconds (matching PicoCAD 2.2).
-- **Auto-generated shade palettes** — When a file has no `shade_pal_1`/`shade_pal_2`, the second ramp is now derived from the first ramp's matched color darkened by 0.6 matching 2.2.0 (previously approximated with a single 0.42 factor).
-
-### Fixed
-
 - **Obfuscated bookmark keys** — Camera bookmarks saved by some PicoCAD 2.2 beta builds under an obfuscated key instead of `"bookmark"` are now recognized, and files without any bookmark fall back to the default camera state instead of failing to load.
 - **Malformed motion clips** — Clips missing a `prop` are skipped on load instead of producing broken animation state, matching PicoCAD 2.2's load guard.
 - **`instant` easing at clip start** — The jump now happens at exactly the clip start time, matching PicoCAD 2.

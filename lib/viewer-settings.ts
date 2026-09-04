@@ -1,12 +1,8 @@
 import { OrbitCamera } from "./camera/orbit-camera.ts";
-import {
-	type DeepPartial,
-	deepFreeze,
-} from "./rendering/effects/effect-defaults.ts";
+import { deepFreeze } from "./rendering/effects/effect-defaults.ts";
 import type {
 	BookmarkSettings,
 	CameraSettings,
-	LegacyViewerSettings,
 	ModelSettings,
 	ViewerSettings,
 } from "./types/options.ts";
@@ -132,60 +128,5 @@ export function modelSettingsOf(model: PicoCAD2Model): ModelSettings {
 		animation: { time: 0, playing: es.animate, loops: es.animateLoops },
 		camera,
 		bookmark: bookmarkSettingsOf(model.bookmark),
-	};
-}
-
-/**
- * Splits the flat settings of a state saved by an earlier version into the
- * model and viewer groups. Settings the state predates stay absent, so the
- * caller decides what they fall back to.
- *
- * @param s - The legacy settings.
- * @returns The two groups.
- */
-export function splitLegacySettings(s: LegacyViewerSettings): {
-	model: DeepPartial<ModelSettings>;
-	viewer: DeepPartial<ViewerSettings>;
-} {
-	const renderMode =
-		s.renderMode === "none"
-			? RENDER_MODE.none
-			: s.renderMode === "color"
-				? RENDER_MODE.color
-				: RENDER_MODE.texture;
-	return {
-		model: {
-			shadingMode: s.shading ? SHADING_MODE.on : SHADING_MODE.off,
-			renderMode,
-			projectionMode: s.projectionMode,
-			outlineSize: s.outlineSize,
-			outlineColor: s.outlineColor,
-			scanlines: s.scanlines,
-			scanlineColor: s.scanlineColor,
-			cameraMode: s.cameraMode,
-			cameraModeSpeed: s.cameraModeSpeed,
-			cameraModeDirection: s.cameraModeDirection,
-			leftTag: s.leftTag,
-			rightTag: s.rightTag,
-			animation: {
-				time: s.animation.time,
-				playing: s.animation.playing,
-				...(s.animation.loops !== undefined
-					? { loops: s.animation.loops }
-					: {}),
-			},
-			camera: s.camera,
-			bookmark: s.bookmark,
-		},
-		viewer: {
-			backgroundColor: s.backgroundColor,
-			resolution: s.resolution,
-			animationSpeed: s.animation.speed,
-			animationLoop: s.animation.loop,
-			...(s.maxFps !== undefined ? { maxFps: s.maxFps } : {}),
-			...(s.clampCameraDistance !== undefined
-				? { clampCameraDistance: s.clampCameraDistance }
-				: {}),
-		},
 	};
 }

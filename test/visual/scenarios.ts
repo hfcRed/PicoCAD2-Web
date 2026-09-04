@@ -1842,11 +1842,6 @@ const post: Scenario[] = [
 			},
 		},
 	},
-	{
-		name: "post/crt-legacy-alias",
-		model: "pig",
-		extras: { crt: { enabled: true, curvature: 0.8, scanlineIntensity: 0.6 } },
-	},
 	// Screen-space distortions
 	{
 		name: "post/pixelation-square",

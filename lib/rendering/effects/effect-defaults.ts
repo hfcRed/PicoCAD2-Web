@@ -10,6 +10,13 @@ export type DeepRequired<T> = T extends readonly unknown[]
 		? { [K in keyof T]-?: DeepRequired<T[K]> }
 		: T;
 
+/** Every property optional at every depth, with arrays kept whole. */
+export type DeepPartial<T> = T extends readonly unknown[]
+	? T
+	: T extends object
+		? { [K in keyof T]?: DeepPartial<T[K]> }
+		: T;
+
 /**
  * Deep-freezes an effect's defaults object so the exported constant cannot
  * be mutated. Returns the same object, typed deeply readonly. Restore the
@@ -47,6 +54,20 @@ function copyArray(value: ArrayLike<unknown>): unknown[] {
 	return out;
 }
 
+/**
+ * Deep-copies a settings value. Records and arrays are copied, everything
+ * else is returned as is.
+ */
+function copyValue(value: unknown): unknown {
+	if (isArrayLike(value)) return copyArray(value);
+	if (!isRecord(value)) return value;
+	const out: Record<string, unknown> = {};
+	for (const key of Object.keys(value)) {
+		out[key] = copyValue(value[key]);
+	}
+	return out;
+}
+
 function arraysEqual(a: ArrayLike<unknown>, b: ArrayLike<unknown>): boolean {
 	if (a.length !== b.length) return false;
 	for (let i = 0; i < a.length; i++) {
@@ -75,16 +96,47 @@ export function diffFromDefaults(defaults: unknown, value: unknown): unknown {
 		if (isArrayLike(value) && arraysEqual(defaults, value)) return undefined;
 		return isArrayLike(value) ? copyArray(value) : value;
 	}
-	if (isRecord(defaults)) {
-		const source = isRecord(value) ? value : {};
+	if (isRecord(defaults) && isRecord(value)) {
 		const out: Record<string, unknown> = {};
 		for (const key of Object.keys(defaults)) {
-			const changed = diffFromDefaults(defaults[key], source[key]);
+			const changed = diffFromDefaults(defaults[key], value[key]);
 			if (changed !== undefined) out[key] = changed;
 		}
 		return Object.keys(out).length > 0 ? out : undefined;
 	}
-	return value === defaults ? undefined : value;
+	return value === defaults ? undefined : copyValue(value);
+}
+
+function assignDeep(target: Record<string, unknown>, source: unknown): void {
+	if (!isRecord(source)) return;
+	for (const key of Object.keys(source)) {
+		const value = source[key];
+		if (value === undefined) continue;
+		const current = target[key];
+		if (isRecord(value) && isRecord(current)) {
+			assignDeep(current, value);
+		} else {
+			target[key] = copyValue(value);
+		}
+	}
+}
+
+/**
+ * Lays partial settings over their defaults, the inverse of
+ * {@link diffFromDefaults}. Nested groups merge, arrays replace, and both
+ * inputs are copied, so the result shares nothing with them.
+ *
+ * @param defaults - The complete defaults.
+ * @param overrides - The settings that differ, or undefined for none.
+ * @returns A complete, fresh settings object.
+ */
+export function mergeDefaults<T extends object>(
+	defaults: T,
+	overrides: NoInfer<DeepPartial<T>> | undefined,
+): T {
+	const out = copyValue(defaults) as Record<string, unknown>;
+	assignDeep(out, overrides);
+	return out as T;
 }
 
 /**

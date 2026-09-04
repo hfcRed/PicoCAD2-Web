@@ -21,9 +21,9 @@ import type {
 	Color3,
 	ExtrasOptions,
 	ProjectionMode,
-	RenderMode,
 	ViewerTag,
 } from "../../lib/main.ts";
+import { RENDER_MODE, SHADING_MODE } from "../../lib/main.ts";
 
 export type ModelName =
 	| "advanced_meshes"
@@ -35,8 +35,8 @@ export type ModelName =
 	| "waterfall";
 
 export interface ScenarioSettings {
-	shading?: boolean;
-	renderMode?: RenderMode;
+	shadingMode?: number;
+	renderMode?: number;
 	projectionMode?: ProjectionMode;
 	backgroundColor?: Color3 | null;
 	outlineSize?: number;
@@ -87,14 +87,18 @@ const core: Scenario[] = [
 	{
 		name: "core/render-mode-color",
 		model: "pig",
-		settings: { renderMode: "color" },
+		settings: { renderMode: RENDER_MODE.color },
 	},
 	{
 		name: "core/render-mode-none",
 		model: "pig",
-		settings: { renderMode: "none" },
+		settings: { renderMode: RENDER_MODE.none },
 	},
-	{ name: "core/shading-off", model: "rig", settings: { shading: false } },
+	{
+		name: "core/shading-off",
+		model: "rig",
+		settings: { shadingMode: SHADING_MODE.off },
+	},
 	{
 		name: "core/projection-orthographic",
 		model: "rig",
@@ -1283,7 +1287,7 @@ const post: Scenario[] = [
 	{
 		name: "post/wireframe-render-none",
 		model: "pig",
-		settings: { renderMode: "none" },
+		settings: { renderMode: RENDER_MODE.none },
 		extras: { wireframe: { enabled: true } },
 	},
 	// Particles
@@ -1377,7 +1381,7 @@ const post: Scenario[] = [
 	{
 		name: "post/floor-model-hidden",
 		model: "rig",
-		settings: { renderMode: "none" },
+		settings: { renderMode: RENDER_MODE.none },
 		extras: { floor: { enabled: true, reflection: { enabled: true } } },
 	},
 	// An infinite plate is centered on the camera and reaches past the far

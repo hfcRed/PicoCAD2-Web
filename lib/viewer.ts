@@ -5,7 +5,11 @@ import { FISHEYE_STRENGTH, GLOBAL_W } from "./camera/projection.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
 import { packColorMask } from "./rendering/effects/color-mask.ts";
-import { diffFromDefaults } from "./rendering/effects/effect-defaults.ts";
+import {
+	type DeepPartial,
+	diffFromDefaults,
+	mergeDefaults,
+} from "./rendering/effects/effect-defaults.ts";
 import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import { collectRayCrossings } from "./scene/raycast.ts";
@@ -15,23 +19,37 @@ import {
 	traverseNode,
 } from "./scene/scene-graph.ts";
 import type {
+	BookmarkSettings,
 	CameraControlOptions,
 	CameraDistanceClamp,
 	ExtrasOptions,
 	ModelInfo,
+	ModelSettings,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
+	ViewerSettings,
 } from "./types/options.ts";
 import type {
 	CameraBookmark,
 	CameraMode,
+	CameraState,
 	Color3,
 	PicoCAD2Model,
 	ProjectionMode,
-	RenderMode,
 	SceneNode,
 } from "./types/scene.ts";
 import { EXTRAS_DEFAULTS, ViewerExtras } from "./viewer-extras.ts";
+import {
+	bookmarkSettingsOf,
+	getDefaultModelSettings,
+	getDefaultViewerSettings,
+	MODEL_SETTINGS_DEFAULTS,
+	modelSettingsOf,
+	RENDER_MODE,
+	SHADING_MODE,
+	splitLegacySettings,
+	VIEWER_SETTINGS_DEFAULTS,
+} from "./viewer-settings.ts";
 
 export interface ViewerTag {
 	text: string;
@@ -44,6 +62,27 @@ export interface ViewerTag {
  * like one two-sided wall.
  */
 const COPLANAR_EPSILON = 1e-4;
+
+/**
+ * Copies a tag, filling in the white a missing color renders as so a state
+ * always records the color it shows.
+ */
+function copyTag(tag: ViewerTag | null): ViewerTag | null {
+	if (!tag) return null;
+	return { text: tag.text, color: [...(tag.color ?? [1, 1, 1])] };
+}
+
+/**
+ * Converts stored camera settings into the model's camera state shape.
+ */
+function toCameraState(settings: BookmarkSettings): CameraState {
+	return {
+		omega: settings.omega,
+		theta: settings.theta,
+		distanceToTarget: settings.distanceToTarget,
+		target: new Float32Array(settings.target),
+	};
+}
 
 /** Controls animation playback state and timing. */
 class AnimationController {
@@ -127,27 +166,36 @@ export class PicoCAD2Viewer {
 	readonly camera: OrbitCamera = new OrbitCamera();
 	readonly animation: AnimationController = new AnimationController();
 
-	shading = true;
-	renderMode: RenderMode = "texture";
-	projectionMode: ProjectionMode = "perspective";
+	shadingMode: number = MODEL_SETTINGS_DEFAULTS.shadingMode;
+	renderMode: number = MODEL_SETTINGS_DEFAULTS.renderMode;
+	projectionMode: ProjectionMode = MODEL_SETTINGS_DEFAULTS.projectionMode;
 	backgroundColor: Color3 | null = null;
-	outlineSize = 0;
-	outlineColor: Color3 = [0, 0, 0];
-	scanlines = false;
-	scanlineColor: Color3 = [0, 0, 0];
+	outlineSize = MODEL_SETTINGS_DEFAULTS.outlineSize;
+	outlineColor: Color3 = [...MODEL_SETTINGS_DEFAULTS.outlineColor];
+	scanlines = MODEL_SETTINGS_DEFAULTS.scanlines;
+	scanlineColor: Color3 = [...MODEL_SETTINGS_DEFAULTS.scanlineColor];
 	leftTag: ViewerTag | null = null;
 	rightTag: ViewerTag | null = null;
-	cameraMode: CameraMode = "fixed";
-	cameraModeSpeed = 5;
-	cameraModeDirection: "left" | "right" = "left";
-	maxFps = 60;
+	cameraMode: CameraMode = MODEL_SETTINGS_DEFAULTS.cameraMode;
+	cameraModeSpeed = MODEL_SETTINGS_DEFAULTS.cameraModeSpeed;
+	cameraModeDirection: "left" | "right" =
+		MODEL_SETTINGS_DEFAULTS.cameraModeDirection;
+	maxFps = VIEWER_SETTINGS_DEFAULTS.maxFps;
 	clampCameraDistance: CameraDistanceClamp = {
-		enabled: false,
-		minimumDistance: 0,
+		...VIEWER_SETTINGS_DEFAULTS.clampCameraDistance,
 	};
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
+
+	/** @deprecated Use {@link shadingMode}. Reads as lit or not, writes on or off. */
+	get shading(): boolean {
+		return this.shadingMode > SHADING_MODE.off;
+	}
+
+	set shading(value: boolean) {
+		this.shadingMode = value ? SHADING_MODE.on : SHADING_MODE.off;
+	}
 
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
@@ -254,6 +302,9 @@ export class PicoCAD2Viewer {
 		}
 
 		if (options?.shading !== undefined) this.shading = options.shading;
+		if (options?.shadingMode !== undefined) {
+			this.shadingMode = options.shadingMode;
+		}
 		if (options?.renderMode) this.renderMode = options.renderMode;
 		if (options?.projectionMode) this.projectionMode = options.projectionMode;
 		if (options?.backgroundColor !== undefined)
@@ -363,7 +414,8 @@ export class PicoCAD2Viewer {
 		this.source = source;
 		this.model = parseModel(source);
 		this.resources = this.context.createModelResources(this.model);
-		this.shading = this.model.shadingEnabled;
+		this.shadingMode = this.model.shadingMode;
+		this.renderMode = this.model.renderMode;
 		this.projectionMode = this.model.projectionMode;
 
 		this.animation.setDuration(this.model.motionDuration);
@@ -494,9 +546,13 @@ export class PicoCAD2Viewer {
 		}
 
 		const settings = this.renderSettings;
-		settings.shading = this.shading;
+		settings.shading = this.shadingMode > SHADING_MODE.off;
 		settings.renderMode =
-			this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2;
+			this.renderMode === RENDER_MODE.none
+				? 2
+				: this.renderMode === RENDER_MODE.color
+					? 1
+					: 0;
 		settings.backgroundColor = this.backgroundColor;
 		settings.outlineSize = this.outlineSize;
 		settings.outlineColor = this.outlineColor;
@@ -1055,106 +1111,133 @@ export class PicoCAD2Viewer {
 
 	/**
 	 * Returns a JSON-serializable snapshot of the viewer's state: the raw
-	 * model source, all settings, and the effect settings that differ from
-	 * their defaults.
+	 * model source, the model settings that differ from what the file says,
+	 * the viewer settings that differ from their defaults, and the effect
+	 * settings that differ from theirs.
 	 */
 	getState(): PicoCAD2ViewerState {
+		const fileSettings = this._modelInfo?.settings ?? MODEL_SETTINGS_DEFAULTS;
 		return {
 			source: JSON.parse(this.source ?? "null"),
-			settings: {
-				shading: this.shading,
-				renderMode: this.renderMode,
-				projectionMode: this.projectionMode,
-				backgroundColor: this.backgroundColor
-					? [...this.backgroundColor]
-					: null,
-				outlineSize: this.outlineSize,
-				outlineColor: [...this.outlineColor],
-				scanlines: this.scanlines,
-				scanlineColor: [...this.scanlineColor],
-				cameraMode: this.cameraMode,
-				cameraModeSpeed: this.cameraModeSpeed,
-				cameraModeDirection: this.cameraModeDirection,
-				leftTag: this.leftTag
-					? {
-							text: this.leftTag.text,
-							color: this.leftTag.color ?? [1, 1, 1],
-						}
-					: null,
-				rightTag: this.rightTag
-					? {
-							text: this.rightTag.text,
-							color: this.rightTag.color ?? [1, 1, 1],
-						}
-					: null,
-				animation: {
-					speed: this.animation.speed,
-					time: this.animation.time,
-					playing: this.animation.playing,
-					loop: this.animation.loop,
-					loops: this.animation.loops,
-				},
-				camera: {
-					omega: this.camera.omega,
-					theta: this.camera.theta,
-					distanceToTarget: this.camera.distanceToTarget,
-					target: [
-						this.camera.target[0],
-						this.camera.target[1],
-						this.camera.target[2],
-					],
-					zoom: this.camera.zoom,
-				},
-				resolution: {
-					width: this.renderWidth,
-					height: this.renderHeight,
-					scale: this.renderScale,
-				},
-				maxFps: this.maxFps,
-				clampCameraDistance: { ...this.clampCameraDistance },
-				bookmark: this.model?.bookmark
-					? {
-							omega: this.model.bookmark.omega,
-							theta: this.model.bookmark.theta,
-							distanceToTarget: this.model.bookmark.distanceToTarget,
-							target: [
-								this.model.bookmark.target[0],
-								this.model.bookmark.target[1],
-								this.model.bookmark.target[2],
-							],
-						}
-					: {
-							omega: 0,
-							theta: 0,
-							distanceToTarget: 0,
-							target: [0, 0, 0],
-						},
-			},
+			model: (diffFromDefaults(fileSettings, this.readModelSettings()) ??
+				{}) as DeepPartial<ModelSettings>,
+			viewer: (diffFromDefaults(
+				VIEWER_SETTINGS_DEFAULTS,
+				this.readViewerSettings(),
+			) ?? {}) as DeepPartial<ViewerSettings>,
 			extras: this.getExtrasState(),
 		};
 	}
 
 	/**
-	 * Restores the viewer from a previously captured state.
-	 * If the state includes a model source, it will be loaded. Effects the
-	 * state does not list return to their defaults, so a state written by
-	 * hand only needs the effects it uses.
+	 * Restores the viewer from a previously captured state. The source is
+	 * loaded, then the state's model settings are laid over the file's, its
+	 * viewer settings over the defaults and its effects over theirs, so a
+	 * state only needs what differs from a plain load of the source.
 	 *
 	 * @param state - The state to restore.
 	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
 	setState(state: PicoCAD2ViewerState, useBookmark = false): void {
-		if (!state.source || !state.settings) return;
+		if (!state.source) return;
+
+		// States saved by earlier versions carry one flat settings object and
+		// keep the viewer's current values for the settings they predate.
+		const legacy =
+			state.settings && !state.model && !state.viewer
+				? splitLegacySettings(state.settings)
+				: null;
+		const viewerSettings = mergeDefaults(
+			legacy ? this.readViewerSettings() : getDefaultViewerSettings(),
+			legacy ? legacy.viewer : state.viewer,
+		);
 
 		this.load(JSON.stringify(state.source), useBookmark);
+		if (!this.model || !this._modelInfo) return;
+
+		this.applyModelSettings(
+			mergeDefaults(
+				this._modelInfo.settings,
+				legacy ? legacy.model : state.model,
+			),
+			useBookmark,
+		);
+		this.applyViewerSettings(viewerSettings);
+
+		// A state lists only the effects it uses, so every other effect
+		// returns to its defaults.
+		this._extras.reset();
+		this.applyExtrasOptions(state.extras ?? {});
+	}
+
+	/**
+	 * Reads the complete current model settings.
+	 */
+	private readModelSettings(): ModelSettings {
+		return {
+			shadingMode: this.shadingMode,
+			renderMode: this.renderMode,
+			projectionMode: this.projectionMode,
+			outlineSize: this.outlineSize,
+			outlineColor: [...this.outlineColor],
+			scanlines: this.scanlines,
+			scanlineColor: [...this.scanlineColor],
+			cameraMode: this.cameraMode,
+			cameraModeSpeed: this.cameraModeSpeed,
+			cameraModeDirection: this.cameraModeDirection,
+			leftTag: copyTag(this.leftTag),
+			rightTag: copyTag(this.rightTag),
+			animation: {
+				time: this.animation.time,
+				playing: this.animation.playing,
+				loops: this.animation.loops,
+			},
+			camera: {
+				omega: this.camera.omega,
+				theta: this.camera.theta,
+				distanceToTarget: this.camera.distanceToTarget,
+				target: [
+					this.camera.target[0],
+					this.camera.target[1],
+					this.camera.target[2],
+				],
+				zoom: this.camera.zoom,
+			},
+			bookmark: this.model
+				? bookmarkSettingsOf(this.model.bookmark)
+				: getDefaultModelSettings().bookmark,
+		};
+	}
+
+	/**
+	 * Reads the complete current viewer settings.
+	 */
+	private readViewerSettings(): ViewerSettings {
+		return {
+			backgroundColor: this.backgroundColor ? [...this.backgroundColor] : null,
+			resolution: {
+				width: this.renderWidth,
+				height: this.renderHeight,
+				scale: this.renderScale,
+			},
+			maxFps: this.maxFps,
+			clampCameraDistance: { ...this.clampCameraDistance },
+			animationSpeed: this.animation.speed,
+			animationLoop: this.animation.loop,
+		};
+	}
+
+	/**
+	 * Applies complete model settings to a loaded model. The camera and
+	 * bookmark are written onto the model, so the camera restoration after
+	 * an interaction returns to them instead of the file's.
+	 */
+	private applyModelSettings(s: ModelSettings, useBookmark: boolean): void {
 		if (!this.model) return;
 
-		const s = state.settings;
-
-		this.shading = s.shading;
+		this.shadingMode = s.shadingMode;
 		this.renderMode = s.renderMode;
 		this.projectionMode = s.projectionMode;
-		this.backgroundColor = s.backgroundColor ? [...s.backgroundColor] : null;
 		this.outlineSize = s.outlineSize;
 		this.outlineColor = [...s.outlineColor];
 		this.scanlines = s.scanlines;
@@ -1162,70 +1245,39 @@ export class PicoCAD2Viewer {
 		this.cameraMode = s.cameraMode;
 		this.cameraModeSpeed = s.cameraModeSpeed;
 		this.cameraModeDirection = s.cameraModeDirection;
+		this.leftTag = copyTag(s.leftTag);
+		this.rightTag = copyTag(s.rightTag);
 
-		this.leftTag = s.leftTag
-			? { text: s.leftTag.text, color: s.leftTag.color ?? [1, 1, 1] }
-			: null;
-		this.rightTag = s.rightTag
-			? { text: s.rightTag.text, color: s.rightTag.color ?? [1, 1, 1] }
-			: null;
-
-		this.animation.speed = s.animation.speed;
 		this.animation.time = s.animation.time;
-		this.animation.loop = s.animation.loop;
-
-		// The following properties have fallbacks for backwards compatibility
-		this.animation.loops = s.animation.loops ?? this.animation.loops;
-		this.maxFps = s.maxFps ?? this.maxFps;
-		this.clampCameraDistance =
-			s.clampCameraDistance ?? this.clampCameraDistance;
-
+		this.animation.loops = s.animation.loops;
 		if (s.animation.playing) {
 			this.animation.play();
 		} else {
 			this.animation.pause();
 		}
 
-		this.model.bookmark = {
-			omega: s.bookmark.omega,
-			theta: s.bookmark.theta,
-			distanceToTarget: s.bookmark.distanceToTarget,
-			target: new Float32Array([
-				s.bookmark.target[0],
-				s.bookmark.target[1],
-				s.bookmark.target[2],
-			]),
-		};
+		this.model.camera = toCameraState(s.camera);
+		this.model.bookmark = toCameraState(s.bookmark);
+		this.camera.initFromState(
+			useBookmark ? this.model.bookmark : this.model.camera,
+		);
+		this.camera.zoom = s.camera.zoom;
+	}
 
+	/**
+	 * Applies complete viewer settings.
+	 */
+	private applyViewerSettings(s: ViewerSettings): void {
+		this.backgroundColor = s.backgroundColor ? [...s.backgroundColor] : null;
 		this.setResolution(
 			s.resolution.width,
 			s.resolution.height,
 			s.resolution.scale,
 		);
-
-		// Force the saved camera state onto the model so that the camera restoration
-		// in onCameraInteraction() will return to the saved state instead of the models's original camera.
-		this.model.camera = {
-			distanceToTarget: s.camera.distanceToTarget,
-			theta: s.camera.theta,
-			omega: s.camera.omega,
-			target: new Float32Array([
-				s.camera.target[0],
-				s.camera.target[1],
-				s.camera.target[2],
-			]),
-		};
-
-		if (useBookmark) {
-			this.camera.initFromState(this.model.bookmark);
-		} else {
-			this.camera.initFromState(this.model.camera);
-		}
-
-		// A state lists only the effects it uses, so every other effect
-		// returns to its defaults.
-		this._extras.reset();
-		this.applyExtrasOptions(state.extras ?? {});
+		this.maxFps = s.maxFps;
+		this.clampCameraDistance = { ...s.clampCameraDistance };
+		this.animation.speed = s.animationSpeed;
+		this.animation.loop = s.animationLoop;
 	}
 
 	/**
@@ -1390,6 +1442,7 @@ export class PicoCAD2Viewer {
 				colors[texture.transparentColor * 3 + 2] ?? 0,
 			],
 			palette,
+			settings: modelSettingsOf(model),
 		};
 	}
 

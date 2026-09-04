@@ -3,6 +3,7 @@ import type { BillboardMode } from "../rendering/effects/billboard-effect.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { CycleMode } from "../rendering/effects/cycle.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
+import type { DeepPartial } from "../rendering/effects/effect-defaults.ts";
 import type { EmissionBlinkMode } from "../rendering/effects/emission-effect.ts";
 import type {
 	GlitterShape,
@@ -33,12 +34,7 @@ import type {
 	GameboyPalette,
 	ScreenType,
 } from "../rendering/effects/video-effects-effect.ts";
-import type {
-	CameraMode,
-	Color3,
-	ProjectionMode,
-	RenderMode,
-} from "./scene.ts";
+import type { CameraMode, Color3, ProjectionMode } from "./scene.ts";
 
 export interface WireframeOptions {
 	enabled?: boolean;
@@ -583,6 +579,8 @@ export interface ModelInfo {
 	backgroundColor: Color3;
 	transparentColor: Color3;
 	palette: Color3[];
+	/** The settings the file carries, as `load()` applied them. */
+	settings: ModelSettings;
 }
 
 export interface CameraControlOptions {
@@ -598,10 +596,8 @@ export interface CameraControlOptions {
 }
 
 export interface AnimationSettings {
-	speed: number;
 	time: number;
 	playing: boolean;
-	loop: boolean;
 	loops: number;
 }
 
@@ -631,11 +627,10 @@ export interface CameraDistanceClamp {
 	minimumDistance: number;
 }
 
-export interface ViewerSettings {
-	shading: boolean;
-	renderMode: RenderMode;
+export interface ModelSettings {
+	shadingMode: number;
+	renderMode: number;
 	projectionMode: ProjectionMode;
-	backgroundColor: Color3 | null;
 	outlineSize: number;
 	outlineColor: Color3;
 	scanlines: boolean;
@@ -647,9 +642,44 @@ export interface ViewerSettings {
 	rightTag: { text: string; color?: Color3 } | null;
 	animation: AnimationSettings;
 	camera: CameraSettings;
+	bookmark: BookmarkSettings;
+}
+
+export interface ViewerSettings {
+	backgroundColor: Color3 | null;
 	resolution: ResolutionSettings;
 	maxFps: number;
 	clampCameraDistance: CameraDistanceClamp;
+	animationSpeed: number;
+	animationLoop: boolean;
+}
+
+/** @deprecated The flat settings of states saved by earlier versions. */
+export interface LegacyViewerSettings {
+	shading: boolean;
+	renderMode: "texture" | "color" | "none";
+	projectionMode: ProjectionMode;
+	backgroundColor: Color3 | null;
+	outlineSize: number;
+	outlineColor: Color3;
+	scanlines: boolean;
+	scanlineColor: Color3;
+	cameraMode: CameraMode;
+	cameraModeSpeed: number;
+	cameraModeDirection: "left" | "right";
+	leftTag: { text: string; color?: Color3 } | null;
+	rightTag: { text: string; color?: Color3 } | null;
+	animation: {
+		speed: number;
+		time: number;
+		playing: boolean;
+		loop: boolean;
+		loops?: number;
+	};
+	camera: CameraSettings;
+	resolution: ResolutionSettings;
+	maxFps?: number;
+	clampCameraDistance?: CameraDistanceClamp;
 	bookmark: BookmarkSettings;
 }
 
@@ -657,15 +687,20 @@ export type ExtrasState = Omit<Required<ExtrasOptions>, "crt">;
 
 export interface PicoCAD2ViewerState {
 	source: string | null;
-	settings: ViewerSettings;
+	model?: DeepPartial<ModelSettings>;
+	viewer?: DeepPartial<ViewerSettings>;
 	extras?: ExtrasOptions;
+	/** @deprecated Only present in states saved by earlier versions. */
+	settings?: LegacyViewerSettings;
 }
 
 export interface PicoCAD2ViewerOptions {
 	canvas?: HTMLCanvasElement;
 	context?: PicoCAD2Context;
+	/** @deprecated Use {@link shadingMode}; `true` is on and `false` is off. */
 	shading?: boolean;
-	renderMode?: RenderMode;
+	shadingMode?: number;
+	renderMode?: number;
 	projectionMode?: ProjectionMode;
 	backgroundColor?: Color3 | null;
 	outlineSize?: number;

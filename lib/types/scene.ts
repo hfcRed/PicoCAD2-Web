@@ -2,8 +2,6 @@ import type { mat4 } from "gl-matrix";
 
 export type Color3 = [number, number, number];
 
-export type RenderMode = "texture" | "color" | "none";
-
 export type AnimationProp = "pos" | "rot" | "scale" | "visible" | "tex";
 
 export type Axis = "x" | "y" | "z";
@@ -102,7 +100,8 @@ export interface PicoCAD2Model {
 	root: SceneNode;
 	texture: TextureData;
 	motionDuration: number;
-	shadingEnabled: boolean;
+	shadingMode: number;
+	renderMode: number;
 	camera: CameraState;
 	bookmark: CameraBookmark;
 	projectionMode: ProjectionMode;

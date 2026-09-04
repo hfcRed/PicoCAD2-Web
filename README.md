@@ -77,8 +77,8 @@ const viewer = new PicoCAD2Viewer({
 
   // Rendering
   maxFps: 60,                       // Max render loop rate in fps, 0 = display refresh rate (default: 60)
-  shading: true,                    // Enable lighting (default: true)
-  renderMode: "texture",            // "texture" | "color" | "none" (default: "texture")
+  shadingMode: SHADING_MODE.on,     // SHADING_MODE.off | .on, as PicoCAD 2 writes it (default: on)
+  renderMode: RENDER_MODE.texture,  // RENDER_MODE.none | .color | .texture, PicoCAD 2's face mode (default: texture)
   projectionMode: "perspective",    // "perspective" | "orthographic" | "fisheye" (default: "perspective")
   backgroundColor: [0.1, 0.1, 0.1], // Override background color, or null for model default (default: null)
 
@@ -129,7 +129,7 @@ await viewer.loadFromFile(file);
 viewer.load(modelString, true);
 ```
 
-Loading a model applies its export settings (camera position, outline, scanlines, etc.) to the viewer. Effects are not part of a model, so they keep their configuration across loads, whether they were set up through the constructor or through `viewer.extras`.
+Loading a model applies the settings the file carries. Shading mode, render mode, projection, camera and bookmark, camera mode, outline, scanlines, watermark tags and animation. The viewer's own settings (background override, resolution, max FPS, camera clamp, animation speed and loop) and the effects are not part of a model, so they keep their configuration across loads. `modelInfo.settings` holds what the file said.
 
 ## Viewer Properties
 
@@ -137,8 +137,8 @@ All properties can be read and modified at any time after construction:
 
 ```typescript
 // Rendering
-viewer.shading = false;
-viewer.renderMode = "color";
+viewer.shadingMode = SHADING_MODE.off;   // a file's own value passes through unchanged
+viewer.renderMode = RENDER_MODE.color;   // RENDER_MODE.none hides the model
 viewer.projectionMode = "orthographic";
 viewer.backgroundColor = [0.2, 0, 0.3];
 
@@ -268,6 +268,7 @@ const info = viewer.modelInfo;
 // info.backgroundColor   - Rendered background color as [r, g, b] (0-1 range)
 // info.transparentColor  - Transparent color as [r, g, b] (0-1 range)
 // info.palette           - Full color palette as an array of [r, g, b] (0-1 range)
+// info.settings          - The settings the file carries, as load() applied them
 ```
 
 ## Callbacks
@@ -293,30 +294,30 @@ Callbacks can also be set via constructor options (`onLoad`, `onFrame`, `onDispo
 
 ## State Serialization
 
-Capture and restore the entire viewer state for sharing or persistence:
+A state is the model source plus everything that differs from a plain `load()` of it, in three optional groups. `model` holds the settings the file carries where they differ from the file, `viewer` holds the viewer's own settings where they differ from `VIEWER_SETTINGS_DEFAULTS`, and `extras` holds the effects that differ from their defaults. The source alone is a valid state.
 
 ```typescript
 // Capture state (JSON-serializable)
 const state = viewer.getState();
 localStorage.setItem("viewer", JSON.stringify(state));
 
-// Restore state (reloads model, applies all settings, camera, animation, extras)
+// Restore state (reloads the model, then applies the differences)
 const saved = JSON.parse(localStorage.getItem("viewer"));
 viewer.setState(saved);
 
 // Restore state using the model's bookmarked camera position
 viewer.setState(saved, true);
-```
 
-The state includes the raw model source string, all rendering settings, camera position, animation state, resolution, bookmark, and the effect settings that differ from their defaults. Restoring a state resets every effect first, so a state only needs to list the effects it uses:
-
-```typescript
+// A state written by hand only needs what it changes
 viewer.setState({
   source: state.source,
-  settings: state.settings,
-  extras: { bloom: { enabled: true, threshold: 0.6 } },   // every other effect returns to its defaults
+  model: { shadingMode: SHADING_MODE.off, outlineSize: 1 },
+  viewer: { resolution: { width: 256, height: 256, scale: 2 } },
+  extras: { bloom: { enabled: true, threshold: 0.6 } },
 });
 ```
+
+To turn a group back into complete settings, lay it over its reference with `mergeDefaults`. `modelInfo.settings` for `model`, `getDefaultViewerSettings()` for `viewer` and `getDefaultExtras()` for `extras`. States saved by earlier versions, with one flat `settings` object, still load.
 
 ## Image Export
 

@@ -120,7 +120,7 @@ async function capture(scenario: Scenario): Promise<CaptureResult> {
 
 		const s = scenario.settings;
 		if (s) {
-			if (s.shading !== undefined) viewer.shading = s.shading;
+			if (s.shadingMode !== undefined) viewer.shadingMode = s.shadingMode;
 			if (s.renderMode !== undefined) viewer.renderMode = s.renderMode;
 			if (s.projectionMode !== undefined) {
 				viewer.projectionMode = s.projectionMode;

@@ -49,9 +49,11 @@ export {
 	EDGE_DETECTION_DEFAULTS,
 	EdgeDetectionEffect,
 } from "./rendering/effects/edge-detection-effect.ts";
-export type {
-	DeepReadonly,
-	DeepRequired,
+export {
+	type DeepPartial,
+	type DeepReadonly,
+	type DeepRequired,
+	mergeDefaults,
 } from "./rendering/effects/effect-defaults.ts";
 export {
 	EMISSION_DEFAULTS,
@@ -231,9 +233,11 @@ export type {
 	GradientOutlineOptions,
 	HalftoneOptions,
 	InteriorOptions,
+	LegacyViewerSettings,
 	LensDistortionOptions,
 	MeshDeformOptions,
 	ModelInfo,
+	ModelSettings,
 	NoiseOptions,
 	ParticlesOptions,
 	PicoCAD2ViewerOptions,
@@ -264,7 +268,6 @@ export type {
 	ExportSettings,
 	PicoCAD2Model,
 	ProjectionMode,
-	RenderMode,
 	TextureData,
 } from "./types/scene.ts";
 export { PicoCAD2Viewer, type ViewerTag } from "./viewer.ts";
@@ -273,3 +276,11 @@ export {
 	getDefaultExtras,
 	ViewerExtras,
 } from "./viewer-extras.ts";
+export {
+	getDefaultModelSettings,
+	getDefaultViewerSettings,
+	MODEL_SETTINGS_DEFAULTS,
+	RENDER_MODE,
+	SHADING_MODE,
+	VIEWER_SETTINGS_DEFAULTS,
+} from "./viewer-settings.ts";

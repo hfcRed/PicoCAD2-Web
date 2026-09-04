@@ -217,6 +217,7 @@ export class PicoCAD2Viewer {
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private cameraModeTime = 0;
+	private frameSyncWithAnimation = true;
 	private wasAnimating = false;
 	private clampBaseline: number | null = null;
 	private _modelInfo: ModelInfo | null = null;
@@ -523,6 +524,7 @@ export class PicoCAD2Viewer {
 	private prepareFrame(syncWithAnimation: boolean): void {
 		if (!this.model) return;
 
+		this.frameSyncWithAnimation = syncWithAnimation;
 		this.camera.projectionMode = this.projectionMode;
 		this.camera.omegaOffset = this.computeCameraModeOffset(syncWithAnimation);
 
@@ -1552,11 +1554,17 @@ export class PicoCAD2Viewer {
 			this.inertiaActive = false;
 
 			// Restore the camera mode. Compute the offset the restored mode
-			// would produce this frame and absorb it out of omega so there's
-			// no jump when the mode starts driving omegaOffset again.
+			// will produce next frame and absorb it out of omega so there's
+			// no jump when the mode starts driving omegaOffset again. It has
+			// to come from the clock the frames use. The animation clock and
+			// the camera mode clock drift apart the moment the animation is
+			// seeked, paused or restored from a state, and the difference
+			// between the two offsets would show as a jump.
 			this.cameraMode = this.savedCameraMode!;
 			this.savedCameraMode = null;
-			const incomingOffset = this.computeCameraModeOffset(false);
+			const incomingOffset = this.computeCameraModeOffset(
+				this.frameSyncWithAnimation,
+			);
 			this.camera.omega -= incomingOffset;
 			this.camera.omegaOffset = incomingOffset;
 

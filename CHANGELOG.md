@@ -72,6 +72,7 @@ Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a n
 
 ### Fixed
 
+- **Camera mode restore after `useFixedOnInteract`** — The restore absorbed the wall-clock camera mode offset into the camera, while a render loop synced to the animation applies the animation-clock offset, so the view jumped by the difference before interpolating back whenever the two clocks disagreed. After a restored animation time, a seek, a pause or a speed change. The restore now uses the clock the frames use.
 - **Effects survive `load()`** — Loading a model replaced every effect with a fresh instance, so `extras` passed to the constructor, or any effect configured before the first load, were discarded. Effects now persist across loads, keeping their settings and compiled programs. `setState()` still restores every effect from the state and resets the ones the state does not mention.
 - **Glitch bursts on every GPU** — The effect stayed inert for seconds at a time. The hash is now sine-free, so bursts fire at the same steps everywhere.
 - **Noise grain on every GPU** — The grain used a sine-based hash with large arguments, which could band on some hardware. It now uses the shared sine-free hash.

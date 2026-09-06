@@ -21,10 +21,10 @@ export type EasingFunction = (
  * @param b - Start value.
  * @param c - Change in value.
  * @param _d - Duration (unused).
- * @returns Start value if t <= 0, otherwise end value.
+ * @returns Start value if t < 0, otherwise end value.
  */
 function easeInstant(t: number, b: number, c: number, _d: number): number {
-	if (t <= 0) return b;
+	if (t < 0) return b;
 	return c + b;
 }
 

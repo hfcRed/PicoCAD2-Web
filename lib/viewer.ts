@@ -1,34 +1,88 @@
+import { vec3 } from "gl-matrix";
 import { evaluateMotions } from "./animation/animator.ts";
-import { OrbitCamera } from "./camera/orbit-camera.ts";
+import { CAMERA_NEAR, OrbitCamera } from "./camera/orbit-camera.ts";
+import { FISHEYE_STRENGTH, GLOBAL_W } from "./camera/projection.ts";
 import { PicoCAD2Context } from "./context.ts";
 import { parseModel } from "./parser/parser.ts";
+import { packColorMask } from "./rendering/effects/color-mask.ts";
+import {
+	type DeepPartial,
+	diffFromDefaults,
+	mergeDefaults,
+} from "./rendering/effects/effect-defaults.ts";
+import type { TransparencyMode } from "./rendering/effects/material-style.ts";
 import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
+import { collectRayCrossings } from "./scene/raycast.ts";
 import {
 	restoreStaticTransforms,
 	storeStaticTransforms,
 	traverseNode,
 } from "./scene/scene-graph.ts";
+import type { RawPicoCAD2File } from "./types/model.ts";
 import type {
+	BookmarkSettings,
 	CameraControlOptions,
+	CameraDistanceClamp,
 	ExtrasOptions,
 	ModelInfo,
+	ModelSettings,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
+	ViewerSettings,
 } from "./types/options.ts";
 import type {
 	CameraBookmark,
 	CameraMode,
+	CameraState,
 	Color3,
 	PicoCAD2Model,
 	ProjectionMode,
-	RenderMode,
+	SceneNode,
 } from "./types/scene.ts";
-import { ViewerExtras } from "./viewer-extras.ts";
+import { EXTRAS_DEFAULTS, ViewerExtras } from "./viewer-extras.ts";
+import {
+	bookmarkSettingsOf,
+	getDefaultModelSettings,
+	getDefaultViewerSettings,
+	MODEL_SETTINGS_DEFAULTS,
+	modelSettingsOf,
+	RENDER_MODE,
+	SHADING_MODE,
+	VIEWER_SETTINGS_DEFAULTS,
+} from "./viewer-settings.ts";
 
 export interface ViewerTag {
 	text: string;
 	color?: Color3;
+}
+
+/**
+ * Ray crossings closer together than this are treated as the same wall for
+ * the camera surface clamp, so paired opposing single-sided faces behave
+ * like one two-sided wall.
+ */
+const COPLANAR_EPSILON = 1e-4;
+
+/**
+ * Copies a tag, filling in the white a missing color renders as so a state
+ * always records the color it shows.
+ */
+function copyTag(tag: ViewerTag | null): ViewerTag | null {
+	if (!tag) return null;
+	return { text: tag.text, color: [...(tag.color ?? [1, 1, 1])] };
+}
+
+/**
+ * Converts stored camera settings into the model's camera state shape.
+ */
+function toCameraState(settings: BookmarkSettings): CameraState {
+	return {
+		omega: settings.omega,
+		theta: settings.theta,
+		distanceToTarget: settings.distanceToTarget,
+		target: new Float32Array(settings.target),
+	};
 }
 
 /** Controls animation playback state and timing. */
@@ -39,6 +93,7 @@ class AnimationController {
 	speed = 1;
 	time = 0;
 	loop = true;
+	loops = 1;
 
 	/**
 	 * Sets the animation duration from the model.
@@ -111,22 +166,26 @@ export class PicoCAD2Viewer {
 	readonly canvas: HTMLCanvasElement;
 	readonly camera: OrbitCamera = new OrbitCamera();
 	readonly animation: AnimationController = new AnimationController();
-	private _extras!: ViewerExtras;
-	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
 
-	shading = true;
-	renderMode: RenderMode = "texture";
-	projectionMode: ProjectionMode = "perspective";
+	shadingMode: number = MODEL_SETTINGS_DEFAULTS.shadingMode;
+	renderMode: number = MODEL_SETTINGS_DEFAULTS.renderMode;
+	projectionMode: ProjectionMode = MODEL_SETTINGS_DEFAULTS.projectionMode;
 	backgroundColor: Color3 | null = null;
-	outlineSize = 0;
-	outlineColor: Color3 = [0, 0, 0];
-	scanlines = false;
-	scanlineColor: Color3 = [0, 0, 0];
+	outlineSize = MODEL_SETTINGS_DEFAULTS.outlineSize;
+	outlineColor: Color3 = [...MODEL_SETTINGS_DEFAULTS.outlineColor];
+	scanlines = MODEL_SETTINGS_DEFAULTS.scanlines;
+	scanlineColor: Color3 = [...MODEL_SETTINGS_DEFAULTS.scanlineColor];
 	leftTag: ViewerTag | null = null;
 	rightTag: ViewerTag | null = null;
-	cameraMode: CameraMode = "fixed";
-	cameraModeSpeed = 5;
-	cameraModeDirection: "left" | "right" = "left";
+	cameraMode: CameraMode = MODEL_SETTINGS_DEFAULTS.cameraMode;
+	cameraModeSpeed = MODEL_SETTINGS_DEFAULTS.cameraModeSpeed;
+	cameraModeDirection: "left" | "right" =
+		MODEL_SETTINGS_DEFAULTS.cameraModeDirection;
+	maxFps = VIEWER_SETTINGS_DEFAULTS.maxFps;
+	clampCameraDistance: CameraDistanceClamp = {
+		...VIEWER_SETTINGS_DEFAULTS.clampCameraDistance,
+	};
+	transparency: TransparencyMode = VIEWER_SETTINGS_DEFAULTS.transparency;
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -140,8 +199,10 @@ export class PicoCAD2Viewer {
 	private renderWidth = 128;
 	private renderHeight = 128;
 	private renderScale = 1;
-	private animationFrameId: number | null = null;
+	private renderLoopActive = false;
+	private loopSyncWithAnimation = true;
 	private lastFrameTime = 0;
+	private lastDt = 0;
 	private elapsedTime = 0;
 	private cameraControlsEnabled = false;
 	private cameraControlZoom = true;
@@ -158,12 +219,47 @@ export class PicoCAD2Viewer {
 	private pinchStartDist = 0;
 	private pinchMidpoint: { x: number; y: number } = { x: 0, y: 0 };
 	private cameraModeTime = 0;
+	private frameSyncWithAnimation = true;
+	private wasAnimating = false;
+	private clampBaseline: number | null = null;
 	private _modelInfo: ModelInfo | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private resizeScale = 1;
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;
+	private readonly _extras: ViewerExtras;
+
+	private readonly pipeline: PostProcessPipeline = new PostProcessPipeline();
+
+	private readonly renderSettings: RenderSettings = {
+		shading: true,
+		renderMode: 0,
+		backgroundColor: null,
+		transparency: "dithered",
+		outlineSize: 0,
+		outlineColor: [0, 0, 0],
+		cutoutMask: 0,
+		colorCutout: null,
+		dissolve: null,
+		emission: null,
+		projection: null,
+		display: null,
+		interior: null,
+		rimLight: null,
+		gradientLight: null,
+		specular: null,
+		glitter: null,
+		meshDeform: null,
+		triangleFlash: null,
+		triangleShatter: null,
+		vertexGlitch: null,
+		paletteSwap: null,
+		fur: null,
+		billboard: null,
+		floor: null,
+	};
+
 	private readonly boundHandlers: {
 		onPointerDown: (e: PointerEvent) => void;
 		onPointerMove: (e: PointerEvent) => void;
@@ -201,7 +297,9 @@ export class PicoCAD2Viewer {
 			this.setResolution(resolution.width, resolution.height, resolution.scale);
 		}
 
-		if (options?.shading !== undefined) this.shading = options.shading;
+		if (options?.shadingMode !== undefined) {
+			this.shadingMode = options.shadingMode;
+		}
 		if (options?.renderMode) this.renderMode = options.renderMode;
 		if (options?.projectionMode) this.projectionMode = options.projectionMode;
 		if (options?.backgroundColor !== undefined)
@@ -221,6 +319,14 @@ export class PicoCAD2Viewer {
 		if (options?.cameraModeDirection) {
 			this.cameraModeDirection = options.cameraModeDirection;
 		}
+		if (options?.maxFps !== undefined) this.maxFps = options.maxFps;
+		if (options?.clampCameraDistance) {
+			this.clampCameraDistance = {
+				enabled: options.clampCameraDistance.enabled ?? false,
+				minimumDistance: options.clampCameraDistance.minimumDistance ?? 0,
+			};
+		}
+		if (options?.transparency) this.transparency = options.transparency;
 
 		if (options?.extras) {
 			this.applyExtrasOptions(options.extras);
@@ -273,7 +379,7 @@ export class PicoCAD2Viewer {
 
 		const texture = this.model.texture;
 		const bgIdx = texture.backgroundColor;
-		const colors = texture.colors;
+		const colors = texture.sourceColors;
 
 		return {
 			...this._modelInfo,
@@ -301,17 +407,16 @@ export class PicoCAD2Viewer {
 			this.resources = null;
 		}
 
-		this.pipeline.clearEffects();
-		this._extras = new ViewerExtras(this.pipeline);
-
 		this.source = source;
 		this.model = parseModel(source);
 		this.resources = this.context.createModelResources(this.model);
-		this.shading = this.model.shadingEnabled;
+		this.shadingMode = this.model.shadingMode;
+		this.renderMode = this.model.renderMode;
 		this.projectionMode = this.model.projectionMode;
 
 		this.animation.setDuration(this.model.motionDuration);
 		this.animation.time = 0;
+		this.animation.loops = this.model.exportSettings.animateLoops;
 
 		const es = this.model.exportSettings;
 		this.cameraMode = es.cameraMode;
@@ -345,6 +450,8 @@ export class PicoCAD2Viewer {
 		}
 
 		storeStaticTransforms(this.model.root);
+		this.wasAnimating = false;
+		this.clampBaseline = null;
 
 		this._modelInfo = this.computeModelInfo(this.model);
 		this.onLoad?.(this._modelInfo);
@@ -391,36 +498,15 @@ export class PicoCAD2Viewer {
 	draw(syncWithAnimation = true): void {
 		if (!this.model || !this.resources) return;
 
-		this.camera.projectionMode = this.projectionMode;
-		this.camera.omegaOffset = this.computeCameraModeOffset(syncWithAnimation);
-
-		if (this.animation.playing || this.animation.time > 0) {
-			restoreStaticTransforms(this.model.root);
-			evaluateMotions(this.model.root, this.animation.time);
-		}
-
-		const settings: RenderSettings = {
-			shading: this.shading,
-			renderMode:
-				this.renderMode === "texture" ? 0 : this.renderMode === "color" ? 1 : 2,
-			backgroundColor: this.backgroundColor,
-			outlineSize: this.outlineSize,
-			outlineColor: this.outlineColor,
-		};
-
-		const w = this.renderWidth;
-		const h = this.renderHeight;
-		const s = this.renderScale;
-		const dw = w * s;
-		const dh = h * s;
+		this.prepareFrame(syncWithAnimation);
 
 		this.context.render(
 			this.camera,
-			settings,
+			this.renderSettings,
 			this.model,
 			this.resources,
-			w,
-			h,
+			this.renderWidth,
+			this.renderHeight,
 			this.elapsedTime,
 			this.pipeline,
 		);
@@ -429,9 +515,213 @@ export class PicoCAD2Viewer {
 		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
 		// when multiple viewers render in sequence within the same frame.
 		const bitmap = this.context.canvas.transferToImageBitmap();
-		this.ctx2d.clearRect(0, 0, dw, dh);
-		this.ctx2d.drawImage(bitmap, 0, 0, w, h, 0, 0, dw, dh);
+		this.present(bitmap, 0, 0);
 		bitmap.close();
+	}
+
+	/**
+	 * Resolves once every shader program the current settings need has
+	 * compiled. Programs compile in the background on contexts that allow
+	 * it, and until they are ready `draw()` stands in with the programs it
+	 * has, so an effect appears a few frames after it was enabled. Await
+	 * this to draw a frame that shows every enabled effect, for example
+	 * before an export.
+	 */
+	async whenReady(): Promise<void> {
+		if (this.model) {
+			this.prepareFrame(this.loopSyncWithAnimation);
+			this.context._requestPrograms(this.renderSettings, this.pipeline);
+		}
+		await this.context.whenShadersReady();
+	}
+
+	/**
+	 * Updates the camera and animation pose and fills the render settings
+	 * for the current frame.
+	 *
+	 * @param syncWithAnimation - When `true` (default), camera mode offset
+	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
+	 */
+	private prepareFrame(syncWithAnimation: boolean): void {
+		if (!this.model) return;
+
+		this.frameSyncWithAnimation = syncWithAnimation;
+		this.camera.projectionMode = this.projectionMode;
+		this.camera.omegaOffset = this.computeCameraModeOffset(syncWithAnimation);
+
+		if (this.animation.playing || this.animation.time > 0) {
+			restoreStaticTransforms(this.model.root);
+			evaluateMotions(this.model.root, this.animation.time);
+			this.wasAnimating = true;
+		} else if (this.wasAnimating) {
+			restoreStaticTransforms(this.model.root);
+			this.wasAnimating = false;
+		}
+
+		const settings = this.renderSettings;
+		settings.shading = this.shadingMode > SHADING_MODE.off;
+		settings.renderMode =
+			this.renderMode === RENDER_MODE.none
+				? 2
+				: this.renderMode === RENDER_MODE.color
+					? 1
+					: 0;
+		settings.backgroundColor = this.backgroundColor;
+		settings.transparency = this.transparency;
+		settings.outlineSize = this.outlineSize;
+		settings.outlineColor = this.outlineColor;
+
+		const cutout = this._extras.colorCutout;
+		settings.cutoutMask = cutout.enabled
+			? packColorMask(cutout.maskedColors)
+			: 0;
+		settings.colorCutout = cutout;
+
+		settings.dissolve = this._extras.dissolve;
+		settings.emission = this._extras.emission;
+		settings.projection = this._extras.projection;
+		settings.display = this._extras.display;
+		settings.interior = this._extras.interior;
+		settings.rimLight = this._extras.rimLight;
+		settings.gradientLight = this._extras.gradientLight;
+		settings.specular = this._extras.specular;
+		settings.glitter = this._extras.glitter;
+		settings.meshDeform = this._extras.meshDeform;
+		settings.triangleFlash = this._extras.triangleFlash;
+		settings.triangleShatter = this._extras.triangleShatter;
+		settings.vertexGlitch = this._extras.vertexGlitch;
+		settings.paletteSwap = this._extras.paletteSwap;
+		settings.fur = this._extras.fur;
+		settings.billboard = this._extras.billboard;
+		settings.floor = this._extras.floor;
+
+		if (this.clampCameraDistance.enabled && this.model) {
+			this.clampCameraToSurfaces(this.model.root);
+		} else {
+			this.clampBaseline = null;
+		}
+	}
+
+	/**
+	 * Keeps the camera outside the model's surfaces by zooming out, no
+	 * matter what moved it inside. Only the distance to target is adjusted,
+	 * never the target or the orbit angles.
+	 *
+	 * Double-sided faces are treated as membranes and block the zoom-in sweep
+	 * like any visible surface, but carry no volume information, so the
+	 * enclosure walk ignores them.
+	 *
+	 * Enforcement pauses while the camera interpolates to a state so
+	 * restores can complete; the landing position is enforced normally.
+	 *
+	 * @param root - The model's scene graph root.
+	 */
+	private clampCameraToSurfaces(root: SceneNode): void {
+		const camera = this.camera;
+		if (camera.isInterpolating) {
+			this.clampBaseline = null;
+			return;
+		}
+
+		// Unit direction from the target to the camera
+		const omega = camera.omega + camera.omegaOffset;
+		const cosTheta = Math.cos(camera.theta);
+		const dir = vec3.fromValues(
+			Math.cos(omega) * cosTheta,
+			Math.sin(camera.theta),
+			Math.sin(omega) * cosTheta,
+		);
+
+		const crossings = collectRayCrossings(root, camera.target, dir);
+		if (crossings.length === 0) {
+			this.clampBaseline = camera.distanceToTarget;
+			return;
+		}
+
+		const margin = Math.max(
+			this.clampCameraDistance.minimumDistance,
+			this.nearPlaneClearance(),
+		);
+		const baseline = this.clampBaseline;
+		let distance = camera.distanceToTarget;
+
+		// Anti-tunnel sweep over the segment the camera moved this frame.
+		if (baseline !== null && distance < baseline) {
+			for (const crossing of crossings) {
+				if (crossing.t > baseline) break;
+				if (!crossing.enclosing && !crossing.membrane) continue;
+				if (crossing.t + margin > distance) {
+					distance = crossing.t + margin;
+				}
+			}
+		}
+
+		// Enclosure walk outward from the camera. Membranes carry no
+		// volume information, so they neither push nor shield here.
+		for (let i = 0; i < crossings.length; i++) {
+			const crossing = crossings[i];
+			if (crossing.membrane) continue;
+			if (crossing.t + margin <= distance) continue;
+			if (!crossing.enclosing) break;
+
+			// A camera-facing face coplanar with this one makes it a
+			// two-sided wall, not a solid so it shields instead of pushing.
+			let shielded = false;
+			for (
+				let j = i + 1;
+				j < crossings.length && crossings[j].t - crossing.t < COPLANAR_EPSILON;
+				j++
+			) {
+				if (!crossings[j].enclosing && !crossings[j].membrane) {
+					shielded = true;
+					break;
+				}
+			}
+			if (shielded) break;
+
+			distance = crossing.t + margin;
+		}
+
+		if (distance > camera.distanceToTarget) {
+			camera.zoomBy(distance - camera.distanceToTarget);
+		}
+		this.clampBaseline = camera.distanceToTarget;
+	}
+
+	/**
+	 * How much room the camera needs in front of a surface so no part of
+	 * the near plane can poke through it. The Euclidean distance from the
+	 * camera to the near plane's corners under the current projection, plus
+	 * a small safety factor for oblique surfaces.
+	 */
+	private nearPlaneClearance(): number {
+		const zoom = Math.max(
+			this.camera.zoom *
+				(this.projectionMode === "fisheye" ? FISHEYE_STRENGTH : 1),
+			0.05,
+		);
+		const tanV = GLOBAL_W / zoom;
+		const tanH = (tanV * this.renderWidth) / this.renderHeight;
+		return CAMERA_NEAR * Math.sqrt(1 + tanV * tanV + tanH * tanH) * 1.2;
+	}
+
+	/**
+	 * Draws the viewer's region of a captured frame to its canvas and
+	 * applies the 2D overlays (scanlines, tags).
+	 *
+	 * @param bitmap - The captured frame.
+	 * @param sx - The source x position of this viewer's region in the bitmap.
+	 * @param sy - The source y position of this viewer's region in the bitmap.
+	 */
+	private present(bitmap: ImageBitmap, sx: number, sy: number): void {
+		const w = this.renderWidth;
+		const h = this.renderHeight;
+		const s = this.renderScale;
+		const dw = w * s;
+		const dh = h * s;
+
+		this.ctx2d.clearRect(0, 0, dw, dh);
+		this.ctx2d.drawImage(bitmap, sx, sy, w, h, 0, 0, dw, dh);
 
 		if (this.scanlines) {
 			const [sr, sg, sb] = this.scanlineColor;
@@ -487,36 +777,113 @@ export class PicoCAD2Viewer {
 	/**
 	 * Starts the render loop.
 	 *
+	 * All viewers sharing this viewer's context render together in a single
+	 * shared loop with one drawing buffer capture per frame. Each viewer is
+	 * drawn at most {@link maxFps} times per second; on displays with a
+	 * higher refresh rate the loop skips animation frames until enough time
+	 * has passed, so animation speed is unaffected by the cap.
+	 *
 	 * @param syncWithAnimation - When `true` (default), camera mode offset
 	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
 	 */
 	startRenderLoop(syncWithAnimation = true): void {
-		if (this.animationFrameId !== null) return;
-
+		if (this.renderLoopActive) return;
+		this.renderLoopActive = true;
+		this.loopSyncWithAnimation = syncWithAnimation;
 		this.lastFrameTime = performance.now();
-		const loop = (now: number): void => {
-			const dt = (now - this.lastFrameTime) / 1000;
-			this.lastFrameTime = now;
-
-			this.advanceTime(dt);
-			this.applyInertia();
-			this.draw(syncWithAnimation);
-			this.onFrame?.(dt);
-
-			this.animationFrameId = requestAnimationFrame(loop);
-		};
-
-		this.animationFrameId = requestAnimationFrame(loop);
+		this.context._register(this);
 	}
 
 	/**
 	 * Stops the render loop.
 	 */
 	stopRenderLoop(): void {
-		if (this.animationFrameId !== null) {
-			cancelAnimationFrame(this.animationFrameId);
-			this.animationFrameId = null;
-		}
+		if (!this.renderLoopActive) return;
+		this.renderLoopActive = false;
+		this.context._unregister(this);
+	}
+
+	/**
+	 * The viewer's render width, for the shared render loop's atlas layout.
+	 *
+	 * @internal
+	 */
+	get _renderWidth(): number {
+		return this.renderWidth;
+	}
+
+	/**
+	 * The viewer's render height, for the shared render loop's atlas layout.
+	 *
+	 * @internal
+	 */
+	get _renderHeight(): number {
+		return this.renderHeight;
+	}
+
+	/**
+	 * Advances this viewer's frame timing. Returns whether a new frame is
+	 * due under the {@link maxFps} cap; when it is, the clock and inertia
+	 * have been advanced by the elapsed time since the last drawn frame.
+	 *
+	 * @internal
+	 */
+	_tick(now: number): boolean {
+		const interval = this.maxFps > 0 ? 1000 / this.maxFps : 0;
+		const elapsed = now - this.lastFrameTime;
+		if (elapsed < interval) return false;
+
+		// Keep the remainder so the effective rate doesn't drift below
+		// maxFps when the display refresh doesn't divide it evenly.
+		this.lastFrameTime = interval > 0 ? now - (elapsed % interval) : now;
+
+		this.lastDt = elapsed / 1000;
+		this.advanceTime(this.lastDt);
+		this.applyInertia();
+		return true;
+	}
+
+	/**
+	 * Renders this viewer's scene into its atlas region. Returns false if
+	 * no model is loaded and nothing was rendered.
+	 *
+	 * @internal
+	 */
+	_renderToAtlas(x: number, y: number): boolean {
+		if (!this.model || !this.resources) return false;
+
+		this.prepareFrame(this.loopSyncWithAnimation);
+		this.context._renderAt(
+			this.camera,
+			this.renderSettings,
+			this.model,
+			this.resources,
+			x,
+			y,
+			this.renderWidth,
+			this.renderHeight,
+			this.elapsedTime,
+			this.pipeline,
+		);
+		return true;
+	}
+
+	/**
+	 * Presents this viewer's region of the captured atlas frame.
+	 *
+	 * @internal
+	 */
+	_presentFromAtlas(bitmap: ImageBitmap, sx: number, sy: number): void {
+		this.present(bitmap, sx, sy);
+	}
+
+	/**
+	 * Fires the per-frame callback after the shared loop finishes a frame.
+	 *
+	 * @internal
+	 */
+	_emitFrame(): void {
+		this.onFrame?.(this.lastDt);
 	}
 
 	/**
@@ -758,98 +1125,123 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
-	 * Returns a JSON-serializable snapshot of the viewer's complete state,
-	 * including the raw model source, all settings, and extras.
+	 * Returns a JSON-serializable snapshot of the viewer's state: the raw
+	 * model source, the model settings that differ from what the file says,
+	 * the viewer settings that differ from their defaults, and the effect
+	 * settings that differ from theirs.
 	 */
 	getState(): PicoCAD2ViewerState {
+		const fileSettings = this._modelInfo?.settings ?? MODEL_SETTINGS_DEFAULTS;
 		return {
-			source: JSON.parse(this.source ?? "null"),
-			settings: {
-				shading: this.shading,
-				renderMode: this.renderMode,
-				projectionMode: this.projectionMode,
-				backgroundColor: this.backgroundColor
-					? [...this.backgroundColor]
-					: null,
-				outlineSize: this.outlineSize,
-				outlineColor: [...this.outlineColor],
-				scanlines: this.scanlines,
-				scanlineColor: [...this.scanlineColor],
-				cameraMode: this.cameraMode,
-				cameraModeSpeed: this.cameraModeSpeed,
-				cameraModeDirection: this.cameraModeDirection,
-				leftTag: this.leftTag
-					? { text: this.leftTag.text, color: this.leftTag.color ?? [1, 1, 1] }
-					: null,
-				rightTag: this.rightTag
-					? {
-							text: this.rightTag.text,
-							color: this.rightTag.color ?? [1, 1, 1],
-						}
-					: null,
-				animation: {
-					speed: this.animation.speed,
-					time: this.animation.time,
-					playing: this.animation.playing,
-					loop: this.animation.loop,
-				},
-				camera: {
-					omega: this.camera.omega,
-					theta: this.camera.theta,
-					distanceToTarget: this.camera.distanceToTarget,
-					target: [
-						this.camera.target[0],
-						this.camera.target[1],
-						this.camera.target[2],
-					],
-					zoom: this.camera.zoom,
-				},
-				resolution: {
-					width: this.renderWidth,
-					height: this.renderHeight,
-					scale: this.renderScale,
-				},
-				bookmark: this.model?.bookmark
-					? {
-							omega: this.model.bookmark.omega,
-							theta: this.model.bookmark.theta,
-							distanceToTarget: this.model.bookmark.distanceToTarget,
-							target: [
-								this.model.bookmark.target[0],
-								this.model.bookmark.target[1],
-								this.model.bookmark.target[2],
-							],
-						}
-					: {
-							omega: 0,
-							theta: 0,
-							distanceToTarget: 0,
-							target: [0, 0, 0],
-						},
-			},
+			source: this.source ? (JSON.parse(this.source) as RawPicoCAD2File) : null,
+			model: (diffFromDefaults(fileSettings, this.readModelSettings()) ??
+				{}) as DeepPartial<ModelSettings>,
+			viewer: (diffFromDefaults(
+				VIEWER_SETTINGS_DEFAULTS,
+				this.readViewerSettings(),
+			) ?? {}) as DeepPartial<ViewerSettings>,
 			extras: this.getExtrasState(),
 		};
 	}
 
 	/**
-	 * Restores the viewer from a previously captured state.
-	 * If the state includes a model source, it will be loaded.
+	 * Restores the viewer from a previously captured state. The source is
+	 * loaded, then the state's model settings are laid over the file's, its
+	 * viewer settings over the defaults and its effects over theirs, so a
+	 * state only needs what differs from a plain load of the source.
 	 *
 	 * @param state - The state to restore.
 	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
 	setState(state: PicoCAD2ViewerState, useBookmark = false): void {
-		if (!state.source || !state.settings) return;
+		if (!state.source) return;
 
 		this.load(JSON.stringify(state.source), useBookmark);
+		if (!this.model || !this._modelInfo) return;
+
+		this.applyModelSettings(
+			mergeDefaults(this._modelInfo.settings, state.model),
+			useBookmark,
+		);
+		this.applyViewerSettings(
+			mergeDefaults(getDefaultViewerSettings(), state.viewer),
+		);
+
+		// A state lists only the effects it uses, so every other effect
+		// returns to its defaults.
+		this._extras.reset();
+		this.applyExtrasOptions(state.extras ?? {});
+	}
+
+	/**
+	 * Reads the complete current model settings.
+	 */
+	private readModelSettings(): ModelSettings {
+		return {
+			shadingMode: this.shadingMode,
+			renderMode: this.renderMode,
+			projectionMode: this.projectionMode,
+			outlineSize: this.outlineSize,
+			outlineColor: [...this.outlineColor],
+			scanlines: this.scanlines,
+			scanlineColor: [...this.scanlineColor],
+			cameraMode: this.cameraMode,
+			cameraModeSpeed: this.cameraModeSpeed,
+			cameraModeDirection: this.cameraModeDirection,
+			leftTag: copyTag(this.leftTag),
+			rightTag: copyTag(this.rightTag),
+			animation: {
+				time: this.animation.time,
+				playing: this.animation.playing,
+				loops: this.animation.loops,
+			},
+			camera: {
+				omega: this.camera.omega,
+				theta: this.camera.theta,
+				distanceToTarget: this.camera.distanceToTarget,
+				target: [
+					this.camera.target[0],
+					this.camera.target[1],
+					this.camera.target[2],
+				],
+				zoom: this.camera.zoom,
+			},
+			bookmark: this.model
+				? bookmarkSettingsOf(this.model.bookmark)
+				: getDefaultModelSettings().bookmark,
+		};
+	}
+
+	/**
+	 * Reads the complete current viewer settings.
+	 */
+	private readViewerSettings(): ViewerSettings {
+		return {
+			backgroundColor: this.backgroundColor ? [...this.backgroundColor] : null,
+			resolution: {
+				width: this.renderWidth,
+				height: this.renderHeight,
+				scale: this.renderScale,
+			},
+			maxFps: this.maxFps,
+			clampCameraDistance: { ...this.clampCameraDistance },
+			animationSpeed: this.animation.speed,
+			animationLoop: this.animation.loop,
+			transparency: this.transparency,
+		};
+	}
+
+	/**
+	 * Applies complete model settings to a loaded model. The camera and
+	 * bookmark are written onto the model, so the camera restoration after
+	 * an interaction returns to them instead of the file's.
+	 */
+	private applyModelSettings(s: ModelSettings, useBookmark: boolean): void {
 		if (!this.model) return;
 
-		const s = state.settings;
-
-		this.shading = s.shading;
+		this.shadingMode = s.shadingMode;
 		this.renderMode = s.renderMode;
 		this.projectionMode = s.projectionMode;
-		this.backgroundColor = s.backgroundColor ? [...s.backgroundColor] : null;
 		this.outlineSize = s.outlineSize;
 		this.outlineColor = [...s.outlineColor];
 		this.scanlines = s.scanlines;
@@ -857,207 +1249,49 @@ export class PicoCAD2Viewer {
 		this.cameraMode = s.cameraMode;
 		this.cameraModeSpeed = s.cameraModeSpeed;
 		this.cameraModeDirection = s.cameraModeDirection;
+		this.leftTag = copyTag(s.leftTag);
+		this.rightTag = copyTag(s.rightTag);
 
-		this.leftTag = s.leftTag
-			? { text: s.leftTag.text, color: s.leftTag.color ?? [1, 1, 1] }
-			: null;
-		this.rightTag = s.rightTag
-			? { text: s.rightTag.text, color: s.rightTag.color ?? [1, 1, 1] }
-			: null;
-
-		this.animation.speed = s.animation.speed;
 		this.animation.time = s.animation.time;
-		this.animation.loop = s.animation.loop;
-
+		this.animation.loops = s.animation.loops;
 		if (s.animation.playing) {
 			this.animation.play();
 		} else {
 			this.animation.pause();
 		}
 
-		this.model.bookmark = {
-			omega: s.bookmark.omega,
-			theta: s.bookmark.theta,
-			distanceToTarget: s.bookmark.distanceToTarget,
-			target: new Float32Array([
-				s.bookmark.target[0],
-				s.bookmark.target[1],
-				s.bookmark.target[2],
-			]),
-		};
+		this.model.camera = toCameraState(s.camera);
+		this.model.bookmark = toCameraState(s.bookmark);
+		this.camera.initFromState(
+			useBookmark ? this.model.bookmark : this.model.camera,
+		);
+		this.camera.zoom = s.camera.zoom;
+	}
 
+	/**
+	 * Applies complete viewer settings.
+	 */
+	private applyViewerSettings(s: ViewerSettings): void {
+		this.backgroundColor = s.backgroundColor ? [...s.backgroundColor] : null;
 		this.setResolution(
 			s.resolution.width,
 			s.resolution.height,
 			s.resolution.scale,
 		);
-
-		// Force the saved camera state onto the model so that the camera restoration
-		// in onCameraInteraction() will return to the saved state instead of the models's original camera.
-		this.model.camera = {
-			distanceToTarget: s.camera.distanceToTarget,
-			theta: s.camera.theta,
-			omega: s.camera.omega,
-			target: new Float32Array([
-				s.camera.target[0],
-				s.camera.target[1],
-				s.camera.target[2],
-			]),
-		};
-
-		if (useBookmark) {
-			this.camera.initFromState(this.model.bookmark);
-		} else {
-			this.camera.initFromState(this.model.camera);
-		}
-
-		this.applyExtrasOptions(state.extras);
+		this.maxFps = s.maxFps;
+		this.clampCameraDistance = { ...s.clampCameraDistance };
+		this.animation.speed = s.animationSpeed;
+		this.animation.loop = s.animationLoop;
+		this.transparency = s.transparency;
 	}
 
 	/**
-	 * Reads current extras effect properties into a plain object.
+	 * Reads the effect settings that differ from {@link EXTRAS_DEFAULTS}
+	 * into a plain object, so a state carries only the effects in use.
 	 */
-	private getExtrasState(): Required<ExtrasOptions> {
-		const e = this.extras;
-		return {
-			wireframe: {
-				enabled: e.wireframe.enabled,
-				modelOnly: e.wireframe.modelOnly,
-				color: [...e.wireframe.color],
-			},
-			gradientOutline: {
-				enabled: e.gradientOutline.enabled,
-				modelOnly: e.gradientOutline.modelOnly,
-				size: e.gradientOutline.size,
-				colorFrom: [...e.gradientOutline.colorFrom],
-				colorTo: [...e.gradientOutline.colorTo],
-				gradient: e.gradientOutline.gradient,
-				gradientDirection: e.gradientOutline.gradientDirection,
-			},
-			colorGrading: {
-				enabled: e.colorGrading.enabled,
-				modelOnly: e.colorGrading.modelOnly,
-				brightness: e.colorGrading.brightness,
-				contrast: e.colorGrading.contrast,
-				saturation: e.colorGrading.saturation,
-				hue: e.colorGrading.hue,
-			},
-			posterization: {
-				enabled: e.posterization.enabled,
-				modelOnly: e.posterization.modelOnly,
-				levels: e.posterization.levels,
-				channelLevels: [...e.posterization.channelLevels],
-				gamma: e.posterization.gamma,
-				colorBanding: e.posterization.colorBanding,
-			},
-			bloom: {
-				enabled: e.bloom.enabled,
-				modelOnly: e.bloom.modelOnly,
-				threshold: e.bloom.threshold,
-				intensity: e.bloom.intensity,
-				blur: e.bloom.blur,
-			},
-			dithering: {
-				enabled: e.dithering.enabled,
-				modelOnly: e.dithering.modelOnly,
-				amount: e.dithering.amount,
-				blend: e.dithering.blend,
-				channelAmount: [...e.dithering.channelAmount],
-			},
-			crt: {
-				enabled: e.crt.enabled,
-				modelOnly: e.crt.modelOnly,
-				curvature: e.crt.curvature,
-				scanlineIntensity: e.crt.scanlineIntensity,
-			},
-			pixelation: {
-				enabled: e.pixelation.enabled,
-				modelOnly: e.pixelation.modelOnly,
-				pixelSize: e.pixelation.pixelSize,
-				shape: e.pixelation.shape,
-				blend: e.pixelation.blend,
-			},
-			lensDistortion: {
-				enabled: e.lensDistortion.enabled,
-				modelOnly: e.lensDistortion.modelOnly,
-				strength: e.lensDistortion.strength,
-				zoom: e.lensDistortion.zoom,
-			},
-			noise: {
-				enabled: e.noise.enabled,
-				modelOnly: e.noise.modelOnly,
-				amount: e.noise.amount,
-			},
-			chromaticAberration: {
-				enabled: e.chromaticAberration.enabled,
-				modelOnly: e.chromaticAberration.modelOnly,
-				strength: e.chromaticAberration.strength,
-				redOffset: e.chromaticAberration.redOffset,
-				greenOffset: e.chromaticAberration.greenOffset,
-				blueOffset: e.chromaticAberration.blueOffset,
-				radialFalloff: e.chromaticAberration.radialFalloff,
-				centerX: e.chromaticAberration.centerX,
-				centerY: e.chromaticAberration.centerY,
-			},
-			vignette: {
-				enabled: e.vignette.enabled,
-				modelOnly: e.vignette.modelOnly,
-				intensity: e.vignette.intensity,
-				smoothness: e.vignette.smoothness,
-				roundness: e.vignette.roundness,
-				color: [...e.vignette.color],
-			},
-			depthFog: {
-				enabled: e.depthFog.enabled,
-				modelOnly: e.depthFog.modelOnly,
-				color: [...e.depthFog.color],
-				near: e.depthFog.near,
-				far: e.depthFog.far,
-				density: e.depthFog.density,
-				mode: e.depthFog.mode,
-			},
-			halftone: {
-				enabled: e.halftone.enabled,
-				modelOnly: e.halftone.modelOnly,
-				dotSize: e.halftone.dotSize,
-				angle: e.halftone.angle,
-				blend: e.halftone.blend,
-				mode: e.halftone.mode,
-			},
-			glitch: {
-				enabled: e.glitch.enabled,
-				modelOnly: e.glitch.modelOnly,
-				intensity: e.glitch.intensity,
-				speed: e.glitch.speed,
-				blockSize: e.glitch.blockSize,
-				rgbSplit: e.glitch.rgbSplit,
-				lineShift: e.glitch.lineShift,
-			},
-			colorTint: {
-				enabled: e.colorTint.enabled,
-				modelOnly: e.colorTint.modelOnly,
-				mode: e.colorTint.mode,
-				color: [...e.colorTint.color],
-				intensity: e.colorTint.intensity,
-				shadowColor: [...e.colorTint.shadowColor],
-				highlightColor: [...e.colorTint.highlightColor],
-				blend: e.colorTint.blend,
-			},
-			sharpen: {
-				enabled: e.sharpen.enabled,
-				modelOnly: e.sharpen.modelOnly,
-				strength: e.sharpen.strength,
-				threshold: e.sharpen.threshold,
-			},
-			edgeDetection: {
-				enabled: e.edgeDetection.enabled,
-				modelOnly: e.edgeDetection.modelOnly,
-				threshold: e.edgeDetection.threshold,
-				lineColor: [...e.edgeDetection.lineColor],
-				backgroundColor: [...e.edgeDetection.backgroundColor],
-				blend: e.edgeDetection.blend,
-			},
-		};
+	private getExtrasState(): ExtrasOptions {
+		return (diffFromDefaults(EXTRAS_DEFAULTS, this.extras) ??
+			{}) as ExtrasOptions;
 	}
 
 	/**
@@ -1074,12 +1308,22 @@ export class PicoCAD2Viewer {
 		};
 
 		assign(this.extras.wireframe, extras.wireframe);
+		assign(this.extras.particles, extras.particles);
+		assign(this.extras.proceduralBackground, extras.proceduralBackground);
+		assign(this.extras.colorCutout, extras.colorCutout);
+		assign(this.extras.paletteSwap, extras.paletteSwap);
+		assign(this.extras.interior, extras.interior);
+		assign(this.extras.rimLight, extras.rimLight);
+		assign(this.extras.gradientLight, extras.gradientLight);
+		assign(this.extras.glitter, extras.glitter);
+		assign(this.extras.emission, extras.emission);
+		assign(this.extras.projection, extras.projection);
 		assign(this.extras.gradientOutline, extras.gradientOutline);
+		assign(this.extras.ssao, extras.ssao);
 		assign(this.extras.colorGrading, extras.colorGrading);
 		assign(this.extras.posterization, extras.posterization);
 		assign(this.extras.bloom, extras.bloom);
 		assign(this.extras.dithering, extras.dithering);
-		assign(this.extras.crt, extras.crt);
 		assign(this.extras.pixelation, extras.pixelation);
 		assign(this.extras.lensDistortion, extras.lensDistortion);
 		assign(this.extras.noise, extras.noise);
@@ -1091,6 +1335,79 @@ export class PicoCAD2Viewer {
 		assign(this.extras.colorTint, extras.colorTint);
 		assign(this.extras.sharpen, extras.sharpen);
 		assign(this.extras.edgeDetection, extras.edgeDetection);
+
+		if (extras.display) {
+			const { crt, gameboy, tn, oled, projector, ...display } = extras.display;
+			assign(this.extras.display, display);
+			assign(this.extras.display.crt, crt);
+			assign(this.extras.display.gameboy, gameboy);
+			assign(this.extras.display.tn, tn);
+			assign(this.extras.display.oled, oled);
+			assign(this.extras.display.projector, projector);
+		}
+
+		if (extras.dissolve) {
+			const { cycle, sweep, ...dissolve } = extras.dissolve;
+			assign(this.extras.dissolve, dissolve);
+			assign(this.extras.dissolve.cycle, cycle);
+			assign(this.extras.dissolve.sweep, sweep);
+		}
+
+		if (extras.specular) {
+			const { environment, ...specular } = extras.specular;
+			assign(this.extras.specular, specular);
+			assign(this.extras.specular.environment, environment);
+		}
+
+		if (extras.meshDeform) {
+			const { cycle, sweep, voxel, barrel, spherify, twist, ...deform } =
+				extras.meshDeform;
+			assign(this.extras.meshDeform, deform);
+			assign(this.extras.meshDeform.cycle, cycle);
+			assign(this.extras.meshDeform.sweep, sweep);
+			assign(this.extras.meshDeform.voxel, voxel);
+			assign(this.extras.meshDeform.barrel, barrel);
+			assign(this.extras.meshDeform.spherify, spherify);
+			assign(this.extras.meshDeform.twist, twist);
+		}
+
+		assign(this.extras.triangleFlash, extras.triangleFlash);
+		assign(this.extras.fur, extras.fur);
+
+		if (extras.triangleShatter) {
+			const { cycle, sweep, ...shatter } = extras.triangleShatter;
+			assign(this.extras.triangleShatter, shatter);
+			assign(this.extras.triangleShatter.cycle, cycle);
+			assign(this.extras.triangleShatter.sweep, sweep);
+		}
+
+		if (extras.vertexGlitch) {
+			const { cycle, sweep, ...glitch } = extras.vertexGlitch;
+			assign(this.extras.vertexGlitch, glitch);
+			assign(this.extras.vertexGlitch.cycle, cycle);
+			assign(this.extras.vertexGlitch.sweep, sweep);
+		}
+
+		assign(this.extras.billboard, extras.billboard);
+
+		if (extras.floor) {
+			const { grid, shadow, reflection, ...floor } = extras.floor;
+			assign(this.extras.floor, floor);
+			assign(this.extras.floor.grid, grid);
+			assign(this.extras.floor.shadow, shadow);
+			assign(this.extras.floor.reflection, reflection);
+		}
+
+		if (extras.videoEffects) {
+			const { crt, gameboy, tn, oled, projector, ...video } =
+				extras.videoEffects;
+			assign(this.extras.videoEffects, video);
+			assign(this.extras.videoEffects.crt, crt);
+			assign(this.extras.videoEffects.gameboy, gameboy);
+			assign(this.extras.videoEffects.tn, tn);
+			assign(this.extras.videoEffects.oled, oled);
+			assign(this.extras.videoEffects.projector, projector);
+		}
 	}
 
 	/**
@@ -1110,6 +1427,11 @@ export class PicoCAD2Viewer {
 		const bgIdx = texture.backgroundColor;
 		const colors = texture.sourceColors;
 
+		const palette: Color3[] = [];
+		for (let i = 0; i < colors.length; i += 3) {
+			palette.push([colors[i], colors[i + 1], colors[i + 2]]);
+		}
+
 		return {
 			nodeCount,
 			polyCount,
@@ -1125,6 +1447,8 @@ export class PicoCAD2Viewer {
 				colors[texture.transparentColor * 3 + 1] ?? 0,
 				colors[texture.transparentColor * 3 + 2] ?? 0,
 			],
+			palette,
+			settings: modelSettingsOf(model),
 		};
 	}
 
@@ -1265,11 +1589,17 @@ export class PicoCAD2Viewer {
 			this.inertiaActive = false;
 
 			// Restore the camera mode. Compute the offset the restored mode
-			// would produce this frame and absorb it out of omega so there's
-			// no jump when the mode starts driving omegaOffset again.
+			// will produce next frame and absorb it out of omega so there's
+			// no jump when the mode starts driving omegaOffset again. It has
+			// to come from the clock the frames use. The animation clock and
+			// the camera mode clock drift apart the moment the animation is
+			// seeked, paused or restored from a state, and the difference
+			// between the two offsets would show as a jump.
 			this.cameraMode = this.savedCameraMode!;
 			this.savedCameraMode = null;
-			const incomingOffset = this.computeCameraModeOffset(false);
+			const incomingOffset = this.computeCameraModeOffset(
+				this.frameSyncWithAnimation,
+			);
 			this.camera.omega -= incomingOffset;
 			this.camera.omegaOffset = incomingOffset;
 

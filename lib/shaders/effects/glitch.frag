@@ -14,10 +14,14 @@ uniform vec2 u_resolution;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
-out vec4 fragColor;
+#include color-mask.glsl;
+#include ../chunks/hash.glsl;
+
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragIndex;
 
 float hash(float n) {
-    return fract(sin(n) * 43758.5453);
+    return hash13(vec3(n, 7.0, 13.0));
 }
 
 float blockHash(vec2 uv, float time) {
@@ -33,7 +37,7 @@ void main() {
     if (u_lineShift) {
         float h = blockHash(uv, u_time);
         float shift = (hash(h * 91.37 + floor(t * 3.0)) - 0.5) * 2.0 * glitchStrength * 0.1;
-        if (h > 1.0 - u_intensity * 0.3) {
+        if (h > 1.0 - u_intensity * 0.3 && inColorMask(vec2(uv.x + shift, uv.y))) {
             uv.x += shift;
         }
     }
@@ -41,7 +45,7 @@ void main() {
     vec4 col;
     float splitA;
 
-    if (u_rgbSplit) {
+    if (u_rgbSplit && inColorMask(uv)) {
         float splitAmount = glitchStrength * 0.02;
         vec4 r = texture(u_texture, uv + vec2(splitAmount, 0.0));
         vec4 g = texture(u_texture, uv);
@@ -54,12 +58,19 @@ void main() {
         splitA = col.a;
     }
 
+    vec2 srcUV = uv;
     float bh = blockHash(uv + 0.1, u_time);
     if (bh > 1.0 - u_intensity * 0.15) {
         float offset = (hash(floor(t * 3.0) + bh) - 0.5) * glitchStrength * 0.2;
-        col = texture(u_texture, uv + vec2(offset, 0.0));
-        splitA = col.a;
+        vec2 displaced = uv + vec2(offset, 0.0);
+        if (inColorMask(displaced)) {
+            col = texture(u_texture, displaced);
+            splitA = col.a;
+            srcUV = displaced;
+        }
     }
+
+    fragIndex = texture(u_indexTexture, srcUV);
 
     if (u_bgIsTransparent) {
         if (u_modelOnly) {

@@ -39,6 +39,13 @@ export interface RawClip {
 	times?: number;
 	curve?: string;
 	pingpong?: boolean;
+	face_id?: number;
+	frames?: number;
+	step?: number;
+	return_uv?: boolean;
+	c1?: number;
+	c2?: number;
+	icon?: number;
 }
 
 export interface RawMotions {
@@ -55,6 +62,7 @@ export interface RawGraphNode {
 	children: RawGraphNode[];
 	motions?: RawMotions;
 	folder?: boolean;
+	ghost?: boolean;
 }
 
 export interface RawCameraBookmark {
@@ -73,7 +81,7 @@ export interface RawCameraState {
 	distance_to_target: number;
 	theta: number;
 	omega: number;
-	bookmark: RawCameraBookmark;
+	bookmark?: RawCameraBookmark;
 }
 
 export interface RawTexture {
@@ -90,7 +98,7 @@ export interface RawExportSettings {
 	anim?: string;
 	dir?: number;
 	speed?: number;
-	animate?: boolean;
+	animate?: boolean | string;
 	outline_size?: number;
 	outline_color?: number;
 	scanlines?: boolean;
@@ -103,7 +111,7 @@ export interface RawExportSettings {
 
 export interface RawMetadata {
 	version: string;
-	motion_duration: number;
+	motion_duration?: number;
 	shading_mode?: number;
 	face_mode?: number;
 	camera: RawCameraState;

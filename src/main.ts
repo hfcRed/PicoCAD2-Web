@@ -5,6 +5,7 @@ const context = new PicoCAD2Context();
 const models = new Map<string, string>();
 const MODEL_NAMES = [
 	"advanced_meshes",
+	"helicopter_takeoff",
 	"livingroom",
 	"pig",
 	"pirate",
@@ -57,11 +58,13 @@ function createPerfViewers(count: number, modelTexts: string[]): void {
 			canvas,
 			context,
 			resolution: { width: 128, height: 128, scale: 2 },
+			backgroundColor: [0, 0, 0],
 		});
 
 		v.load(modelTexts[i % modelTexts.length]);
 		v.startRenderLoop();
 		v.enableCameraControls();
+
 		perfViewers.push(v);
 	}
 
@@ -108,7 +111,7 @@ perfApply.addEventListener("click", async () => {
 async function init(): Promise<void> {
 	const allModels = await fetchAllModels();
 
-	createPerfViewers(6, allModels);
+	createPerfViewers(allModels.length, allModels);
 }
 
 init();

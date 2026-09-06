@@ -13,10 +13,18 @@ uniform float u_blend;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (!inColorMask(v_texCoord)) {
+        fragColor = col;
+        return;
+    }
+
     vec3 result;
 
     if (u_bgIsTransparent) {

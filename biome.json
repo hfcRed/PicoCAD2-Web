@@ -26,6 +26,18 @@
 			"quoteStyle": "double"
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["lib/rendering/effects/*-effect.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noUnsafeDeclarationMerging": "off"
+					}
+				}
+			}
+		}
+	],
 	"assist": {
 		"enabled": true,
 		"actions": {

@@ -1,22 +1,34 @@
 import gradientOutlineFrag from "../../shaders/effects/gradient-outline.frag";
+import type { GradientOutlineOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
+
+export type OutlineMode = "outline" | "dropShadow";
+
+const OUTLINE_MODE_MAP: Record<OutlineMode, number> = {
+	outline: 0,
+	dropShadow: 1,
+};
 
 /**
  * Gradient outline effect based on the picocad2 outline shader approach.
  * Uses single-pass radius search with directional gradient color mixing.
  *
+ * The outline can be weighted directionally. `growthFactor` 0 (the
+ * default) grows the outline uniformly, 1 grows it only toward
+ * `growthDirection`. The `"dropShadow"` mode instead offsets the whole
+ * silhouette by `shadowOffset` pixels for a sticker-style shadow.
+ *
  * When enabled, this effect automatically replaces the built-in solid outline —
  * the renderer skips the official outline pass.
  */
 export class GradientOutlineEffect extends FullscreenEffect {
-	size = 1;
-	colorFrom: Color3 = [1, 1, 1];
-	colorTo: Color3 = [0, 0, 0];
-	gradient = 1.0;
-	gradientDirection = 0;
-
 	/**
 	 * Background color, set by the renderer before applying.
 	 * Not user configurable, derived from the model's background color.
@@ -30,6 +42,12 @@ export class GradientOutlineEffect extends FullscreenEffect {
 		super("gradientOutline", gradientOutlineFrag, (ctx: EffectContext) =>
 			this.getUniforms(ctx),
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, GRADIENT_OUTLINE_DEFAULTS);
 	}
 
 	/**
@@ -45,8 +63,33 @@ export class GradientOutlineEffect extends FullscreenEffect {
 			u_colorTo: this.colorTo,
 			u_gradient: this.gradient,
 			u_gradientDirection: this.gradientDirection,
+			u_growthDirection: (this.growthDirection * Math.PI) / 180,
+			u_growthFactor: Math.min(Math.max(this.growthFactor, 0), 1),
+			u_mode: OUTLINE_MODE_MAP[this.mode] ?? 0,
+			u_shadowOffset: this.shadowOffset,
 			u_texelSize: [1 / ctx.width, 1 / ctx.height],
 			u_backgroundColor: this.backgroundColor,
+			u_premultiplied: ctx.bgIsTransparent || ctx.smoothFades,
+			u_smoothTransparency: ctx.transparency === "smooth",
 		};
 	}
 }
+
+export interface GradientOutlineEffect
+	extends Required<GradientOutlineOptions> {}
+
+/** Default settings for {@link GradientOutlineEffect}. */
+export const GRADIENT_OUTLINE_DEFAULTS = deepFreeze<
+	DeepRequired<GradientOutlineOptions>
+>({
+	enabled: false,
+	size: 1,
+	colorFrom: [1, 1, 1],
+	colorTo: [0, 0, 0],
+	gradient: 1,
+	gradientDirection: 0,
+	growthDirection: 0,
+	growthFactor: 0,
+	mode: "outline",
+	shadowOffset: [2, -2],
+});

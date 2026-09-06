@@ -8,6 +8,13 @@ const UP: vec3 = vec3.fromValues(0, 1, 0);
 export const CAMERA_NEAR = 0.1;
 export const CAMERA_FAR = 1000;
 
+/**
+ * Near plane used in orthographic mode. PicoCAD 2.2 does not near-cull faces
+ * in orthographic projection, so geometry at or behind the camera plane still
+ * renders. A negative near plane extends the depth range behind the camera.
+ */
+export const CAMERA_ORTHO_NEAR = -CAMERA_FAR;
+
 /** Orbital camera matching PicoCAD 2's spherical coordinate system. */
 export class OrbitCamera {
 	/** Horizontal orbit angle (azimuth) in radians. */
@@ -100,6 +107,11 @@ export class OrbitCamera {
 		this.lerpDuration = interpolateMs;
 		this.lerping = true;
 		this.needsUpdate = true;
+	}
+
+	/** Whether the camera is currently interpolating to a state. */
+	get isInterpolating(): boolean {
+		return this.lerping;
 	}
 
 	/**
@@ -204,7 +216,7 @@ export class OrbitCamera {
 	/**
 	 * Returns the projection matrix for the given aspect ratio, recomputing if needed.
 	 *
-	 * @param aspect - The viewport aspect ratio.
+	 * @param aspect - The viewport aspect ratio as height / width (PicoCAD 2's convention).
 	 * @returns The current projection matrix.
 	 */
 	getProjectionMatrix(aspect: number): mat4 {
@@ -213,7 +225,7 @@ export class OrbitCamera {
 			this.projectionMode,
 			this.zoom,
 			aspect,
-			CAMERA_NEAR,
+			this.projectionMode === "orthographic" ? CAMERA_ORTHO_NEAR : CAMERA_NEAR,
 			CAMERA_FAR,
 			this.distanceToTarget,
 		);
@@ -223,7 +235,7 @@ export class OrbitCamera {
 	/**
 	 * Returns the combined view-projection matrix.
 	 *
-	 * @param aspect - The viewport aspect ratio.
+	 * @param aspect - The viewport aspect ratio as height / width (PicoCAD 2's convention).
 	 * @returns The view-projection matrix.
 	 */
 	getViewProjectionMatrix(aspect: number): mat4 {

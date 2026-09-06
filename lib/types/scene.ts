@@ -2,9 +2,7 @@ import type { mat4 } from "gl-matrix";
 
 export type Color3 = [number, number, number];
 
-export type RenderMode = "texture" | "color" | "none";
-
-export type AnimationProp = "pos" | "rot" | "scale" | "visible";
+export type AnimationProp = "pos" | "rot" | "scale" | "visible" | "tex";
 
 export type Axis = "x" | "y" | "z";
 
@@ -17,16 +15,24 @@ export interface Transform {
 export interface Face {
 	vertexIndices: number[];
 	uvs: Float32Array;
+	staticUvs: Float32Array;
 	color: number;
 	doubleSided: boolean;
 	priority: boolean;
 	noShading: boolean;
 	noTexture: boolean;
+	interior?: boolean;
+}
+
+export interface MeshBounds {
+	min: [number, number, number];
+	max: [number, number, number];
 }
 
 export interface Mesh {
 	vertices: Float32Array;
 	faces: Face[];
+	bounds?: MeshBounds;
 }
 
 export interface AnimationClip {
@@ -38,24 +44,44 @@ export interface AnimationClip {
 	times?: number | undefined;
 	curve: string;
 	pingpong: boolean;
+	faceIndex?: number | undefined;
+	frames?: number | undefined;
+	step?: number | undefined;
+	returnUv?: boolean | undefined;
 }
 
 export interface MotionData {
 	tracks: [AnimationClip[], AnimationClip[], AnimationClip[], AnimationClip[]];
 }
 
+export type AxisClips = [AnimationClip[], AnimationClip[], AnimationClip[]];
+
+export interface ClipLists {
+	pos: AxisClips;
+	rot: AxisClips;
+	scale: AxisClips;
+	visible: AnimationClip[];
+	tex: [AnimationClip[], AnimationClip[]];
+}
+
 export interface SceneNode {
 	name: string;
 	visible: boolean;
 	renderVisible: boolean;
+	ghost: boolean;
 	children: SceneNode[];
 	transform: Transform;
 	staticTransform: Transform;
 	originalVisible: boolean;
 	mesh: Mesh | null;
 	motions: MotionData;
+	clipLists: ClipLists;
+	hasClips: boolean;
+	hasTexClips: boolean;
+	uvsDirty: boolean;
 	dirty: boolean;
 	localMatrix: mat4;
+	worldMatrix: mat4;
 }
 
 export interface TextureData {
@@ -77,6 +103,7 @@ export interface ExportSettings {
 	cameraModeDirection: "left" | "right";
 	cameraModeSpeed: number;
 	animate: boolean;
+	animateLoops: number;
 	outlineSize: number;
 	outlineColor: Color3;
 	scanlines: boolean;
@@ -91,7 +118,8 @@ export interface PicoCAD2Model {
 	root: SceneNode;
 	texture: TextureData;
 	motionDuration: number;
-	shadingEnabled: boolean;
+	shadingMode: number;
+	renderMode: number;
 	camera: CameraState;
 	bookmark: CameraBookmark;
 	projectionMode: ProjectionMode;

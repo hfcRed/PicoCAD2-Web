@@ -11,7 +11,10 @@ uniform int u_shape;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
-out vec4 fragColor;
+#include color-mask.glsl;
+
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragIndex;
 
 vec2 hexRound(vec2 h) {
     float q = floor(h.x + 0.5);
@@ -128,9 +131,18 @@ void main() {
         sampleUV = floor(px / u_pixelSize) * u_pixelSize / u_resolution;
     }
 
-    vec4 col = texture(u_texture, sampleUV);
     vec4 orig = texture(u_texture, uv);
+
+    if (!inColorMask(sampleUV)) {
+        fragColor = orig;
+        fragIndex = texture(u_indexTexture, uv);
+        return;
+    }
+
+    vec4 col = texture(u_texture, sampleUV);
     vec4 mixed = mix(orig, col, clamp(u_blend, 0.0, 1.0));
+
+    fragIndex = texture(u_indexTexture, u_blend >= 0.5 ? sampleUV : uv);
 
     if (u_bgIsTransparent) {
         if (u_modelOnly) {

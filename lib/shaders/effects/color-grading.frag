@@ -11,6 +11,8 @@ uniform float u_hue;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 vec3 rgb2hsv(vec3 c) {
@@ -50,6 +52,11 @@ vec3 hsv2rgb(vec3 c) {
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (!inColorMask(v_texCoord)) {
+        fragColor = col;
+        return;
+    }
 
     if (u_bgIsTransparent) {
         vec3 s = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);

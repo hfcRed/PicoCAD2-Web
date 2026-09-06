@@ -18,7 +18,8 @@ export type ScreenType =
 	| "projector";
 export type GameboyPalette = "dmg" | "pocket" | "custom";
 
-const SCREEN_TYPE_ID: Record<ScreenType, number> = {
+/** The screen types as the shaders number them, matching `chunks/screen.glsl`. */
+export const SCREEN_TYPE_ID: Record<ScreenType, number> = {
 	crt: 0,
 	lcd: 1,
 	tn: 2,
@@ -27,19 +28,37 @@ const SCREEN_TYPE_ID: Record<ScreenType, number> = {
 	projector: 5,
 };
 
-const DMG_COLORS: Color3[] = [
+/** The original Game Boy's four shades, darkest first. */
+export const DMG_COLORS: Color3[] = [
 	[15 / 255, 56 / 255, 15 / 255],
 	[48 / 255, 98 / 255, 48 / 255],
 	[139 / 255, 172 / 255, 15 / 255],
 	[155 / 255, 188 / 255, 15 / 255],
 ];
 
-const POCKET_COLORS: Color3[] = [
+/** The Game Boy Pocket's four grey shades, darkest first. */
+export const POCKET_COLORS: Color3[] = [
 	[0, 0, 0],
 	[1 / 3, 1 / 3, 1 / 3],
 	[2 / 3, 2 / 3, 2 / 3],
 	[1, 1, 1],
 ];
+
+/**
+ * Resolves a gameboy palette setting to its four shades, darkest first.
+ *
+ * @param palette - The palette setting.
+ * @param customColors - The shades the `"custom"` palette uses.
+ * @returns The four shades.
+ */
+export function gameboyShades(
+	palette: GameboyPalette,
+	customColors: Color3[],
+): Color3[] {
+	if (palette === "dmg") return DMG_COLORS;
+	if (palette === "pocket") return POCKET_COLORS;
+	return customColors;
+}
 
 /** Reference time constant in seconds for gameboy ghosting = 1. */
 const GAMEBOY_GHOST_TAU = 0.35;
@@ -191,12 +210,7 @@ export class VideoEffectsEffect extends FullscreenEffect {
 	 * @returns The uniform values.
 	 */
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
-		const gb =
-			this.gameboy.palette === "dmg"
-				? DMG_COLORS
-				: this.gameboy.palette === "pocket"
-					? POCKET_COLORS
-					: this.gameboy.customColors;
+		const gb = gameboyShades(this.gameboy.palette, this.gameboy.customColors);
 
 		return {
 			u_backgroundColor: ctx.backgroundColor,

@@ -603,6 +603,35 @@ viewer.extras.projection.maskedColors = [7];        // Only these colors receive
 viewer.extras.projection.nodes = ["floor"];         // Only within these nodes (default: [] = all nodes)
 ```
 
+### Display
+
+Turns the masked materials into screens, with the simulation the [video effects](#video-effects) post effect runs over the whole frame. Six screen types behind one `screenType` switch, the shared tone and grid controls, and the per-type settings that work on a surface. In `"uv"` space the surface is the screen. The virtual pixel grid lies on the texture with the texture's top row as the screen's top, scanlines run along texel rows, the subpixel structure sits inside each cell, and a `resolution` coarser than the texture shows a coarser image, since the texel lookup snaps to the cell centers. In `"screen"` space the structure follows the output pixels like the post effect, without resampling the image. Warps, the projector's halo and ghosting need the whole frame and stay with the post effect.
+
+```typescript
+viewer.extras.display.enabled = true;
+viewer.extras.display.space = "uv";                    // "uv" | "screen" (default: "uv")
+viewer.extras.display.screenType = "crt";              // "crt" | "lcd" | "tn" | "oled" | "gameboy" | "projector" (default: "crt")
+viewer.extras.display.resolution = 128;                // Virtual pixels along the texture or screen height, 0 = no grid (default: 128, one per texel)
+viewer.extras.display.brightness = 1;                  // Brightness multiplier (default: 1)
+viewer.extras.display.saturation = 1;                  // Saturation multiplier (default: 1)
+viewer.extras.display.contrastBoost = 0;               // Extra contrast (default: 0)
+viewer.extras.display.gridStrength = 0.5;              // Subpixel / screen-door / grille visibility (default: 0.5)
+viewer.extras.display.crt.scanlineIntensity = 0.3;     // Scanline opacity (default: 0.3)
+viewer.extras.display.crt.refreshRate = 0;             // Rolling flicker band sweeps in Hz, 0 = off (default: 0)
+viewer.extras.display.gameboy.palette = "dmg";         // "dmg" | "pocket" | "custom" (default: "dmg")
+viewer.extras.display.gameboy.customColors = [         // 4 shades, darkest to lightest, for "custom"
+  [0.06, 0.22, 0.06], [0.19, 0.38, 0.19], [0.55, 0.67, 0.06], [0.61, 0.74, 0.06],
+];
+viewer.extras.display.tn.angleShift = 0.5;             // Darkened top, washed-out bottom (default: 0.5)
+viewer.extras.display.oled.blackCrush = 0.5;           // Crush near-black to true black (default: 0.5)
+viewer.extras.display.oled.pentile = false;            // Alternate RG/GB subpixel layout (default: false)
+viewer.extras.display.projector.hotspot = 0.4;         // Radial brightness falloff from the center (default: 0.4)
+viewer.extras.display.maskedColors = [7];              // Only these colors become screens (default: [] = all)
+viewer.extras.display.nodes = ["screen"];              // Only within these nodes (default: [] = all nodes)
+```
+
+A screen's response is an RGB transform, so the display has no `style` and leaves the palette.
+
 ## Geometry Effects
 
 Geometry effects reshape or grow the model's own geometry. Masks select by face color (see Color Masks), except fur's, which is per texel.
@@ -873,7 +902,7 @@ viewer.extras.dithering.channelAmount = [1, 1, 1];    // Per-channel amount (def
 
 ### Video Effects
 
-Whole-display screen simulation with six screen types behind one `screenType` switch. Shared controls set up the virtual pixel grid and tone, and each screen type adds its own settings on top.
+Whole-display screen simulation with six screen types behind one `screenType` switch. Shared controls set up the virtual pixel grid and tone, and each screen type adds its own settings on top. The same simulation runs per material as the [display](#display) effect, with color and node masks.
 
 ```typescript
 viewer.extras.videoEffects.enabled = true;
@@ -1114,7 +1143,7 @@ When multiple effects are active, they are applied in this fixed order:
 18. Glitch
 19. Vignette
 
-Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform, vertex glitch and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. The floor renders its shadow map and reflection before the scene pass and draws its plate right after the model. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
+Material effects are applied earlier, inside the model shader, in this fixed order: color cutout, dissolve, projection, emission, interior, gradient light, specular, rim light, glitter, triangle flash, the display, and the dissolve's edge on top. Geometry effects run before any of that: billboard on the CPU right after the scene graph update, then mesh deform, vertex glitch and triangle shatter in the vertex stage. Fur shells draw with the model's depth passes. The floor renders its shadow map and reflection before the scene pass and draws its plate right after the model. Scene effects render into the 3D scene after the model. All of them happen before the outline and any post-processing.
 
 ## Custom Effects
 

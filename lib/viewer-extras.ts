@@ -27,6 +27,10 @@ import {
 	DepthFogEffect,
 } from "./rendering/effects/depth-fog-effect.ts";
 import {
+	DISPLAY_DEFAULTS,
+	DisplayEffect,
+} from "./rendering/effects/display-effect.ts";
+import {
 	DISSOLVE_DEFAULTS,
 	DissolveEffect,
 } from "./rendering/effects/dissolve-effect.ts";
@@ -177,6 +181,7 @@ export class ViewerExtras {
 	readonly glitter: GlitterEffect;
 	readonly emission: EmissionEffect;
 	readonly projection: ProjectionEffect;
+	readonly display: DisplayEffect;
 	readonly fur: FurEffect;
 	readonly meshDeform: MeshDeformEffect;
 	readonly triangleFlash: TriangleFlashEffect;
@@ -230,6 +235,7 @@ export class ViewerExtras {
 		this.glitter = new GlitterEffect();
 		this.emission = new EmissionEffect();
 		this.projection = new ProjectionEffect();
+		this.display = new DisplayEffect();
 		// ---------------
 
 		// Instanced shell pass drawn by the renderer with the model.
@@ -351,6 +357,7 @@ export const EXTRAS_DEFAULTS = Object.freeze({
 	glitter: GLITTER_DEFAULTS,
 	emission: EMISSION_DEFAULTS,
 	projection: PROJECTION_DEFAULTS,
+	display: DISPLAY_DEFAULTS,
 	fur: FUR_DEFAULTS,
 	meshDeform: MESH_DEFORM_DEFAULTS,
 	triangleFlash: TRIANGLE_FLASH_DEFAULTS,

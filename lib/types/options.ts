@@ -3,6 +3,7 @@ import type { BillboardMode } from "../rendering/effects/billboard-effect.ts";
 import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { CycleMode } from "../rendering/effects/cycle.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
+import type { DisplaySpace } from "../rendering/effects/display-effect.ts";
 import type { DeepPartial } from "../rendering/effects/effect-defaults.ts";
 import type { EmissionBlinkMode } from "../rendering/effects/emission-effect.ts";
 import type {
@@ -334,6 +335,24 @@ export interface ProjectionOptions {
 	maskedColors?: number[];
 }
 
+export interface DisplayOptions {
+	nodes?: string[];
+	enabled?: boolean;
+	space?: DisplaySpace;
+	screenType?: ScreenType;
+	resolution?: number;
+	brightness?: number;
+	saturation?: number;
+	contrastBoost?: number;
+	gridStrength?: number;
+	crt?: { scanlineIntensity?: number; refreshRate?: number };
+	gameboy?: { palette?: GameboyPalette; customColors?: Color3[] };
+	tn?: { angleShift?: number };
+	oled?: { blackCrush?: number; pentile?: boolean };
+	projector?: { hotspot?: number };
+	maskedColors?: number[];
+}
+
 export interface PaletteSwapOptions {
 	enabled?: boolean;
 	map?: number[];
@@ -533,6 +552,7 @@ export interface ExtrasOptions {
 	glitter?: GlitterOptions;
 	emission?: EmissionOptions;
 	projection?: ProjectionOptions;
+	display?: DisplayOptions;
 	fur?: FurOptions;
 	meshDeform?: MeshDeformOptions;
 	triangleFlash?: TriangleFlashOptions;

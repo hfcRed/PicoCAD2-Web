@@ -22,6 +22,7 @@ export const NODE_BIT = Object.freeze({
 	meshDeform: 1 << 11,
 	projection: 1 << 12,
 	vertexGlitch: 1 << 13,
+	display: 1 << 14,
 });
 
 type NodeBitKey = keyof typeof NODE_BIT;
@@ -42,6 +43,7 @@ const NODE_EFFECTS: readonly NodeBitKey[] = [
 	"meshDeform",
 	"projection",
 	"vertexGlitch",
+	"display",
 ];
 
 /**

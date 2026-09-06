@@ -19,6 +19,7 @@ import type { BillboardEffect } from "./effects/billboard-effect.ts";
 import type { ColorCutoutEffect } from "./effects/color-cutout-effect.ts";
 import { packColorMask } from "./effects/color-mask.ts";
 import { type CyclePhase, resolveCyclePhase } from "./effects/cycle.ts";
+import type { DisplayEffect } from "./effects/display-effect.ts";
 import type { DissolveEffect } from "./effects/dissolve-effect.ts";
 import type { EmissionEffect } from "./effects/emission-effect.ts";
 import {
@@ -66,6 +67,10 @@ import {
 	type VertexGlitchEffect,
 	writeVertexGlitchUniforms,
 } from "./effects/vertex-glitch-effect.ts";
+import {
+	gameboyShades,
+	SCREEN_TYPE_ID,
+} from "./effects/video-effects-effect.ts";
 import { FloorResources } from "./floor-resources.ts";
 import { computeNodeBits, NODE_BIT } from "./node-selection.ts";
 import { createPrograms, type ShaderPrograms } from "./programs.ts";
@@ -89,6 +94,7 @@ export interface RenderSettings {
 	dissolve: DissolveEffect | null;
 	emission: EmissionEffect | null;
 	projection: ProjectionEffect | null;
+	display: DisplayEffect | null;
 	interior: InteriorEffect | null;
 	rimLight: RimLightEffect | null;
 	gradientLight: GradientLightEffect | null;
@@ -324,6 +330,23 @@ export class Renderer {
 		u_projectionFacing: 0,
 		u_projectionSmooth: false,
 		u_projectionMask: 0,
+
+		u_displayEnabled: false,
+		u_displaySpace: 0,
+		u_displayType: 0,
+		u_displayRes: 0,
+		u_displayBrightness: 1,
+		u_displaySaturation: 1,
+		u_displayContrast: 0,
+		u_displayGrid: 0,
+		u_displayScanlines: 0,
+		u_displayRefresh: 0,
+		u_displayShades: new Float32Array(12),
+		u_displayAngle: 0,
+		u_displayCrush: 0,
+		u_displayPentile: false,
+		u_displayHotspot: 0,
+		u_displayMask: 0,
 	};
 	private readonly furUniforms = {
 		u_vp: mat4.create() as mat4,
@@ -1579,6 +1602,35 @@ export class Renderer {
 			u.u_projectionFacing = Math.min(Math.max(projection.facing, 0), 1);
 			u.u_projectionSmooth = projection.style === "smooth";
 			u.u_projectionMask = packColorMask(projection.maskedColors);
+		}
+
+		const display = settings.display;
+		u.u_displayEnabled = display?.enabled ?? false;
+		if (display?.enabled) {
+			u.u_displaySpace = display.space === "screen" ? 1 : 0;
+			u.u_displayType = SCREEN_TYPE_ID[display.screenType] ?? 0;
+			u.u_displayRes = Math.max(display.resolution, 0);
+			u.u_displayBrightness = display.brightness;
+			u.u_displaySaturation = display.saturation;
+			u.u_displayContrast = display.contrastBoost;
+			u.u_displayGrid = display.gridStrength;
+			u.u_displayScanlines = display.crt.scanlineIntensity;
+			u.u_displayRefresh = display.crt.refreshRate;
+			const shades = gameboyShades(
+				display.gameboy.palette,
+				display.gameboy.customColors,
+			);
+			for (let i = 0; i < 4; i++) {
+				const shade = shades[i] ?? [0, 0, 0];
+				u.u_displayShades[i * 3] = shade[0];
+				u.u_displayShades[i * 3 + 1] = shade[1];
+				u.u_displayShades[i * 3 + 2] = shade[2];
+			}
+			u.u_displayAngle = display.tn.angleShift;
+			u.u_displayCrush = display.oled.blackCrush;
+			u.u_displayPentile = display.oled.pentile;
+			u.u_displayHotspot = display.projector.hotspot;
+			u.u_displayMask = packColorMask(display.maskedColors);
 		}
 	}
 

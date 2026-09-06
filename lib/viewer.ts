@@ -244,6 +244,7 @@ export class PicoCAD2Viewer {
 		dissolve: null,
 		emission: null,
 		projection: null,
+		display: null,
 		interior: null,
 		rimLight: null,
 		gradientLight: null,
@@ -563,6 +564,7 @@ export class PicoCAD2Viewer {
 		settings.dissolve = this._extras.dissolve;
 		settings.emission = this._extras.emission;
 		settings.projection = this._extras.projection;
+		settings.display = this._extras.display;
 		settings.interior = this._extras.interior;
 		settings.rimLight = this._extras.rimLight;
 		settings.gradientLight = this._extras.gradientLight;
@@ -1317,6 +1319,16 @@ export class PicoCAD2Viewer {
 		assign(this.extras.colorTint, extras.colorTint);
 		assign(this.extras.sharpen, extras.sharpen);
 		assign(this.extras.edgeDetection, extras.edgeDetection);
+
+		if (extras.display) {
+			const { crt, gameboy, tn, oled, projector, ...display } = extras.display;
+			assign(this.extras.display, display);
+			assign(this.extras.display.crt, crt);
+			assign(this.extras.display.gameboy, gameboy);
+			assign(this.extras.display.tn, tn);
+			assign(this.extras.display.oled, oled);
+			assign(this.extras.display.projector, projector);
+		}
 
 		if (extras.dissolve) {
 			const { cycle, sweep, ...dissolve } = extras.dissolve;

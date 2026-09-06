@@ -23,6 +23,7 @@ uniform float u_clipBelowY; // the floor's reflection pass clips real geometry b
 #include chunks/material-effects.glsl;
 #include chunks/palette-blend.glsl;
 #include chunks/voxel-cut.glsl;
+#include chunks/display.glsl;
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
@@ -53,6 +54,16 @@ void main() {
     int cutoutIdx = int(colorIdx + 0.5);
     if (inNodeSet(NODE_CUTOUT) && cutoutIdx < 16 && ((u_cutoutMask >> cutoutIdx) & 1) != 0) {
         discard;
+    }
+
+    // On a display, the texture is looked up at the virtual pixel's center
+    // once the display's grid is coarser than the texels, so the surface
+    // shows a coarser image. The mask tested the fragment's own texel.
+    bool displayOn = displayActive(colorIdx);
+    if (displayOn && fromTexture) {
+        vec2 displayUv = displayTexCoord(v_texCoord);
+        float shown = floor(texture(u_indexTexture, displayUv).r * 255.0 + 0.5);
+        if (abs(shown - u_transparentColor) >= 0.5) colorIdx = shown;
     }
 
     float coverage;
@@ -113,6 +124,10 @@ void main() {
         color, colorIdx, normal, v_worldPos, v_texCoord, lightAmount, -u_lightDir
     );
     color = applyTriangleFlash(color, v_flash);
+    if (displayOn) {
+        vec2 screenUv = (gl_FragCoord.xy - u_viewportOrigin) / u_resolution;
+        color = applyDisplay(color, v_texCoord, screenUv, u_resolution, u_time);
+    }
     color = applyDissolveEdge(color, dissolveEdge);
 
     // Premultiplied. The blended pass of a smooth dissolve composites over

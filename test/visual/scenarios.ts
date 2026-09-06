@@ -684,6 +684,86 @@ const material: Scenario[] = [
 			fur: { enabled: true },
 		},
 	},
+	// Display: the screen simulation on the surface. The texel grid is the
+	// default pixel grid, so the CRT's scanlines and grille sit on the texels.
+	{
+		name: "material/display-crt-uv",
+		model: "pig",
+		extras: {
+			display: { enabled: true, maskedColors: [9], gridStrength: 1 },
+		},
+	},
+	// The refresh band rolls down the texture: at rate 1 and time 0.25 it sits
+	// a quarter of the way down, on the texture's upper rows.
+	{
+		name: "material/display-crt-uv-refresh",
+		model: "pig",
+		time: 0.25,
+		extras: {
+			display: {
+				enabled: true,
+				gridStrength: 0,
+				crt: { scanlineIntensity: 0, refreshRate: 1 },
+			},
+		},
+	},
+	// A coarser grid than the texture: the texel lookup snaps to the cells.
+	{
+		name: "material/display-lcd-uv-coarse",
+		model: "rig",
+		extras: {
+			display: {
+				enabled: true,
+				screenType: "lcd",
+				resolution: 32,
+				gridStrength: 1,
+				saturation: 1.4,
+			},
+		},
+	},
+	{
+		name: "material/display-gameboy-nodes",
+		model: "rig",
+		extras: {
+			display: {
+				enabled: true,
+				screenType: "gameboy",
+				resolution: 64,
+				gridStrength: 1,
+				nodes: ["cab"],
+			},
+		},
+	},
+	// Screen space: the pentile structure follows the output pixels.
+	{
+		name: "material/display-oled-pentile-screen",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			display: {
+				enabled: true,
+				space: "screen",
+				screenType: "oled",
+				resolution: 48,
+				gridStrength: 1,
+				oled: { blackCrush: 0.8, pentile: true },
+			},
+		},
+	},
+	{
+		name: "material/display-tn-screen",
+		model: "livingroom",
+		time: 0.2,
+		extras: {
+			display: {
+				enabled: true,
+				space: "screen",
+				screenType: "tn",
+				resolution: 0,
+				tn: { angleShift: 1 },
+			},
+		},
+	},
 	// Interior
 	{
 		name: "material/interior-stars-palette",

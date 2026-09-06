@@ -37,6 +37,11 @@ export {
 	type FogMode,
 } from "./rendering/effects/depth-fog-effect.ts";
 export {
+	DISPLAY_DEFAULTS,
+	DisplayEffect,
+	type DisplaySpace,
+} from "./rendering/effects/display-effect.ts";
+export {
 	DISSOLVE_DEFAULTS,
 	DissolveEffect,
 } from "./rendering/effects/dissolve-effect.ts";
@@ -219,6 +224,7 @@ export type {
 	ColorTintOptions,
 	CycleOptions,
 	DepthFogOptions,
+	DisplayOptions,
 	DissolveOptions,
 	DitheringOptions,
 	EdgeDetectionOptions,

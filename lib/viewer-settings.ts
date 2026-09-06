@@ -75,6 +75,7 @@ export const VIEWER_SETTINGS_DEFAULTS = deepFreeze<ViewerSettings>({
 	clampCameraDistance: { enabled: false, minimumDistance: 0 },
 	animationSpeed: 1,
 	animationLoop: true,
+	transparency: "dithered",
 });
 
 /**

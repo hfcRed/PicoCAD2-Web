@@ -96,7 +96,10 @@ void main() {
 
     vec3 pattern = mix(u_colorA, colorB, f);
 
-    // Composite the scene's fractional coverage (outline edges) over the
-    // pattern, and promote alpha so later passes treat it as content.
-    fragColor = vec4(mix(pattern, col.rgb, col.a), 1.0);
+    // Composite the scene's fractional coverage over the pattern, and
+    // promote alpha so later passes treat it as content. While smooth fades
+    // are drawn the scene is still premultiplied here, so the color is
+    // unpremultiplied first. Whole pixels come out unchanged either way.
+    vec3 scene = col.a > 0.0 ? col.rgb / col.a : vec3(0.0);
+    fragColor = vec4(mix(pattern, scene, col.a), 1.0);
 }

@@ -1,6 +1,7 @@
 import * as twgl from "twgl.js";
 import blitFrag from "../../shaders/effects/blit.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
+import resolveFrag from "../../shaders/effects/resolve.frag";
 import type { Color3 } from "../../types/scene.ts";
 import type { RenderStats } from "../renderer.ts";
 import { FramebufferPool } from "./framebuffer-pool.ts";
@@ -14,6 +15,7 @@ export class PostProcessPipeline {
 	private readonly postEffects: PostProcessEffect[] = [];
 	private readonly sceneEffectsList: SceneEffect[] = [];
 	private blitProgram: twgl.ProgramInfo | null = null;
+	private resolveProgram: twgl.ProgramInfo | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	readonly pool: FramebufferPool = new FramebufferPool();
 
@@ -79,6 +81,16 @@ export class PostProcessPipeline {
 	}
 
 	/**
+	 * Gets a scene effect by id.
+	 *
+	 * @param id - The effect id.
+	 * @returns The effect, or undefined if not found.
+	 */
+	getSceneEffect(id: string): SceneEffect | undefined {
+		return this.sceneEffectsList.find((e) => e.id === id);
+	}
+
+	/**
 	 * Returns true if any post-process effect is enabled.
 	 *
 	 * @returns Whether any post-process effect is active.
@@ -111,8 +123,12 @@ export class PostProcessPipeline {
 	 *
 	 * @param ctx - The rendering context info.
 	 * @param backgroundColor - The background color for the final composite.
+	 * @param bgIsTransparent - Whether the background renders as transparent.
 	 * @param x - The output viewport x offset in the default framebuffer.
 	 * @param y - The output viewport y offset in the default framebuffer.
+	 * @param resolve - Whether the scene is premultiplied over transparent
+	 *   black on an opaque background and must be composited over the
+	 *   background color before the chain proper. See {@link resolve}.
 	 */
 	execute(
 		ctx: EffectContext,
@@ -120,10 +136,23 @@ export class PostProcessPipeline {
 		bgIsTransparent = false,
 		x = 0,
 		y = 0,
+		resolve = false,
 	): void {
 		const gl = ctx.gl;
+		let resolvePending = resolve;
 
 		for (const effect of this.postEffects) {
+			// The gradient outline reads the true coverage and writes
+			// premultiplied like the scene, so the resolve runs right after
+			// it. The procedural background composites the fades over its
+			// pattern itself and takes the resolve's place when enabled.
+			if (resolvePending && effect.id !== "gradientOutline") {
+				resolvePending = false;
+				if (!(effect.id === "proceduralBackground" && effect.enabled)) {
+					this.resolve(ctx, backgroundColor);
+				}
+			}
+
 			if (!effect.enabled) continue;
 
 			if (!effect.initialized) {
@@ -146,6 +175,8 @@ export class PostProcessPipeline {
 				effect.apply(ctx, inputTexture);
 			}
 		}
+
+		if (resolvePending) this.resolve(ctx, backgroundColor);
 
 		this.blit(
 			gl,
@@ -205,6 +236,44 @@ export class PostProcessPipeline {
 	}
 
 	/**
+	 * Composites the current pool texture over the background color into the
+	 * other pool texture, which becomes current. On an opaque background the
+	 * chain holds straight color with alpha marking content, but while the
+	 * scene pass draws smooth fades it blends premultiplied over transparent
+	 * black instead, so the outlines can read the true coverage. This pass
+	 * flattens that back. Content gets alpha 1, the background keeps 0.
+	 *
+	 * @param ctx - The rendering context info.
+	 * @param backgroundColor - The background color to composite over.
+	 */
+	resolve(ctx: EffectContext, backgroundColor: Color3): void {
+		const gl = ctx.gl;
+		if (!this.resolveProgram) {
+			this.resolveProgram = twgl.createProgramInfo(gl, [
+				fullscreenVert,
+				resolveFrag,
+			]);
+		}
+		if (!this.emptyVao) this.emptyVao = gl.createVertexArray();
+
+		const inputTexture = this.pool.swap(gl);
+		gl.viewport(0, 0, ctx.width, ctx.height);
+		gl.disable(gl.DEPTH_TEST);
+
+		gl.useProgram(this.resolveProgram.program);
+		twgl.setUniforms(this.resolveProgram, {
+			u_texture: inputTexture,
+			u_backgroundColor: backgroundColor,
+		});
+
+		gl.bindVertexArray(this.emptyVao);
+		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindVertexArray(null);
+
+		ctx.stats.drawCalls++;
+	}
+
+	/**
 	 * Disposes and removes all effects without destroying pipeline resources.
 	 */
 	clearEffects(): void {
@@ -237,6 +306,10 @@ export class PostProcessPipeline {
 		if (this.blitProgram) {
 			gl.deleteProgram(this.blitProgram.program);
 			this.blitProgram = null;
+		}
+		if (this.resolveProgram) {
+			gl.deleteProgram(this.resolveProgram.program);
+			this.resolveProgram = null;
 		}
 		if (this.emptyVao) {
 			gl.deleteVertexArray(this.emptyVao);

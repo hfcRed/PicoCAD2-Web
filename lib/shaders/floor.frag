@@ -6,13 +6,16 @@ precision highp float;
  * lines, the model's shadow looked up in the floor's shadow map, and the
  * model's mirror image sampled from the reflection pass. Shadow and
  * reflection come in through an ordered dither by their strength, or blend
- * in smooth style, and the plate fades out toward its edge through the
- * same dither in every style, since the scene pass has no blending. With
- * the surface off there is nothing to blend into, so the shadow, the grid
- * and the reflection claim whole pixels by their strength in every style
- * and the rest of the plate is discarded. The plate writes the no-model
- * palette index, so post-effect masks, ambient occlusion and the drop
- * shadow leave it alone while depth-based effects still reach it.
+ * in smooth style. The plate fades out toward its edge through the
+ * viewer's transparency, dithered claims whole pixels through the same
+ * ordered dither, smooth writes the coverage as alpha for the renderer's
+ * blend. With the surface off there is nothing to blend into, so the
+ * shadow, the grid and the reflection are the only coverage, claiming
+ * whole pixels by their strength or layering their alphas, and the rest of
+ * the plate is discarded. The plate writes the no-model palette index, so
+ * post-effect masks, ambient occlusion and the drop shadow leave it alone
+ * while depth-based effects still reach it, and the fade's coverage so
+ * outlines fade with the plate.
  */
 
 in vec3 v_worldPos;
@@ -39,16 +42,10 @@ uniform float u_floorReflectionStrength;
 uniform vec2 u_resolution;
 uniform vec2 u_viewportOrigin;
 
+#include chunks/transparency.glsl;
+
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 fragIndex;
-
-/** The 4x4 Bayer threshold of this pixel, 1/32 to 31/32. */
-float bayerThreshold() {
-    ivec2 lo = ivec2(gl_FragCoord.xy) & 1;
-    ivec2 hi = (ivec2(gl_FragCoord.xy) >> 1) & 1;
-    int bayer = 4 * (2 * (lo.x ^ lo.y) + lo.y) + 2 * (hi.x ^ hi.y) + hi.y;
-    return (float(bayer) + 0.5) / 16.0;
-}
 
 /** Brings a color in by amount. Claimed whole pixels by the dither, or a mix in smooth style. */
 vec3 styled(vec3 base, vec3 target, float amount, float threshold) {
@@ -84,6 +81,11 @@ float shadowCoverage() {
     return sum / 16.0;
 }
 
+/** Layers a premultiplied color over an accumulated one. */
+vec4 over(vec4 top, vec4 under) {
+    return top + under * (1.0 - top.a);
+}
+
 void main() {
     // The grid's pixel width comes from derivatives, taken before any
     // discard can leave them undefined. Lines thin out as the cells shrink
@@ -100,7 +102,7 @@ void main() {
     vec2 rel = abs(v_worldPos.xz - u_floorCenter.xz) / u_floorHalf;
     float edge = max(rel.x, rel.y);
     float coverage = u_floorFade > 0.0 ? clamp((1.0 - edge) / u_floorFade, 0.0, 1.0) : 1.0;
-    if (coverage <= threshold) discard;
+    if (u_smoothTransparency ? coverage < FADE_MIN : coverage <= threshold) discard;
 
     float shadow = u_floorShadowOn ? shadowCoverage() * u_floorShadowStrength : 0.0;
     vec4 mirror = vec4(0.0);
@@ -108,34 +110,48 @@ void main() {
         vec2 uv = (gl_FragCoord.xy - u_viewportOrigin) / u_resolution;
         mirror = texture(u_floorReflection, uv);
     }
-    bool mirrored = mirror.a > 0.5;
+
+    // The reflection pass is premultiplied. A smoothly fading model leaves
+    // fractional alpha there, which scales the reflection's strength.
+    float mirrorAmount = u_floorReflectionStrength * mirror.a;
+    vec3 mirrorColor = mirror.a > 0.0 ? mirror.rgb / mirror.a : vec3(0.0);
+    float lineAmount = onLine ? lineCoverage : 0.0;
 
     vec3 line = shadow > 0.0
         ? styled(u_floorGridColor, u_floorShadowColor, shadow * 0.5, threshold)
         : u_floorGridColor;
 
     vec3 color = u_floorColor;
+    float alpha = u_smoothTransparency ? coverage : 1.0;
     if (u_floorSurface) {
         if (shadow > 0.0) color = styled(color, u_floorShadowColor, shadow, threshold);
         if (onLine) color = styled(color, line, lineCoverage, threshold);
-        if (mirrored) color = styled(color, mirror.rgb, u_floorReflectionStrength, threshold);
+        if (mirrorAmount > 0.0) color = styled(color, mirrorColor, mirrorAmount, threshold);
+    } else if (u_smoothTransparency) {
+        // The elements are the only coverage, layered shadow under grid
+        // under reflection, then faded with the edge.
+        vec4 acc = vec4(u_floorShadowColor * shadow, shadow);
+        acc = over(vec4(line * lineAmount, lineAmount), acc);
+        acc = over(vec4(mirrorColor * mirrorAmount, mirrorAmount), acc);
+        alpha = coverage * acc.a;
+        if (alpha < FADE_MIN) discard;
+        color = acc.rgb / acc.a;
+        coverage = alpha;
     } else {
-        bool hit = false;
-        if (shadow > threshold) {
-            color = u_floorShadowColor;
-            hit = true;
-        }
-        if (onLine && lineCoverage > threshold) {
+        // Every element claims through the same threshold, so their union
+        // is the strongest one and the topmost claimant shows.
+        float elements = max(max(shadow, lineAmount), mirrorAmount);
+        if (elements <= threshold) discard;
+        if (mirrorAmount > threshold) {
+            color = mirrorColor;
+        } else if (lineAmount > threshold) {
             color = line;
-            hit = true;
+        } else {
+            color = u_floorShadowColor;
         }
-        if (mirrored && u_floorReflectionStrength > threshold) {
-            color = mirror.rgb;
-            hit = true;
-        }
-        if (!hit) discard;
+        coverage = min(coverage, elements);
     }
 
-    fragColor = vec4(color, 1.0);
-    fragIndex = vec4(1.0, 0.0, 0.0, 0.0);
+    fragColor = vec4(color * alpha, alpha);
+    fragIndex = vec4(1.0, 0.0, coverage, 1.0);
 }

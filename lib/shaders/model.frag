@@ -55,7 +55,8 @@ void main() {
         discard;
     }
 
-    float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos);
+    float coverage;
+    float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos, coverage);
 
     vec3 normal = normalize(v_normal);
     if (gl_FrontFacing) normal = -normal;
@@ -114,11 +115,16 @@ void main() {
     color = applyTriangleFlash(color, v_flash);
     color = applyDissolveEdge(color, dissolveEdge);
 
-    fragColor = vec4(color, 1.0);
+    // Premultiplied. The blended pass of a smooth dissolve composites over
+    // what is behind the fragment, every other pass writes whole pixels.
+    float alpha = fadeAlpha(coverage);
+    fragColor = vec4(color * alpha, alpha);
 
-    // Base palette index (R) and shade row (G) for the screen-space index
-    // buffer used by effect color masks. The base index is written before
-    // the shade-row remap so masks select materials, not displayed colors.
-    // Ignored when no second color attachment is bound.
-    fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, 0.0, 0.0);
+    // Base palette index (R), shade row (G) and the fade's coverage (B) for
+    // the screen-space index buffer used by effect color masks and the
+    // outlines. The base index is written before the shade-row remap so
+    // masks select materials, not displayed colors. The alpha of 1 keeps
+    // the index whole under the blended pass's blending. Ignored when no
+    // second color attachment is bound.
+    fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, coverage, 1.0);
 }

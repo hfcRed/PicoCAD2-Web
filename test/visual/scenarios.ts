@@ -21,6 +21,7 @@ import type {
 	Color3,
 	ExtrasOptions,
 	ProjectionMode,
+	TransparencyMode,
 	ViewerTag,
 } from "../../lib/main.ts";
 import { RENDER_MODE, SHADING_MODE } from "../../lib/main.ts";
@@ -50,6 +51,7 @@ export interface ScenarioSettings {
 	cameraModeDirection?: "left" | "right";
 	camera?: Partial<CameraSettings>;
 	clampCameraDistance?: Partial<CameraDistanceClamp>;
+	transparency?: TransparencyMode;
 }
 
 export interface Scenario {
@@ -614,6 +616,72 @@ const material: Scenario[] = [
 				sweep: { mode: "directional" },
 				cycle: { enabled: true, mode: "loop", duration: 2, hold: 0.25 },
 			},
+		},
+	},
+	// Smooth transparency. The fading texels blend their remaining coverage
+	// instead of taking the checkerboard, drawn in an opaque and a blended
+	// pass so the fade shows what is behind it. The transparent path is
+	// premultiplied as always.
+	{
+		name: "material/dissolve-smooth-transparency",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK, transparency: "smooth" },
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", softness: 0.6 },
+				edgeWidth: 0,
+			},
+		},
+	},
+	// The opaque path with the built-in outline: the scene is composited
+	// over the background after the outline has read the coverage, and the
+	// outline fades with the surface.
+	{
+		name: "material/dissolve-smooth-transparency-outline",
+		model: "rig",
+		settings: {
+			transparency: "smooth",
+			outlineSize: 2,
+			outlineColor: [1, 1, 1],
+		},
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [1, 0, 0], softness: 0.6 },
+				edgeWidth: 0,
+			},
+		},
+	},
+	// Direct to canvas: nothing forces the FBO, the canvas blends the passes.
+	// The ember edge sits on the fading side, so it shows through the blend.
+	{
+		name: "material/dissolve-smooth-transparency-direct",
+		model: "rig",
+		settings: { transparency: "smooth" },
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "point", point: [0, 0.5, 0], softness: 0.3 },
+				edgeWidth: 0.15,
+			},
+		},
+	},
+	// Fur strands take the blended pass with their surface.
+	{
+		name: "material/dissolve-smooth-transparency-fur",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK, transparency: "smooth" },
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", softness: 0.6 },
+			},
+			fur: { enabled: true },
 		},
 	},
 	// Interior
@@ -1423,6 +1491,37 @@ const post: Scenario[] = [
 			},
 		},
 	},
+	// Smooth transparency: the edge fades through alpha, blended by the
+	// renderer instead of claimed through the Bayer pattern.
+	{
+		name: "post/floor-smooth-transparency",
+		model: "rig",
+		settings: { transparency: "smooth" },
+		extras: { floor: { enabled: true, fade: 0.8 } },
+	},
+	// No surface with smooth transparency on the transparent path: the
+	// shadow, the grid and the reflection layer their alphas, and the
+	// smoothly dissolving model leaves a fractional reflection.
+	{
+		name: "post/floor-no-surface-smooth-transparency",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK, transparency: "smooth" },
+		extras: {
+			floor: {
+				enabled: true,
+				surface: false,
+				grid: { spacing: 0.5 },
+				shadow: { strength: 0.6 },
+				reflection: { enabled: true, strength: 0.7 },
+			},
+			dissolve: {
+				enabled: true,
+				progress: 0.4,
+				sweep: { mode: "directional", softness: 0.8 },
+				edgeWidth: 0,
+			},
+		},
+	},
 	{
 		name: "post/particles-pixel-drift",
 		model: "pig",
@@ -1474,6 +1573,33 @@ const post: Scenario[] = [
 				areaScale: 2.5,
 				count: 500,
 			},
+		},
+		time: 1,
+	},
+	// The twinkle takes the Bayer dither by default. Smooth transparency
+	// fades it through alpha instead, the former look.
+	{
+		name: "post/particles-smooth-transparency",
+		model: "pig",
+		settings: { transparency: "smooth" },
+		extras: { particles: { enabled: true } },
+		time: 1,
+	},
+	// The opaque FBO path: the premultiplied scene is composited over the
+	// background once before the chain, so the twinkle fades linearly.
+	{
+		name: "post/particles-smooth-transparency-opaque",
+		model: "rig",
+		settings: { transparency: "smooth" },
+		extras: {
+			particles: {
+				enabled: true,
+				shape: "quad",
+				size: 4,
+				count: 120,
+				twinkle: 0.8,
+			},
+			noise: { enabled: true, amount: 0 },
 		},
 		time: 1,
 	},
@@ -1601,6 +1727,66 @@ const post: Scenario[] = [
 				shadowOffset: [3, -3],
 			},
 		},
+	},
+	// The outline fades with what it traces. Dithered, the strongest
+	// neighbor coverage is gated through the Bayer pattern, so the outline
+	// continues the dissolve's checkerboard instead of boxing every survivor.
+	{
+		name: "post/gradient-outline-dissolve-dithered",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			gradientOutline: { enabled: true, size: 2 },
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", softness: 0.6 },
+				edgeWidth: 0,
+			},
+		},
+	},
+	// Smooth, the outline takes the coverage as its alpha and fades out
+	// with the surface.
+	{
+		name: "post/gradient-outline-dissolve-smooth",
+		model: "rig",
+		settings: { transparency: "smooth" },
+		extras: {
+			gradientOutline: {
+				enabled: true,
+				size: 2,
+				colorFrom: [1, 1, 0],
+				colorTo: [1, 0, 1],
+			},
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [1, 0, 0], softness: 0.6 },
+				edgeWidth: 0,
+			},
+		},
+	},
+	// Particles fade their outline too, through the coverage they add to
+	// the index buffer, and the drop shadow follows.
+	{
+		name: "post/gradient-outline-drop-shadow-particles-smooth",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK, transparency: "smooth" },
+		extras: {
+			gradientOutline: {
+				enabled: true,
+				mode: "dropShadow",
+				shadowOffset: [3, -3],
+			},
+			particles: {
+				enabled: true,
+				shape: "quad",
+				size: 0.4,
+				count: 80,
+				twinkle: 0.9,
+			},
+		},
+		time: 1,
 	},
 	// SSAO
 	{
@@ -2084,6 +2270,29 @@ const post: Scenario[] = [
 ];
 
 const combos: Scenario[] = [
+	// A smooth dissolve over the procedural background: the pattern shows
+	// through the fading surface, since the background composites the
+	// premultiplied scene itself, and the outline fades with the surface.
+	{
+		name: "combo/transparency-smooth-procedural-background",
+		model: "rig",
+		settings: { transparency: "smooth" },
+		extras: {
+			dissolve: {
+				enabled: true,
+				progress: 0.5,
+				sweep: { mode: "directional", direction: [1, 0, 0], softness: 0.7 },
+				edgeWidth: 0,
+			},
+			proceduralBackground: {
+				enabled: true,
+				pattern: "grid",
+				colorA: [0.1, 0.1, 0.2],
+				colorB: [0.3, 0.3, 0.5],
+			},
+			gradientOutline: { enabled: true, size: 1 },
+		},
+	},
 	// The plate takes the fog through depth, SSAO skips it through the index
 	// buffer, and the coverage outline traces its edge.
 	{

@@ -18,6 +18,16 @@ import type { Color3 } from "../../types/scene.ts";
 export type MaterialStyle = "palette" | "dithered" | "smooth";
 
 /**
+ * How fades resolve against the background, for every fade the scene pass
+ * draws.
+ *
+ * `"dithered"` claims whole pixels through an ordered dither, so the frame
+ * stays palette-pure and a GIF without alpha can still fake the fade over
+ * a transparent background. `"smooth"` blends fractional alpha.
+ */
+export type TransparencyMode = "dithered" | "smooth";
+
+/**
  * Finds the palette entry closest to a color, using luma-weighted distance.
  *
  * @param color - The color to match.

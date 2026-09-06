@@ -81,6 +81,7 @@ const viewer = new PicoCAD2Viewer({
   renderMode: RENDER_MODE.texture,  // RENDER_MODE.none | .color | .texture, PicoCAD 2's face mode (default: texture)
   projectionMode: "perspective",    // "perspective" | "orthographic" | "fisheye" (default: "perspective")
   backgroundColor: [0.1, 0.1, 0.1], // Override background color, or null for model default (default: null)
+  transparency: "dithered",         // "dithered" | "smooth", how fades resolve against the background (default: "dithered")
 
   // Outline
   outlineSize: 0,                 // Outline width in pixels (default: 0, disabled)
@@ -129,7 +130,7 @@ await viewer.loadFromFile(file);
 viewer.load(modelString, true);
 ```
 
-Loading a model applies the settings the file carries. Shading mode, render mode, projection, camera and bookmark, camera mode, outline, scanlines, watermark tags and animation. The viewer's own settings (background override, resolution, max FPS, camera clamp, animation speed and loop) and the effects are not part of a model, so they keep their configuration across loads. `modelInfo.settings` holds what the file said.
+Loading a model applies the settings the file carries. Shading mode, render mode, projection, camera and bookmark, camera mode, outline, scanlines, watermark tags and animation. The viewer's own settings (background override, resolution, max FPS, camera clamp, animation speed and loop, transparency) and the effects are not part of a model, so they keep their configuration across loads. `modelInfo.settings` holds what the file said.
 
 ## Viewer Properties
 
@@ -141,6 +142,7 @@ viewer.shadingMode = SHADING_MODE.off;   // a file's own value passes through un
 viewer.renderMode = RENDER_MODE.color;   // RENDER_MODE.none hides the model
 viewer.projectionMode = "orthographic";
 viewer.backgroundColor = [0.2, 0, 0.3];
+viewer.transparency = "smooth";          // Fades blend alpha instead of dithering, see Transparency
 
 // Outline
 viewer.outlineSize = 2;
@@ -398,6 +400,18 @@ viewer.extras.dissolve.sweep.wave = 0;              // Traveling band width, 0-1
 viewer.extras.dissolve.sweep.invert = false;        // Invert the progress: swept at 0, restored at 1 (default: false)
 ```
 
+### Transparency
+
+Every fade against the background shares one viewer setting, `transparency`.
+
+```typescript
+viewer.transparency = "dithered";  // "dithered" | "smooth" (default: "dithered")
+```
+
+`"dithered"` claims whole pixels through an ordered dither, so the frame stays palette-pure and a GIF, which has no alpha, still shows the fade over a transparent background. `"smooth"` blends fractional alpha instead, which reads better over an opaque background.
+
+The built-in outline and the gradient outline fade with what they trace, in either mode. Around a dissolving surface the outline continues its dither or its alpha instead of boxing every surviving pixel, and it fades around twinkling particles. The outline runs ahead of the fade, over the upper half of the coverage, so it is gone by the time the surface is half faded and never sits where the fade begins. Included in the viewer state as `viewer.transparency`.
+
 ## Palette Swap & Color Cycling
 
 `extras.paletteSwap` recolors the model PICO-8 `pal()` style, by rewriting the palette lookup table. A swapped index renders with the target's color *and* the target's shade ramp, so recolored materials shade correctly. Everything that reads the palette follows the swap. The model (including shading), particles, and palette-style effects like SSAO. Effect masks keep matching the original palette indices, which the swap does not change.
@@ -452,7 +466,7 @@ viewer.extras.dissolve.maskedColors = [7];         // Only these colors dissolve
 viewer.extras.dissolve.nodes = ["arm"];            // Only within these nodes (default: [] = all nodes)
 ```
 
-The `sweep` group decides which texels go first (see [Sweeps](#sweeps)). The dissolve defaults to `"noise"`. A `"uniform"` sweep has no front, so the whole surface fades through the checkerboard instead and shows no edge. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. `cycle.mode` decides how the progress comes back. `"pingpong"` runs it from 1 back to 0, so the sweep retraces its path, and `"loop"` runs the sweep forward a second time to restore the model. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it.
+The `sweep` group decides which texels go first (see [Sweeps](#sweeps)). The dissolve defaults to `"noise"`. A `"uniform"` sweep has no front, so the whole surface fades through the checkerboard instead and shows no edge. While `cycle` is enabled the manual `progress` is ignored. The progress rests at 0 for `hold` seconds. `cycle.mode` decides how the progress comes back. `"pingpong"` runs it from 1 back to 0, so the sweep retraces its path, and `"loop"` runs the sweep forward a second time to restore the model. Timing follows the viewer's elapsed time, so it pauses with the render loop. In palette style the edge color snaps to the nearest palette entry and the edge band dithers. Smooth style blends it. The dissolving texels themselves follow the viewer's [transparency](#transparency).
 
 ### Interior
 
@@ -733,7 +747,7 @@ viewer.extras.particles.sizeJitter = 0.5;      // Random per-particle shrink, 0-
 viewer.extras.particles.motion = "drift";      // "drift" | "orbit" | "linear" (default: "drift")
 viewer.extras.particles.speed = 1;             // Motion rate (default: 1)
 viewer.extras.particles.areaScale = 1.5;       // Particle volume as a multiple of the model bounds (default: 1.5)
-viewer.extras.particles.twinkle = 0.3;         // Per-particle brightness flicker, 0-1 (default: 0.3)
+viewer.extras.particles.twinkle = 0.3;         // Per-particle fade in and out, 0-1, dithered or blended per the viewer's transparency (default: 0.3)
 viewer.extras.particles.paletteIndices = [7];  // Color source: particles sample these palette colors (default: [] = white)
 ```
 
@@ -741,7 +755,7 @@ Unlike effect masks, `paletteIndices` is a color source, not a mask: particles a
 
 ### Floor
 
-A pedestal plane under the model, placed at the lowest point of its rest-pose bounds and sized from its footprint, or stretched to the horizon with `infinite`. The plate carries optional world-space grid lines, a shadow of the model cast along a direction, and the model's mirror image, and it fades out toward its edge through an ordered dither. Shadow and reflection show through the same ordered dither by their `strength`, or blend in smooth style, and the shadow's `softness` widens its edge into a penumbra shaped the same way. Grid lines inside the shadow take it at half strength, so they read as darker lines, and a grid thins out where its cells shrink toward a pixel instead of flooding the plate. With `surface` off the plate itself is invisible and only the grid, the shadow and the reflection render. The plate is scenery, it writes the no-model palette index, so color masks, ambient occlusion and the drop shadow do not touch it, while depth fog reaches it through the depth buffer and outlines trace its edge like any content. Seen from below, the plate is opaque and shows neither shadow nor reflection.
+A pedestal plane under the model, placed at the lowest point of its rest-pose bounds and sized from its footprint, or stretched to the horizon with `infinite`. The plate carries optional world-space grid lines, a shadow of the model cast along a direction, and the model's mirror image, and it fades out toward its edge, through an ordered dither or with alpha per the viewer's [transparency](#transparency). Shadow and reflection show through the same ordered dither by their `strength`, or blend in smooth style, and the shadow's `softness` widens its edge into a penumbra shaped the same way. Grid lines inside the shadow take it at half strength, so they read as darker lines, and a grid thins out where its cells shrink toward a pixel instead of flooding the plate. With `surface` off the plate itself is invisible and only the grid, the shadow and the reflection render. The plate is scenery, it writes the no-model palette index, so color masks, ambient occlusion and the drop shadow do not touch it, while depth fog reaches it through the depth buffer and outlines trace its edge like any content. Seen from below, the plate is opaque and shows neither shadow nor reflection.
 
 ```typescript
 viewer.extras.floor.enabled = true;
@@ -943,7 +957,7 @@ viewer.extras.chromaticAberration.centerY = 0.5;         // Effect center Y (def
 
 ### Gradient Outline
 
-A gradient colored outline effect. When enabled, it automatically replaces the built-in solid outline.
+A gradient colored outline effect. When enabled, it automatically replaces the built-in solid outline. Like the built-in outline it fades with what it traces (see [Transparency](#transparency)). Around a dissolving surface it continues the dither or the alpha of the fade, running ahead of it so it is gone before the surface is, and it fades around twinkling particles.
 
 The outline can grow directionally. `growthFactor` 0 (the default) grows it evenly on all sides, 1 grows it only toward `growthDirection`, with a smooth falloff to the sides. The `"dropShadow"` mode instead repeats the whole silhouette displaced by `shadowOffset`, for a sticker-style shadow (`size` still fattens the shadow shape; use `size = 0` for an exact copy).
 
@@ -1134,7 +1148,7 @@ invertEffect.enabled = true;
 
 The fragment shader receives `v_texCoord` (0-1 UV coordinates) and must write to `fragColor`. The base class automatically binds the input texture as `u_texture`.
 
-Custom effects can also be color-masked: the scene's palette index buffer is available as `EffectContext.indexTexture` (R = base palette index, 255 = no model pixel; G = shade row). `FullscreenEffect` binds it as `u_indexTexture` automatically, together with a `u_colorMask` bitmask packed from the effect's `maskedColors` array (the packing helper is exported as `packColorMask`).
+Custom effects can also be color-masked: the scene's palette index buffer is available as `EffectContext.indexTexture` (R = base palette index, 255 = no model pixel; G = shade row; B = the fade coverage the outlines read, 0 where nothing was drawn). `FullscreenEffect` binds it as `u_indexTexture` automatically, together with a `u_colorMask` bitmask packed from the effect's `maskedColors` array (the packing helper is exported as `packColorMask`).
 
 ### Implementing PostProcessEffect
 
@@ -1165,7 +1179,7 @@ class MyEffect implements PostProcessEffect {
 
 ### Implementing SceneEffect
 
-For effects that render geometry into the scene (like wireframe):
+For effects that render geometry into the scene (like wireframe). An effect whose shader also writes the palette index attachment as a second output declares `readonly writesIndex = true`, so the renderer keeps that attachment enabled while it draws:
 
 ```typescript
 import type { EffectContext, SceneEffect } from "picocad2-web";

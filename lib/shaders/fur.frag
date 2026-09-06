@@ -60,8 +60,9 @@ void main() {
     if (u_furMask != 0 && !(idx < 16 && ((u_furMask >> idx) & 1) != 0)) {
         discard;
     }
-    
-    float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos);
+
+    float coverage;
+    float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos, coverage);
 
     // Strand cutout
     vec3 cell = floor(v_meshPos * u_furDensity) + 17.17;
@@ -102,8 +103,10 @@ void main() {
 
     color = applyDissolveEdge(color, dissolveEdge);
 
-    fragColor = vec4(color, 1.0);
+    float alpha = fadeAlpha(coverage);
+    fragColor = vec4(color * alpha, alpha);
 
-    // Fur strands are the material extended outward, so they write their base index.
-    fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, 0.0, 0.0);
+    // Fur strands are the material extended outward, so they write their
+    // base index, with the dissolve's coverage like the surface they grow from.
+    fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, coverage, 1.0);
 }

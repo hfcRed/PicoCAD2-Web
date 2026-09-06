@@ -9,8 +9,9 @@ const INDEX_CLEAR = new Float32Array([1, 0, 0, 0]);
 /**
  * Manages a pair of framebuffers for ping-pong rendering.
  * The scene FBO (index 0) has a depth attachment for 3D rendering and a
- * palette index attachment (RG8: base palette index, shade row) written by
- * the model shader for effect color masks.
+ * palette index attachment (RGBA8: base palette index, shade row, fade
+ * coverage) written by the model shader for effect color masks and the
+ * outlines' fades.
  * The swap FBO (index 1) is color-only for post-processing passes.
  *
  * The palette index has its own ping-pong pair so UV-warping effects can
@@ -105,11 +106,11 @@ export class FramebufferPool {
 			gl.texImage2D(
 				gl.TEXTURE_2D,
 				0,
-				gl.RG8,
+				gl.RGBA8,
 				w,
 				h,
 				0,
-				gl.RG,
+				gl.RGBA,
 				gl.UNSIGNED_BYTE,
 				null,
 			);
@@ -196,6 +197,17 @@ export class FramebufferPool {
 	}
 
 	/**
+	 * Re-enables drawing to the palette index attachment for a scene effect
+	 * whose shader writes it (see `SceneEffect.writesIndex`). The scene FBO
+	 * must be bound.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	enableIndexWrites(gl: WebGL2RenderingContext): void {
+		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+	}
+
+	/**
 	 * Detaches the depth and palette index textures from the scene FBO so
 	 * they can be safely sampled during post-processing without causing a
 	 * feedback loop.
@@ -279,8 +291,9 @@ export class FramebufferPool {
 
 	/**
 	 * Returns the current palette index texture for sampling in effects
-	 * (R = base palette index, 255 = no model; G = shade row). After a
-	 * warping effect resolves, this is the warped copy.
+	 * (R = base palette index, 255 = no model; G = shade row; B = the fade's
+	 * coverage, 0 where nothing was drawn). After a warping effect resolves,
+	 * this is the warped copy.
 	 *
 	 * @returns The index texture, or null if not yet created.
 	 */

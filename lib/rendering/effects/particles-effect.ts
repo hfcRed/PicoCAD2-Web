@@ -43,12 +43,18 @@ const MOTION_INDEX: Record<ParticleMotion, number> = {
  * `paletteIndices` is a color source and not a mask. Particles sample the
  * model's palette at those indices (empty = plain white). `randomHue`
  * shifts each particle's hue by a stable random amount within `hueRange`,
- * and `twinkle` fades particles in and out through alpha. For the
- * `"pixel"` shape, `size` is in output pixels. For the world-space shapes
- * it is in world units.
+ * and `twinkle` fades particles in and out, through alpha with smooth
+ * transparency and through the Bayer dither otherwise. For the `"pixel"`
+ * shape, `size` is in output pixels. For the world-space shapes it is in
+ * world units.
+ *
+ * Particles are scenery. They keep the palette index of whatever they
+ * cover and add their twinkle's coverage to the index buffer, so outlines
+ * fade around them like around the model.
  */
 export class ParticlesEffect implements SceneEffect {
 	readonly id = "particles";
+	readonly writesIndex = true;
 	initialized = false;
 
 	private program: twgl.ProgramInfo | null = null;
@@ -74,6 +80,7 @@ export class ParticlesEffect implements SceneEffect {
 		u_paletteTexture: null as WebGLTexture | null,
 		u_paletteIndices: new Float32Array(16),
 		u_paletteCount: 0,
+		u_smoothTransparency: false,
 	};
 
 	constructor() {
@@ -147,6 +154,7 @@ export class ParticlesEffect implements SceneEffect {
 		u.u_twinkle = Math.min(Math.max(this.twinkle, 0), 1);
 		u.u_hueRange = this.randomHue ? Math.max(this.hueRange, 0) * Math.PI : 0;
 		u.u_paletteBlend = ctx.paletteBlend;
+		u.u_smoothTransparency = ctx.transparency === "smooth";
 		u.u_paletteTexture = resources.paletteTexture;
 		u.u_paletteCount = Math.min(this.paletteIndices.length, 16);
 		for (let i = 0; i < u.u_paletteCount; i++) {

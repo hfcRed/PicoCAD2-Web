@@ -33,13 +33,17 @@ import type { GlitterEffect } from "./effects/glitter-effect.ts";
 import type { GradientLightEffect } from "./effects/gradient-light-effect.ts";
 import { GradientOutlineEffect } from "./effects/gradient-outline-effect.ts";
 import type { InteriorEffect } from "./effects/interior-effect.ts";
-import { writeStyledColor } from "./effects/material-style.ts";
+import {
+	type TransparencyMode,
+	writeStyledColor,
+} from "./effects/material-style.ts";
 import {
 	createMeshDeformUniforms,
 	type MeshDeformEffect,
 	writeMeshDeformUniforms,
 } from "./effects/mesh-deform-effect.ts";
 import type { PaletteSwapEffect } from "./effects/palette-swap-effect.ts";
+import { ParticlesEffect } from "./effects/particles-effect.ts";
 import { PATTERN_ID } from "./effects/patterns.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import {
@@ -79,6 +83,7 @@ export interface RenderSettings {
 	outlineSize: number;
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
+	transparency: TransparencyMode;
 	cutoutMask: number;
 	colorCutout: ColorCutoutEffect | null;
 	dissolve: DissolveEffect | null;
@@ -120,6 +125,11 @@ const PRIORITY_GROUPS = [2, 3] as const;
 
 /** Render groups drawn after the depth clear. */
 const NON_PRIORITY_GROUPS = [0, 1] as const;
+
+/** The model shaders' fade passes, matching `chunks/transparency.glsl`. */
+const FADE_DITHERED = 0;
+const FADE_OPAQUE = 1;
+const FADE_BLENDED = 2;
 
 export interface ModelResources {
 	indexTexture: WebGLTexture;
@@ -163,6 +173,9 @@ export class Renderer {
 	private floorShadowReach = 0;
 	private floorReflectionOn = false;
 	private readonly floorPlane: FloorPlane = { center: [0, 0, 0], half: 1 };
+	private smoothFades = false;
+	private fadePasses = false;
+	private readonly fadePassUniforms = { u_fadePass: FADE_DITHERED };
 	private readonly nodeUniforms = {
 		u_worldMatrix: mat4.create() as mat4,
 		u_nodeBits: 0,
@@ -192,6 +205,7 @@ export class Renderer {
 		u_boundsMinY: 0,
 		u_boundsSpanY: 1,
 		u_clipBelowY: NO_CLIP,
+		u_fadePass: FADE_DITHERED,
 
 		...createMeshDeformUniforms(),
 
@@ -331,6 +345,7 @@ export class Renderer {
 		u_furMask: 0,
 		u_time: 0,
 		u_clipBelowY: NO_CLIP,
+		u_fadePass: FADE_DITHERED,
 
 		...createVertexGlitchUniforms(),
 
@@ -348,11 +363,13 @@ export class Renderer {
 	private readonly billboardBasis = new Float32Array(9);
 	private readonly outlineUniforms = {
 		u_texture: null as WebGLTexture | null,
+		u_indexTexture: null as WebGLTexture | null,
 		u_outlineSize: 0,
 		u_outlineColor: [0, 0, 0] as Color3,
 		u_texelSize: [1, 1] as [number, number],
 		u_backgroundColor: [0, 0, 0] as Color3,
-		u_bgIsTransparent: false,
+		u_premultiplied: false,
+		u_smoothTransparency: false,
 	};
 
 	/**
@@ -392,6 +409,8 @@ export class Renderer {
 			glitchActive: false,
 			nodeBits: this.nodeBits,
 			shatterActive: false,
+			transparency: "dithered",
+			smoothFades: false,
 		};
 	}
 
@@ -512,6 +531,9 @@ export class Renderer {
 			dissolve?.cycle,
 			time,
 		);
+		const dissolveOn =
+			dissolve?.enabled === true &&
+			sweepActive(dissolve.sweep, this.dissolvePhase);
 
 		const deform = settings.meshDeform;
 		resolveCyclePhase(
@@ -608,8 +630,23 @@ export class Renderer {
 
 		this.prepareModelUniforms(settings, model, resources);
 
+		// Smooth transparency blends fractional alpha, which the scene FBO
+		// can only hold premultiplied. A dissolve then draws the model in an
+		// opaque and a blended pass, and an opaque background gets composited
+		// back after the outlines have read the true coverage.
 		const floor = settings.floor;
 		const floorOn = floor?.enabled === true;
+		const particles = pipeline.getSceneEffect("particles");
+		const particlesFade =
+			particles instanceof ParticlesEffect &&
+			particles.enabled &&
+			particles.twinkle > 0;
+		const smooth = settings.transparency === "smooth";
+		this.fadePasses = smooth && dissolveOn;
+		this.smoothFades = smooth && (dissolveOn || floorOn || particlesFade);
+		ctx.transparency = settings.transparency;
+		ctx.smoothFades = this.smoothFades;
+
 		this.floorShadowOn = false;
 		this.floorReflectionOn = false;
 		if (floor && floorOn && settings.renderMode < 2) {
@@ -620,10 +657,16 @@ export class Renderer {
 			pipeline.pool.ensure(gl, w, h);
 			pipeline.pool.bindScene(gl);
 
-			// With a transparent background the effect chain is premultiplied.
-			// Uncovered pixels must be (0, 0, 0, 0) so their color contributes
-			// nothing when effects resample or extend coverage.
-			if (useOutline || useGradientOutline || bgIsTransparent) {
+			// With a transparent background the effect chain is premultiplied,
+			// and so is the scene pass while it blends smooth fades. Uncovered
+			// pixels must be (0, 0, 0, 0) so their color contributes nothing
+			// when effects resample or extend coverage.
+			if (
+				useOutline ||
+				useGradientOutline ||
+				bgIsTransparent ||
+				this.smoothFades
+			) {
 				gl.clearColor(0, 0, 0, 0);
 			} else {
 				gl.clearColor(bgR, bgG, bgB, 0);
@@ -675,11 +718,20 @@ export class Renderer {
 				if (!effect.initialized) {
 					effect.init(gl);
 				}
+
+				const writesIndex = useFbo && effect.writesIndex === true;
+				if (writesIndex) pipeline.pool.enableIndexWrites(gl);
 				effect.render(ctx, vpMatrix, resources);
+				if (writesIndex) pipeline.pool.disableIndexWrites(gl);
 			}
 		}
 
 		if (!useFbo) return;
+
+		// On an opaque background the chain expects straight color, so a
+		// premultiplied scene is composited over the background once the
+		// outlines have read its coverage.
+		const resolve = this.smoothFades && !bgIsTransparent;
 
 		if (useOutline) {
 			const inputTexture = pipeline.pool.swap(gl);
@@ -688,11 +740,12 @@ export class Renderer {
 				w,
 				h,
 				inputTexture,
+				pipeline.pool.getIndexTexture(),
 				settings,
 				bgR,
 				bgG,
 				bgB,
-				bgIsTransparent,
+				bgIsTransparent || this.smoothFades,
 			);
 		}
 
@@ -700,8 +753,16 @@ export class Renderer {
 			pipeline.pool.detachSceneTextures(gl);
 			ctx.depthTexture = pipeline.pool.getDepthTexture();
 			ctx.indexTexture = pipeline.pool.getIndexTexture();
-			pipeline.execute(ctx, ctx.backgroundColor, bgIsTransparent, x, y);
+			pipeline.execute(
+				ctx,
+				ctx.backgroundColor,
+				bgIsTransparent,
+				x,
+				y,
+				resolve,
+			);
 		} else {
+			if (resolve) pipeline.resolve(ctx, ctx.backgroundColor);
 			pipeline.blit(
 				gl,
 				x,
@@ -762,21 +823,24 @@ export class Renderer {
 	 * @param w - The render width in pixels.
 	 * @param h - The render height in pixels.
 	 * @param inputTexture - The scene texture to detect outlines from.
+	 * @param indexTexture - The scene's index texture, for the fade coverage.
 	 * @param settings - The render settings containing outline parameters.
 	 * @param bgR - Background red component (0-1).
 	 * @param bgG - Background green component (0-1).
 	 * @param bgB - Background blue component (0-1).
-	 * @param bgIsTransparent - Whether the background renders as transparent.
+	 * @param premultiplied - Whether the scene is premultiplied over
+	 *   transparent black, so uncovered pixels stay clear.
 	 */
 	private drawOutline(
 		w: number,
 		h: number,
 		inputTexture: WebGLTexture,
+		indexTexture: WebGLTexture | null,
 		settings: RenderSettings,
 		bgR: number,
 		bgG: number,
 		bgB: number,
-		bgIsTransparent: boolean,
+		premultiplied: boolean,
 	): void {
 		const gl = this.gl;
 
@@ -791,6 +855,7 @@ export class Renderer {
 
 		const uniforms = this.outlineUniforms;
 		uniforms.u_texture = inputTexture;
+		uniforms.u_indexTexture = indexTexture;
 		uniforms.u_outlineSize = settings.outlineSize;
 		uniforms.u_outlineColor = settings.outlineColor;
 		uniforms.u_texelSize[0] = 1 / w;
@@ -798,7 +863,8 @@ export class Renderer {
 		uniforms.u_backgroundColor[0] = bgR;
 		uniforms.u_backgroundColor[1] = bgG;
 		uniforms.u_backgroundColor[2] = bgB;
-		uniforms.u_bgIsTransparent = bgIsTransparent;
+		uniforms.u_premultiplied = premultiplied;
+		uniforms.u_smoothTransparency = settings.transparency === "smooth";
 		twgl.setUniforms(this.programs.outline, uniforms);
 
 		gl.bindVertexArray(this.emptyVao);
@@ -875,16 +941,60 @@ export class Renderer {
 	 * @param resources - The GPU resources.
 	 */
 	private drawModelPhases(resources: ModelResources): void {
+		this.drawDepthPhase(PRIORITY_GROUPS, resources);
+		this.gl.clear(this.gl.DEPTH_BUFFER_BIT);
+		this.drawDepthPhase(NON_PRIORITY_GROUPS, resources);
+	}
+
+	/**
+	 * Draws one depth phase's render groups and their fur shells. Dithered,
+	 * a single pass with the checkerboard deciding each fragment. While a
+	 * smooth dissolve runs, an opaque pass first and then the fading
+	 * fragments blended over it without depth writes, so a fading surface
+	 * shows what is behind it whatever the draw order.
+	 *
+	 * @param groupIndices - Which render groups to draw.
+	 * @param resources - The GPU resources.
+	 */
+	private drawDepthPhase(
+		groupIndices: readonly number[],
+		resources: ModelResources,
+	): void {
 		const gl = this.gl;
 		const furLayers = this.furLayers;
 
-		this.drawGroups(PRIORITY_GROUPS, resources);
-		if (furLayers > 0) this.drawFur(PRIORITY_GROUPS, resources, furLayers);
+		if (!this.fadePasses) {
+			this.setFadePass(FADE_DITHERED);
+			this.drawGroups(groupIndices, resources);
+			if (furLayers > 0) this.drawFur(groupIndices, resources, furLayers);
+			return;
+		}
 
-		gl.clear(gl.DEPTH_BUFFER_BIT);
+		this.setFadePass(FADE_OPAQUE);
+		this.drawGroups(groupIndices, resources);
+		if (furLayers > 0) this.drawFur(groupIndices, resources, furLayers);
 
-		this.drawGroups(NON_PRIORITY_GROUPS, resources);
-		if (furLayers > 0) this.drawFur(NON_PRIORITY_GROUPS, resources, furLayers);
+		this.setFadePass(FADE_BLENDED);
+		gl.depthMask(false);
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		this.drawGroups(groupIndices, resources);
+		if (furLayers > 0) this.drawFur(groupIndices, resources, furLayers);
+		gl.disable(gl.BLEND);
+		gl.depthMask(true);
+	}
+
+	/**
+	 * Selects the fade pass on the bound model program and on the fur
+	 * program's pending uniforms.
+	 *
+	 * @param pass - The pass to draw.
+	 */
+	private setFadePass(pass: number): void {
+		this.modelUniforms.u_fadePass = pass;
+		this.furUniforms.u_fadePass = pass;
+		this.fadePassUniforms.u_fadePass = pass;
+		twgl.setUniforms(this.programs.model, this.fadePassUniforms);
 	}
 
 	/**
@@ -941,7 +1051,11 @@ export class Renderer {
 			res.bindShadowMap(gl);
 			this.cullOff = true;
 			twgl.setUniforms(this.programs.model, mu);
+
+			const fadePasses = this.fadePasses;
+			this.fadePasses = false;
 			this.drawModelPhases(resources);
+			this.fadePasses = fadePasses;
 			this.cullOff = false;
 			this.floorShadowOn = true;
 			this.floorShadowReach = reach;
@@ -1072,12 +1186,20 @@ export class Renderer {
 		u.u_resolution[1] = h;
 		u.u_viewportOrigin[0] = this.modelUniforms.u_viewportOrigin[0];
 		u.u_viewportOrigin[1] = this.modelUniforms.u_viewportOrigin[1];
+		const smooth = this.smoothFades;
+		u.u_smoothTransparency = smooth;
 
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LEQUAL);
 		gl.depthMask(true);
 		gl.disable(gl.CULL_FACE);
+
+		if (smooth) {
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		}
 		res.drawPlane(gl);
+		if (smooth) gl.disable(gl.BLEND);
 		gl.disable(gl.DEPTH_TEST);
 
 		this.stats.drawCalls++;

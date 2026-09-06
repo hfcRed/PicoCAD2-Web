@@ -149,6 +149,7 @@ async function capture(scenario: Scenario): Promise<CaptureResult> {
 					minimumDistance: s.clampCameraDistance.minimumDistance ?? 0,
 				};
 			}
+			if (s.transparency !== undefined) viewer.transparency = s.transparency;
 			if (s.camera) {
 				const c = viewer.camera;
 				// initFromState is the public way to flag the cached view

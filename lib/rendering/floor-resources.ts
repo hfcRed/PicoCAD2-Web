@@ -47,6 +47,7 @@ export class FloorResources {
 		u_floorReflectionStrength: 0,
 		u_resolution: [1, 1] as [number, number],
 		u_viewportOrigin: [0, 0] as [number, number],
+		u_smoothTransparency: false,
 	};
 
 	/**

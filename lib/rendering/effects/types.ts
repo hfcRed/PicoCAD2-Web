@@ -2,6 +2,7 @@ import type { mat4 } from "gl-matrix";
 import type { Color3, SceneNode } from "../../types/scene.ts";
 import type { ModelResources, RenderStats } from "../renderer.ts";
 import type { CyclePhase } from "./cycle.ts";
+import type { TransparencyMode } from "./material-style.ts";
 import type { MeshDeformEffect } from "./mesh-deform-effect.ts";
 import type { VertexGlitchEffect } from "./vertex-glitch-effect.ts";
 
@@ -34,6 +35,8 @@ export interface EffectContext {
 	glitchPhase: CyclePhase;
 	glitchActive: boolean;
 	nodeBits: ReadonlyMap<SceneNode, number>;
+	transparency: TransparencyMode;
+	smoothFades: boolean;
 }
 
 export interface PostProcessEffect {
@@ -51,6 +54,8 @@ export interface PostProcessEffect {
 export interface SceneEffect {
 	readonly id: string;
 	readonly initialized: boolean;
+	readonly writesIndex?: boolean;
+
 	enabled: boolean;
 	init(gl: WebGL2RenderingContext): void;
 	render(ctx: EffectContext, vpMatrix: mat4, resources: ModelResources): void;

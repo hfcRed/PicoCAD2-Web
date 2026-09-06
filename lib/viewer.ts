@@ -10,6 +10,7 @@ import {
 	diffFromDefaults,
 	mergeDefaults,
 } from "./rendering/effects/effect-defaults.ts";
+import type { TransparencyMode } from "./rendering/effects/material-style.ts";
 import { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import type { ModelResources, RenderSettings } from "./rendering/renderer.ts";
 import { collectRayCrossings } from "./scene/raycast.ts";
@@ -184,6 +185,7 @@ export class PicoCAD2Viewer {
 	clampCameraDistance: CameraDistanceClamp = {
 		...VIEWER_SETTINGS_DEFAULTS.clampCameraDistance,
 	};
+	transparency: TransparencyMode = VIEWER_SETTINGS_DEFAULTS.transparency;
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -234,6 +236,7 @@ export class PicoCAD2Viewer {
 		shading: true,
 		renderMode: 0,
 		backgroundColor: null,
+		transparency: "dithered",
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
 		cutoutMask: 0,
@@ -322,6 +325,7 @@ export class PicoCAD2Viewer {
 				minimumDistance: options.clampCameraDistance.minimumDistance ?? 0,
 			};
 		}
+		if (options?.transparency) this.transparency = options.transparency;
 
 		if (options?.extras) {
 			this.applyExtrasOptions(options.extras);
@@ -546,6 +550,7 @@ export class PicoCAD2Viewer {
 					? 1
 					: 0;
 		settings.backgroundColor = this.backgroundColor;
+		settings.transparency = this.transparency;
 		settings.outlineSize = this.outlineSize;
 		settings.outlineColor = this.outlineColor;
 
@@ -1204,6 +1209,7 @@ export class PicoCAD2Viewer {
 			clampCameraDistance: { ...this.clampCameraDistance },
 			animationSpeed: this.animation.speed,
 			animationLoop: this.animation.loop,
+			transparency: this.transparency,
 		};
 	}
 
@@ -1258,6 +1264,7 @@ export class PicoCAD2Viewer {
 		this.clampCameraDistance = { ...s.clampCameraDistance };
 		this.animation.speed = s.animationSpeed;
 		this.animation.loop = s.animationLoop;
+		this.transparency = s.transparency;
 	}
 
 	/**

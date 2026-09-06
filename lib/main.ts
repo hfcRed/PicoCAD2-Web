@@ -102,6 +102,7 @@ export {
 export {
 	type MaterialStyle,
 	nearestPaletteIndex,
+	type TransparencyMode,
 } from "./rendering/effects/material-style.ts";
 export {
 	type DeformAxis,

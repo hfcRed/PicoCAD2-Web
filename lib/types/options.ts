@@ -13,7 +13,10 @@ import type { GradientLightSource } from "../rendering/effects/gradient-light-ef
 import type { OutlineMode } from "../rendering/effects/gradient-outline-effect.ts";
 import type { HalftoneMode } from "../rendering/effects/halftone-effect.ts";
 import type { InteriorPattern } from "../rendering/effects/interior-effect.ts";
-import type { MaterialStyle } from "../rendering/effects/material-style.ts";
+import type {
+	MaterialStyle,
+	TransparencyMode,
+} from "../rendering/effects/material-style.ts";
 import type { DeformAxis } from "../rendering/effects/mesh-deform-effect.ts";
 import type {
 	ParticleMotion,
@@ -638,6 +641,7 @@ export interface ViewerSettings {
 	clampCameraDistance: CameraDistanceClamp;
 	animationSpeed: number;
 	animationLoop: boolean;
+	transparency: TransparencyMode;
 }
 
 export type ExtrasState = Required<ExtrasOptions>;
@@ -671,6 +675,7 @@ export interface PicoCAD2ViewerOptions {
 	};
 	maxFps?: number;
 	clampCameraDistance?: Partial<CameraDistanceClamp>;
+	transparency?: TransparencyMode;
 	extras?: ExtrasOptions;
 	onLoad?: ((info: ModelInfo) => void) | null;
 	onFrame?: ((dt: number) => void) | null;

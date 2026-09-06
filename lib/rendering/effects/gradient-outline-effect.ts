@@ -69,6 +69,8 @@ export class GradientOutlineEffect extends FullscreenEffect {
 			u_shadowOffset: this.shadowOffset,
 			u_texelSize: [1 / ctx.width, 1 / ctx.height],
 			u_backgroundColor: this.backgroundColor,
+			u_premultiplied: ctx.bgIsTransparent || ctx.smoothFades,
+			u_smoothTransparency: ctx.transparency === "smooth",
 		};
 	}
 }

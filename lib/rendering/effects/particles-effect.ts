@@ -4,6 +4,7 @@ import particlesFrag from "../../shaders/particles.frag";
 import particlesVert from "../../shaders/particles.vert";
 import type { ParticlesOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import { compilerFor, type ManagedProgram } from "../program-cache.ts";
 import type { ModelResources } from "../renderer.ts";
 import {
 	type DeepRequired,
@@ -85,7 +86,7 @@ export class ParticlesEffect implements SceneEffect {
 	readonly writesIndex = true;
 	initialized = false;
 
-	private program: twgl.ProgramInfo | null = null;
+	private program: ManagedProgram | null = null;
 	private gl: WebGL2RenderingContext | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private readonly uniforms = {
@@ -121,15 +122,20 @@ export class ParticlesEffect implements SceneEffect {
 		resetEffect(this, PARTICLES_DEFAULTS);
 	}
 
+	/** Whether the program has linked and the effect can draw. */
+	get ready(): boolean {
+		return this.program?.ready === true;
+	}
+
 	/**
-	 * Compiles the particle shader program.
+	 * Starts compiling the particle shader program.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	init(gl: WebGL2RenderingContext): void {
 		if (this.initialized) return;
 		this.gl = gl;
-		this.program = twgl.createProgramInfo(gl, [particlesVert, particlesFrag]);
+		this.program = compilerFor(gl).compile(particlesVert, particlesFrag);
 		this.emptyVao = gl.createVertexArray();
 		this.initialized = true;
 	}
@@ -142,11 +148,13 @@ export class ParticlesEffect implements SceneEffect {
 	 * @param resources - The GPU resources for the current model.
 	 */
 	render(ctx: EffectContext, vpMatrix: mat4, resources: ModelResources): void {
+		const info = this.program?.info;
+		if (!info) return;
 		const gl = ctx.gl;
 		const count = Math.min(Math.max(Math.round(this.count), 0), MAX_PARTICLES);
 		if (count === 0) return;
 
-		gl.useProgram(this.program!.program);
+		gl.useProgram(info.program);
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LEQUAL);
 		gl.depthMask(false);
@@ -205,7 +213,7 @@ export class ParticlesEffect implements SceneEffect {
 		for (let i = 0; i < u.u_paletteCount; i++) {
 			u.u_paletteIndices[i] = this.paletteIndices[i];
 		}
-		twgl.setUniforms(this.program!, u);
+		twgl.setUniforms(info, u);
 
 		const verts = SHAPE_VERTICES[this.shape] ?? 6;
 		gl.bindVertexArray(this.emptyVao);
@@ -227,7 +235,8 @@ export class ParticlesEffect implements SceneEffect {
 		if (!this.gl) return;
 
 		if (this.program) {
-			this.gl.deleteProgram(this.program.program);
+			compilerFor(this.gl).forget(this.program);
+			this.program.dispose(this.gl);
 			this.program = null;
 		}
 		if (this.emptyVao) {

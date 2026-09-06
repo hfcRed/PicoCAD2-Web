@@ -4,6 +4,7 @@ import bloomCompositeFrag from "../../shaders/effects/bloom-composite.frag";
 import bloomThresholdFrag from "../../shaders/effects/bloom-threshold.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
 import type { BloomOptions } from "../../types/options.ts";
+import { compilerFor, type ManagedProgram } from "../program-cache.ts";
 import { packColorMask } from "./color-mask.ts";
 import {
 	type DeepRequired,
@@ -21,9 +22,9 @@ export class BloomEffect implements PostProcessEffect {
 	initialized = false;
 
 	private gl: WebGL2RenderingContext | null = null;
-	private thresholdProgram: twgl.ProgramInfo | null = null;
-	private blurProgram: twgl.ProgramInfo | null = null;
-	private compositeProgram: twgl.ProgramInfo | null = null;
+	private thresholdProgram: ManagedProgram | null = null;
+	private blurProgram: ManagedProgram | null = null;
+	private compositeProgram: ManagedProgram | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 
 	private fboA: WebGLFramebuffer | null = null;
@@ -42,26 +43,33 @@ export class BloomEffect implements PostProcessEffect {
 		resetEffect(this, BLOOM_DEFAULTS);
 	}
 
+	/** Whether all three programs have linked and the effect can draw. */
+	get ready(): boolean {
+		return (
+			this.thresholdProgram?.ready === true &&
+			this.blurProgram?.ready === true &&
+			this.compositeProgram?.ready === true
+		);
+	}
+
 	/**
-	 * Compiles all bloom shader programs.
+	 * Starts compiling all bloom shader programs.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	init(gl: WebGL2RenderingContext): void {
 		if (this.initialized) return;
 		this.gl = gl;
-		this.thresholdProgram = twgl.createProgramInfo(gl, [
+		const compiler = compilerFor(gl);
+		this.thresholdProgram = compiler.compile(
 			fullscreenVert,
 			bloomThresholdFrag,
-		]);
-		this.blurProgram = twgl.createProgramInfo(gl, [
-			fullscreenVert,
-			bloomBlurFrag,
-		]);
-		this.compositeProgram = twgl.createProgramInfo(gl, [
+		);
+		this.blurProgram = compiler.compile(fullscreenVert, bloomBlurFrag);
+		this.compositeProgram = compiler.compile(
 			fullscreenVert,
 			bloomCompositeFrag,
-		]);
+		);
 		this.emptyVao = gl.createVertexArray();
 		this.initialized = true;
 	}
@@ -80,6 +88,10 @@ export class BloomEffect implements PostProcessEffect {
 	 * @param inputTexture - The scene texture to read from.
 	 */
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void {
+		const threshold = this.thresholdProgram?.info;
+		const blur = this.blurProgram?.info;
+		const composite = this.compositeProgram?.info;
+		if (!threshold || !blur || !composite) return;
 		const gl = ctx.gl;
 
 		// Capture the output FBO before creating internal FBOs, which rebind
@@ -96,8 +108,8 @@ export class BloomEffect implements PostProcessEffect {
 		// Pass 1: Threshold
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA);
 		gl.viewport(0, 0, ctx.width, ctx.height);
-		gl.useProgram(this.thresholdProgram!.program);
-		twgl.setUniforms(this.thresholdProgram!, {
+		gl.useProgram(threshold.program);
+		twgl.setUniforms(threshold, {
 			u_texture: inputTexture,
 			u_threshold: this.threshold,
 			u_modelOnly: this.modelOnly,
@@ -110,8 +122,8 @@ export class BloomEffect implements PostProcessEffect {
 
 		// Pass 2:
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboB);
-		gl.useProgram(this.blurProgram!.program);
-		twgl.setUniforms(this.blurProgram!, {
+		gl.useProgram(blur.program);
+		twgl.setUniforms(blur, {
 			u_texture: this.texA,
 			u_blur: this.blur,
 			u_resolution: [ctx.width, ctx.height],
@@ -122,8 +134,8 @@ export class BloomEffect implements PostProcessEffect {
 
 		// Pass 3: Vertical blur
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboA);
-		gl.useProgram(this.blurProgram!.program);
-		twgl.setUniforms(this.blurProgram!, {
+		gl.useProgram(blur.program);
+		twgl.setUniforms(blur, {
 			u_texture: this.texB,
 			u_blur: this.blur,
 			u_resolution: [ctx.width, ctx.height],
@@ -135,8 +147,8 @@ export class BloomEffect implements PostProcessEffect {
 		// Pass 4: Composite
 		gl.bindFramebuffer(gl.FRAMEBUFFER, outputFbo);
 		gl.viewport(0, 0, ctx.width, ctx.height);
-		gl.useProgram(this.compositeProgram!.program);
-		twgl.setUniforms(this.compositeProgram!, {
+		gl.useProgram(composite.program);
+		twgl.setUniforms(composite, {
 			u_texture: inputTexture,
 			u_bloomTexture: this.texA,
 			u_intensity: this.intensity,
@@ -155,19 +167,20 @@ export class BloomEffect implements PostProcessEffect {
 	dispose(): void {
 		if (!this.gl) return;
 		const gl = this.gl;
+		const compiler = compilerFor(gl);
 
-		if (this.thresholdProgram) {
-			gl.deleteProgram(this.thresholdProgram.program);
-			this.thresholdProgram = null;
+		for (const program of [
+			this.thresholdProgram,
+			this.blurProgram,
+			this.compositeProgram,
+		]) {
+			if (!program) continue;
+			compiler.forget(program);
+			program.dispose(gl);
 		}
-		if (this.blurProgram) {
-			gl.deleteProgram(this.blurProgram.program);
-			this.blurProgram = null;
-		}
-		if (this.compositeProgram) {
-			gl.deleteProgram(this.compositeProgram.program);
-			this.compositeProgram = null;
-		}
+		this.thresholdProgram = null;
+		this.blurProgram = null;
+		this.compositeProgram = null;
 		if (this.emptyVao) {
 			gl.deleteVertexArray(this.emptyVao);
 			this.emptyVao = null;

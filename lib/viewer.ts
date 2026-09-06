@@ -520,6 +520,22 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
+	 * Resolves once every shader program the current settings need has
+	 * compiled. Programs compile in the background on contexts that allow
+	 * it, and until they are ready `draw()` stands in with the programs it
+	 * has, so an effect appears a few frames after it was enabled. Await
+	 * this to draw a frame that shows every enabled effect, for example
+	 * before an export.
+	 */
+	async whenReady(): Promise<void> {
+		if (this.model) {
+			this.prepareFrame(this.loopSyncWithAnimation);
+			this.context._requestPrograms(this.renderSettings, this.pipeline);
+		}
+		await this.context.whenShadersReady();
+	}
+
+	/**
 	 * Updates the camera and animation pose and fills the render settings
 	 * for the current frame.
 	 *

@@ -47,6 +47,16 @@ const NODE_EFFECTS: readonly NodeBitKey[] = [
 ];
 
 /**
+ * The per-node effect bits of a frame. A weak map, so a disposed model's
+ * nodes are not kept alive by the renderer that drew them.
+ */
+export type NodeBits = Pick<WeakMap<SceneNode, number>, "get">;
+
+/** The named selections of the frame, reused across frames. */
+const namedBits: number[] = [];
+const namedNodes: string[][] = [];
+
+/**
  * Computes the effect bits of every node in the scene graph into `out`.
  *
  * An effect with an empty `nodes` array selects every node. Otherwise a
@@ -60,17 +70,16 @@ const NODE_EFFECTS: readonly NodeBitKey[] = [
  *
  * @param settings - The current render settings holding the effects.
  * @param root - The scene graph root.
- * @param out - The map to fill, cleared first.
+ * @param out - The map to fill. Every node of the graph is written.
  */
 export function computeNodeBits(
 	settings: RenderSettings,
 	root: SceneNode,
-	out: Map<SceneNode, number>,
+	out: WeakMap<SceneNode, number>,
 ): void {
-	out.clear();
-
 	let allBits = 0;
-	const named: { bit: number; names: Set<string> }[] = [];
+	namedBits.length = 0;
+	namedNodes.length = 0;
 
 	for (const key of NODE_EFFECTS) {
 		const effect = settings[key];
@@ -79,18 +88,40 @@ export function computeNodeBits(
 		if (effect.nodes.length === 0) {
 			allBits |= bit;
 		} else {
-			named.push({ bit, names: new Set(effect.nodes) });
+			namedBits.push(bit);
+			namedNodes.push(effect.nodes);
 		}
 	}
 
-	const walk = (node: SceneNode, inherited: number): void => {
-		let bits = inherited;
-		for (const entry of named) {
-			if (entry.names.has(node.name)) bits |= entry.bit;
-		}
-		out.set(node, bits | allBits);
-		for (const child of node.children) walk(child, bits);
-	};
+	const children = root.children;
+	for (let i = 0; i < children.length; i++) {
+		writeBits(children[i], 0, allBits, out);
+	}
+}
 
-	for (const child of root.children) walk(child, 0);
+/**
+ * Writes a node's bits and its descendants', inheriting the named
+ * selections the ancestors matched.
+ *
+ * @param node - The node to write.
+ * @param inherited - The named selection bits an ancestor matched.
+ * @param allBits - The bits of the effects selecting every node.
+ * @param out - The map to write.
+ */
+function writeBits(
+	node: SceneNode,
+	inherited: number,
+	allBits: number,
+	out: WeakMap<SceneNode, number>,
+): void {
+	let bits = inherited;
+	for (let i = 0; i < namedBits.length; i++) {
+		if (namedNodes[i].includes(node.name)) bits |= namedBits[i];
+	}
+	out.set(node, bits | allBits);
+
+	const children = node.children;
+	for (let i = 0; i < children.length; i++) {
+		writeBits(children[i], bits, allBits, out);
+	}
 }

@@ -4,7 +4,8 @@
  * the spike duration, scaled by the local progress of the glitch's sweep.
  * Included by every vertex shader that draws the model, so the base
  * surface, the fur shells and the wireframe spike the same way. The
- * including shader declares u_time.
+ * including shader declares u_time. The spikes only compile into program
+ * variants that define FX_VGLITCH.
  */
 
 #include node-bits.glsl;
@@ -28,6 +29,7 @@ bool inGlitchMask(float colorIdx) {
     return idx < 16 && ((u_glitchMask >> idx) & 1) != 0;
 }
 
+#ifdef FX_VGLITCH
 /**
  * The spike height for a unit this frame, 0-1: picked in the current beat
  * and still within its duration, at a hashed height, scaled by the local
@@ -80,3 +82,14 @@ vec3 glitchVertex(vec3 worldPos, vec3 meshPos, vec3 smoothNormal, float colorIdx
 
     return worldPos + smoothNormal * (u_glitchStrength * spike);
 }
+#else
+vec3 glitchTriangle(
+    vec3 worldPos, vec3 centroidW, vec3 meshCentroid, vec3 worldNormal, float triId, float colorIdx
+) {
+    return worldPos;
+}
+
+vec3 glitchVertex(vec3 worldPos, vec3 meshPos, vec3 smoothNormal, float colorIdx) {
+    return worldPos;
+}
+#endif

@@ -62,6 +62,14 @@ const viewer2 = new PicoCAD2Viewer({ canvas: canvas2, context });
 
 Viewers sharing a context also share a single render loop: each frame, all viewers render into one combined framebuffer that is captured once and distributed to their canvases. Capturing the drawing buffer is expensive (especially on Firefox), so sharing a context scales to much more viewers.
 
+Shader programs compile in the background where the browser supports parallel shader compilation. Until a program is ready, frames draw with the programs they already have, so enabling an effect never freezes the page. The effect appears a few frames later. Pass `shaderCompile: "sync"` to block on every compile instead, so the first frame after a change always shows it:
+
+```typescript
+const context = new PicoCAD2Context({ shaderCompile: "sync" });
+```
+
+`context.shadersReady` tells whether every requested program has finished compiling, and `viewer.whenReady()` (see [Image Export](#image-export)) waits for the programs a viewer's current settings need.
+
 ## Viewer Options
 
 All options are optional and can be passed to the `PicoCAD2Viewer` constructor:
@@ -334,6 +342,15 @@ const dataUrl = viewer.toDataURL("image/jpeg", 0.9);
 const pixels = viewer.toPixelData();
 ```
 
+Shader programs compile in the background (see [Sharing a Context](#sharing-a-context)), so a frame drawn right after enabling an effect may not show it yet. Before exporting, wait for the programs the current settings need and draw once more:
+
+```typescript
+viewer.extras.bloom.enabled = true;
+await viewer.whenReady();
+viewer.draw();
+const blob = await viewer.toBlob();
+```
+
 ## Effects
 
 All effects live on `viewer.extras` and are disabled by default. They fall into four categories depending on where they run:
@@ -352,7 +369,7 @@ viewer.extras.noise.amount = 0.1;
 viewer.extras.noise.enabled = false;
 ```
 
-Post-processing shaders are compiled lazily, so effects have no GPU cost until first enabled.
+Shaders are compiled lazily and in the background, so effects have no GPU cost until first enabled and enabling one never freezes the page. The model shader is compiled per combination of enabled material and geometry effects, so a plain model compiles in milliseconds and a combination only carries the code of its effects. While a program is still compiling, frames keep drawing with the programs they already have, and the effect appears once its program is ready. `await viewer.whenReady()` waits for that, `new PicoCAD2Context({ shaderCompile: "sync" })` blocks on every compile instead.
 
 ### Color Masks
 
@@ -1182,18 +1199,25 @@ Custom effects can also be color-masked: the scene's palette index buffer is ava
 
 ### Implementing PostProcessEffect
 
-For multi-pass effects or effects that manage their own framebuffers:
+For multi-pass effects or effects that manage their own framebuffers. Compile programs through the context's compiler (`compilerFor(gl)`) and report `ready` while they link, so the effect joins the background compilation. The pipeline skips an effect whose `ready` is `false` for the frame. An effect without a `ready` property counts as ready.
 
 ```typescript
 import type { EffectContext, PostProcessEffect } from "picocad2-web";
+import { compilerFor, type ManagedProgram } from "picocad2-web";
 
 class MyEffect implements PostProcessEffect {
   readonly id = "myEffect";
   enabled = false;
   initialized = false;
+  private program: ManagedProgram | null = null;
+
+  get ready(): boolean {
+    return this.program?.ready === true;
+  }
 
   init(gl: WebGL2RenderingContext): void {
-    // Compile shaders, create resources
+    // Starts compiling. `program.info` holds the twgl ProgramInfo once linked
+    this.program = compilerFor(gl).compile(vertexSource, fragmentSource);
     this.initialized = true;
   }
 
@@ -1209,7 +1233,7 @@ class MyEffect implements PostProcessEffect {
 
 ### Implementing SceneEffect
 
-For effects that render geometry into the scene (like wireframe). An effect whose shader also writes the palette index attachment as a second output declares `readonly writesIndex = true`, so the renderer keeps that attachment enabled while it draws:
+For effects that render geometry into the scene (like wireframe). An effect whose shader also writes the palette index attachment as a second output declares `readonly writesIndex = true`, so the renderer keeps that attachment enabled while it draws. `ready` works as for post-process effects, and `EffectContext.modelFeatures` carries the model program's feature bits (`MODEL_FEATURE`) for effects that follow the model's deform or glitch. The model's buffers come as vertex array objects: each group in `resources.nodeBuffers[i].groups` has a `vao` to bind and a `vertexCount` to draw, with the attributes at the locations in `MODEL_ATTRIB_LOCATIONS`, which a shader drawing them declares with `layout(location = N)` or the program binds before linking:
 
 ```typescript
 import type { EffectContext, SceneEffect } from "picocad2-web";

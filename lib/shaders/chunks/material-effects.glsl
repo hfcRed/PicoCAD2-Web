@@ -19,10 +19,22 @@
  * select materials whether lit or in shadow, mirroring the post-effect
  * mask implementation. The material pass never changes the index G-buffer:
  * a rim or sparkle is light on a material instead of a material change.
+ *
+ * Each effect only compiles into the program variants that define its
+ * feature switch (FX_INTERIOR, FX_RIM, FX_GRADLIGHT, FX_SPECULAR,
+ * FX_GLITTER, FX_EMISSION, FX_PROJECTION, FX_FLASH), the other variants
+ * pass the color through. The uniforms stay declared everywhere, an
+ * unused uniform costs nothing. The hash and color chunks are included
+ * ahead of the pattern library because the include deduplication keeps
+ * only the first occurrence, which must not sit behind a feature switch.
  */
 
 #include node-bits.glsl;
+#include hash.glsl;
+#include color.glsl;
+#if defined(FX_INTERIOR) || defined(FX_PROJECTION)
 #include patterns.glsl;
+#endif
 #include dissolve.glsl;
 
 uniform vec3 u_cameraPos;
@@ -161,6 +173,9 @@ vec3 applyStyled(vec3 base, vec3 effectColor, float t, bool smoothStyle) {
  * (smooth style).
  */
 float emissionAmount(float colorIdx, vec3 worldPos) {
+#ifndef FX_EMISSION
+    return 0.0;
+#else
     if (!u_emissionEnabled || !inNodeSet(NODE_EMISSION) ||
         !inMaterialMask(u_emissionMask, colorIdx)) {
         return 0.0;
@@ -187,6 +202,7 @@ float emissionAmount(float colorIdx, vec3 worldPos) {
     }
 
     return e;
+#endif
 }
 
 /**
@@ -198,6 +214,9 @@ float emissionAmount(float colorIdx, vec3 worldPos) {
  * patterns keep their slice pinned like the interior does.
  */
 float projectionAmount(float colorIdx, vec3 normal, vec3 worldPos) {
+#ifndef FX_PROJECTION
+    return 0.0;
+#else
     if (!u_projectionEnabled || !inNodeSet(NODE_PROJECTION) ||
         !inMaterialMask(u_projectionMask, colorIdx)) {
         return 0.0;
@@ -221,6 +240,7 @@ float projectionAmount(float colorIdx, vec3 normal, vec3 worldPos) {
 
     float f = clamp(patternField(u_projectionPattern, p, t), 0.0, 1.0);
     return clamp(f * u_projectionStrength, 0.0, 1.0);
+#endif
 }
 
 /**
@@ -256,13 +276,18 @@ vec3 applyProjectionColor(vec3 color, float amount, vec3 litColor, vec3 darkColo
  * keeps the base face index, so a blink never leaves other effects' masks.
  */
 vec3 applyTriangleFlash(vec3 color, float flash) {
+#ifndef FX_FLASH
+    return color;
+#else
     if (flash <= 0.0) return color;
     if (u_flashMode == 1 && u_flashSmooth) {
         return color + u_flashColor * flash;
     }
     return applyStyled(color, u_flashColor, flash, u_flashSmooth);
+#endif
 }
 
+#ifdef FX_INTERIOR
 /**
  * Fakes a volume behind the surface. Marches the view ray a few steps into
  * the surface and samples a 3D pattern field at each depth. The world-space
@@ -316,7 +341,9 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
 
     return result;
 }
+#endif
 
+#ifdef FX_GRADLIGHT
 /**
  * Two-color tint ramp: shadow color at g = 0, lit color at g = 1.
  * Palette style picks one of the two entries with a dithered transition
@@ -333,7 +360,9 @@ vec3 applyGradientLight(vec3 color, float g) {
 
     return applyStyled(color, target, u_gradLightBlend, false);
 }
+#endif
 
+#ifdef FX_SPECULAR
 /**
  * Blinn-Phong highlight from the headlight, plus an optional two-color
  * procedural sky/ground reflection sampled by the reflected view ray.
@@ -365,7 +394,9 @@ vec3 applySpecular(vec3 color, vec3 normal, vec3 viewDir, vec3 toLight, float nd
 
     return applyStyled(color, u_specColor, spec * u_specStrength, u_specSmooth);
 }
+#endif
 
+#ifdef FX_RIM
 /**
  * Fresnel silhouette rim. lightAlign sweeps the rim from the shadow side
  * (-1, a backlight) through the whole silhouette (0) to the lit side (+1).
@@ -382,7 +413,9 @@ vec3 applyRim(vec3 color, float ndv, float lightAmount) {
 
     return applyStyled(color, u_rimColor, t * alignWeight * u_rimBlend, u_rimSmooth);
 }
+#endif
 
+#ifdef FX_GLITTER
 /**
  * Hashed sparkle cells lit through a view-angle window: each cell holds a
  * random facet direction, and the cell sparkles while the view direction
@@ -432,6 +465,7 @@ vec3 applyGlitter(vec3 color, vec3 worldPos, vec2 texCoord, vec3 viewDir) {
     
     return applyStyled(color, sparkleColor, t, u_glitterSmooth);
 }
+#endif
 
 /**
  * Applies the enabled material effects to the shaded base color.
@@ -445,14 +479,19 @@ vec3 applyMaterialEffects(
     float lightAmount,
     vec3 toLight
 ) {
+#if defined(FX_INTERIOR) || defined(FX_GRADLIGHT) || defined(FX_SPECULAR) || defined(FX_RIM) || defined(FX_GLITTER)
     vec3 viewDir = u_isOrtho ? -u_cameraFwd : normalize(u_cameraPos - worldPos);
     float ndv = clamp(dot(normal, viewDir), 0.0, 1.0);
+#endif
 
+#ifdef FX_INTERIOR
     if (u_interiorEnabled && inNodeSet(NODE_INTERIOR) &&
         inMaterialMask(u_interiorMask, colorIdx)) {
         color = applyInterior(worldPos, viewDir, normal);
     }
+#endif
 
+#ifdef FX_GRADLIGHT
     if (u_gradLightEnabled && inNodeSet(NODE_GRADIENT_LIGHT) &&
         inMaterialMask(u_gradLightMask, colorIdx)) {
         float g;
@@ -465,21 +504,28 @@ vec3 applyMaterialEffects(
         }
         color = applyGradientLight(color, g);
     }
+#endif
 
+#ifdef FX_SPECULAR
     if (u_specEnabled && inNodeSet(NODE_SPECULAR) &&
         inMaterialMask(u_specMask, colorIdx)) {
         color = applySpecular(color, normal, viewDir, toLight, ndv);
     }
+#endif
 
+#ifdef FX_RIM
     if (u_rimEnabled && inNodeSet(NODE_RIM_LIGHT) &&
         inMaterialMask(u_rimMask, colorIdx)) {
         color = applyRim(color, ndv, lightAmount);
     }
+#endif
 
+#ifdef FX_GLITTER
     if (u_glitterEnabled && inNodeSet(NODE_GLITTER) &&
         inMaterialMask(u_glitterMask, colorIdx)) {
         color = applyGlitter(color, worldPos, texCoord, viewDir);
     }
+#endif
 
     return color;
 }

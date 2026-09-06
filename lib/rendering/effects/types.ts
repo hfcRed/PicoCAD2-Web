@@ -1,5 +1,6 @@
 import type { mat4 } from "gl-matrix";
-import type { Color3, SceneNode } from "../../types/scene.ts";
+import type { Color3 } from "../../types/scene.ts";
+import type { NodeBits } from "../node-selection.ts";
 import type { ModelResources, RenderStats } from "../renderer.ts";
 import type { CyclePhase } from "./cycle.ts";
 import type { TransparencyMode } from "./material-style.ts";
@@ -34,14 +35,16 @@ export interface EffectContext {
 	vertexGlitch: VertexGlitchEffect | null;
 	glitchPhase: CyclePhase;
 	glitchActive: boolean;
-	nodeBits: ReadonlyMap<SceneNode, number>;
+	nodeBits: NodeBits;
 	transparency: TransparencyMode;
 	smoothFades: boolean;
+	modelFeatures: number;
 }
 
 export interface PostProcessEffect {
 	readonly id: string;
 	readonly initialized: boolean;
+	readonly ready?: boolean;
 	readonly warpsIndex?: boolean;
 	enabled: boolean;
 	modelOnly: boolean;
@@ -54,6 +57,7 @@ export interface PostProcessEffect {
 export interface SceneEffect {
 	readonly id: string;
 	readonly initialized: boolean;
+	readonly ready?: boolean;
 	readonly writesIndex?: boolean;
 
 	enabled: boolean;

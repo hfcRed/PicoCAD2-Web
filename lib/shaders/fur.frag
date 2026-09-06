@@ -1,6 +1,13 @@
 #version 300 es
 precision highp float;
 
+/**
+ * The fur shells. Program variants follow the model shader's: FX_INDEX_OUT
+ * adds the palette index output for the scene target, FX_DEPTH_ONLY drops
+ * every color output for the floor's shadow map and stops after the
+ * discards, and the effect chunks carry their own feature switches.
+ */
+
 in vec3 v_normal;
 in vec3 v_worldPos;
 in vec3 v_meshPos;
@@ -28,8 +35,12 @@ uniform float u_furRootShade;
 #include chunks/palette-blend.glsl;
 #include chunks/voxel-cut.glsl;
 
+#ifndef FX_DEPTH_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
+#ifdef FX_INDEX_OUT
 layout(location = 1) out vec4 fragIndex;
+#endif
 
 void main() {
     int flags = int(v_faceFlags + 0.5);
@@ -71,6 +82,7 @@ void main() {
         discard;
     }
 
+#ifndef FX_DEPTH_ONLY
     vec3 normal = normalize(v_normal);
     if (gl_FrontFacing) normal = -normal;
 
@@ -106,7 +118,10 @@ void main() {
     float alpha = fadeAlpha(coverage);
     fragColor = vec4(color * alpha, alpha);
 
+#ifdef FX_INDEX_OUT
     // Fur strands are the material extended outward, so they write their
     // base index, with the dissolve's coverage like the surface they grow from.
     fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, coverage, 1.0);
+#endif
+#endif
 }

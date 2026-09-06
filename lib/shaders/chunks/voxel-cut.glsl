@@ -10,7 +10,9 @@
  * Voxel stand-ins carry every cube face. A face against an occupied
  * neighbor cell (the interior flag) is hidden while both cubes show, and
  * drawn while the neighbor's cell is still the base mesh, so a cube never
- * opens toward a missing neighbor. Fragment stage only.
+ * opens toward a missing neighbor. Fragment stage only. The cut only
+ * compiles into program variants that define FX_DEFORM, the others draw
+ * every base surface whole.
  */
 
 #include deform-sweep.glsl;
@@ -25,6 +27,9 @@ uniform float u_voxelGrid; // voxel edge length in world units
  * exactly on the grid planes, and points at the neighbor cell.
  */
 void applyVoxelCut(vec3 worldPos, vec3 outward, bool interior) {
+#ifndef FX_DEFORM
+    if (interior) discard;
+#else
     if (u_voxelSide < 0) {
         if (interior) discard;
         return;
@@ -34,4 +39,5 @@ void applyVoxelCut(vec3 worldPos, vec3 outward, bool interior) {
     bool voxel = deformProgress(center) > 0.5;
     if (voxel != (u_voxelSide == 1)) discard;
     if (interior && deformProgress(center + outward * u_voxelGrid) > 0.5) discard;
+#endif
 }

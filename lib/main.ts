@@ -1,5 +1,11 @@
 export const COMPATIBLE_VERSION = "2.2.0-b16";
-export { PicoCAD2Context } from "./context.ts";
+export { PicoCAD2Context, type PicoCAD2ContextOptions } from "./context.ts";
+export {
+	type MeshBufferGroup,
+	MODEL_ATTRIB_LOCATIONS,
+	type NodeBuffers,
+	type VertexArray,
+} from "./rendering/buffers.ts";
 export {
 	BILLBOARD_DEFAULTS,
 	BillboardEffect,
@@ -207,6 +213,13 @@ export {
 	WireframeEffect,
 } from "./rendering/effects/wireframe-effect.ts";
 export { BitmapFont } from "./rendering/font.ts";
+export {
+	compilerFor,
+	ManagedProgram,
+	ProgramCompiler,
+	type ShaderCompileMode,
+} from "./rendering/program-cache.ts";
+export { MODEL_FEATURE } from "./rendering/programs.ts";
 export type { ModelResources, RenderStats } from "./rendering/renderer.ts";
 export type { WorldBounds } from "./scene/scene-graph.ts";
 export type { RawGraphNode, RawPicoCAD2File } from "./types/model.ts";

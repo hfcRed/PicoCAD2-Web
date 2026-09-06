@@ -164,6 +164,10 @@ async function capture(scenario: Scenario): Promise<CaptureResult> {
 			}
 		}
 
+		// Programs compile in the background on GPU contexts, and a frame
+		// drawn before they are ready stands in with the plain programs.
+		await viewer.whenReady();
+
 		const sync = scenario.syncCameraWithAnimation ?? true;
 		const warmup = scenario.warmupFrames ?? 0;
 		const step = scenario.frameStep ?? 1 / 60;

@@ -1,40 +1,43 @@
-import { traverseNode } from "../scene/scene-graph.ts";
 import type {
 	AnimationClip,
 	AnimationProp,
 	Axis,
+	AxisClips,
+	ClipLists,
+	MotionData,
 	SceneNode,
 } from "../types/scene.ts";
 import { evaluateClip, evaluateTexClipFrame } from "./clip.ts";
 
-const TRANSFORM_PROPS: AnimationProp[] = ["pos", "rot", "scale"];
+const TRANSFORM_PROPS = ["pos", "rot", "scale"] as const;
 const AXES: Axis[] = ["x", "y", "z"];
-const AXIS_INDEX: Record<Axis, number> = { x: 0, y: 1, z: 2 };
-const TRANSFORM_KEY: Record<string, "position" | "rotation" | "scale"> = {
+const TRANSFORM_KEY: Record<
+	(typeof TRANSFORM_PROPS)[number],
+	"position" | "rotation" | "scale"
+> = {
 	pos: "position",
 	rot: "rotation",
 	scale: "scale",
 };
 
 const TEX_AXES: Axis[] = ["x", "y"];
-const TEX_UV_OFFSET: Record<string, number> = { x: 0, y: 1 };
 
 /**
  * Collects all clips matching a property+axis across all 4 tracks,
  * sorted by start time.
  *
- * @param node - The scene node whose motions to search.
+ * @param motions - The node's motion data.
  * @param prop - The property to match.
  * @param axis - The axis to match.
  * @returns The matching clips sorted by start time.
  */
 function collectClips(
-	node: SceneNode,
+	motions: MotionData,
 	prop: AnimationProp,
 	axis: Axis,
 ): AnimationClip[] {
 	const clips: AnimationClip[] = [];
-	for (const track of node.motions.tracks) {
+	for (const track of motions.tracks) {
 		for (const clip of track) {
 			if (clip.prop !== prop) continue;
 			if (!clip.axes.includes(axis)) continue;
@@ -46,42 +49,50 @@ function collectClips(
 }
 
 /**
- * Evaluates a single property+axis combination for a node.
- * Collects all matching clips across all 4 tracks, sorts by start time,
- * and chains their evaluation from the static base value.
+ * Sorts a node's clips by property and axis once, so every frame walks
+ * the lists instead of filtering the tracks nine times per node.
+ *
+ * @param motions - The node's motion data.
+ * @returns The clip lists.
+ */
+export function buildClipLists(motions: MotionData): ClipLists {
+	const axisClips = (prop: AnimationProp): AxisClips => [
+		collectClips(motions, prop, "x"),
+		collectClips(motions, prop, "y"),
+		collectClips(motions, prop, "z"),
+	];
+	return {
+		pos: axisClips("pos"),
+		rot: axisClips("rot"),
+		scale: axisClips("scale"),
+		visible: collectClips(motions, "visible", "x"),
+		tex: [collectClips(motions, "tex", "x"), collectClips(motions, "tex", "y")],
+	};
+}
+
+/**
+ * Evaluates one transform property axis of a node by chaining its clips
+ * from the static base value.
  *
  * @param node - The scene node to evaluate.
  * @param prop - The property to evaluate.
- * @param axis - The axis to evaluate.
+ * @param axisIdx - The axis index.
+ * @param clips - The property axis' clips in start order.
  * @param time - The current animation time in seconds.
  * @returns The evaluated value.
  */
-function evaluateProperty(
+function evaluateTransformProperty(
 	node: SceneNode,
-	prop: AnimationProp,
-	axis: Axis,
+	prop: (typeof TRANSFORM_PROPS)[number],
+	axisIdx: number,
+	clips: AnimationClip[],
 	time: number,
 ): number {
-	let value: number;
-	let baseScale = 1;
-
-	if (prop === "visible") {
-		value = node.originalVisible ? 1 : 0;
-	} else {
-		const transformProp = TRANSFORM_KEY[prop];
-		const axisIdx = AXIS_INDEX[axis];
-
-		value = node.staticTransform[transformProp][axisIdx];
-		if (prop === "scale") {
-			baseScale = node.staticTransform.scale[axisIdx];
-		}
+	let value = node.staticTransform[TRANSFORM_KEY[prop]][axisIdx];
+	const baseScale = prop === "scale" ? value : 1;
+	for (let i = 0; i < clips.length; i++) {
+		value = evaluateClip(clips[i], value, time, baseScale);
 	}
-
-	const clips = collectClips(node, prop, axis);
-	for (const clip of clips) {
-		value = evaluateClip(clip, value, time, baseScale);
-	}
-
 	return value;
 }
 
@@ -100,9 +111,9 @@ function applyTexAnimation(node: SceneNode, time: number): void {
 	const mesh = node.mesh;
 	if (!mesh) return;
 
-	for (const axis of TEX_AXES) {
-		const uvOffset = TEX_UV_OFFSET[axis];
-		const clips = collectClips(node, "tex", axis);
+	for (let axis = 0; axis < TEX_AXES.length; axis++) {
+		const uvOffset = axis;
+		const clips = node.clipLists.tex[axis];
 		if (clips.length === 0) continue;
 
 		const accumulatedFrames = new Map<number, number>();
@@ -129,32 +140,57 @@ function applyTexAnimation(node: SceneNode, time: number): void {
 }
 
 /**
+ * Evaluates a node's motions and its descendants'. Nodes without clips
+ * keep their transforms, so their matrices stay cached.
+ *
+ * @param node - The node to evaluate.
+ * @param time - The current animation time in seconds.
+ */
+function evaluateNode(node: SceneNode, time: number): void {
+	if (node.hasClips) {
+		const lists = node.clipLists;
+		for (const prop of TRANSFORM_PROPS) {
+			const target = node.transform[TRANSFORM_KEY[prop]];
+			const axisClips = lists[prop];
+			for (let axis = 0; axis < AXES.length; axis++) {
+				target[axis] = evaluateTransformProperty(
+					node,
+					prop,
+					axis,
+					axisClips[axis],
+					time,
+				);
+			}
+		}
+		node.dirty = true;
+
+		let visible = node.originalVisible ? 1 : 0;
+		const visibleClips = lists.visible;
+		for (let i = 0; i < visibleClips.length; i++) {
+			visible = evaluateClip(visibleClips[i], visible, time);
+		}
+		node.visible = visible !== 0;
+
+		applyTexAnimation(node, time);
+	}
+
+	const children = node.children;
+	for (let i = 0; i < children.length; i++) {
+		evaluateNode(children[i], time);
+	}
+}
+
+/**
  * Evaluates all animation motions across the scene graph at a given time.
- * Updates node transforms, visibility, and face UVs in-place, marking nodes
- * as dirty.
+ * Updates node transforms, visibility, and face UVs in-place, marking the
+ * animated nodes as dirty.
  *
  * @param root - The root node of the scene graph.
  * @param time - The current animation time in seconds.
  */
 export function evaluateMotions(root: SceneNode, time: number): void {
-	traverseNode(root, (node) => {
-		for (const prop of TRANSFORM_PROPS) {
-			for (const axis of AXES) {
-				const v = evaluateProperty(node, prop, axis, time);
-				const transformProp = TRANSFORM_KEY[prop];
-				const axisIdx = AXIS_INDEX[axis];
-				node.transform[transformProp][axisIdx] = v;
-			}
-		}
-		node.dirty = true;
-	});
-
-	traverseNode(root, (node) => {
-		const v = evaluateProperty(node, "visible", "x", time);
-		node.visible = v !== 0;
-	});
-
-	traverseNode(root, (node) => {
-		applyTexAnimation(node, time);
-	});
+	const children = root.children;
+	for (let i = 0; i < children.length; i++) {
+		evaluateNode(children[i], time);
+	}
 }

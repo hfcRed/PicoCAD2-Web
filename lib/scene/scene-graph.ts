@@ -140,11 +140,25 @@ export function storeStaticTransforms(root: SceneNode): void {
 
 /**
  * Restores transforms, visibility, and face UVs from the static snapshot.
+ * Only nodes with clips ever diverge from it, so only they are touched
+ * and the other nodes keep their cached matrices.
  *
  * @param root - The root node of the scene graph.
  */
 export function restoreStaticTransforms(root: SceneNode): void {
-	traverseNode(root, (node) => {
+	const children = root.children;
+	for (let i = 0; i < children.length; i++) {
+		restoreNode(children[i]);
+	}
+}
+
+/**
+ * Restores a node's animated state and its descendants'.
+ *
+ * @param node - The node to restore.
+ */
+function restoreNode(node: SceneNode): void {
+	if (node.hasClips) {
 		node.transform.position.set(node.staticTransform.position);
 		node.transform.rotation.set(node.staticTransform.rotation);
 		node.transform.scale.set(node.staticTransform.scale);
@@ -158,5 +172,10 @@ export function restoreStaticTransforms(root: SceneNode): void {
 			}
 			node.uvsDirty = true;
 		}
-	});
+	}
+
+	const children = node.children;
+	for (let i = 0; i < children.length; i++) {
+		restoreNode(children[i]);
+	}
 }

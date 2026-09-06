@@ -60,9 +60,13 @@ bool inFaceMask(int mask, float colorIdx) {
 
 /**
  * Sends the triangle flying as a rigid piece. Offset from its centroid
- * along a per-triangle direction.
+ * along a per-triangle direction. Only program variants that define
+ * FX_SHATTER carry the shatter.
  */
 vec3 applyShatter(vec3 p, vec3 centroidW, vec3 worldNormal) {
+#ifndef FX_SHATTER
+    return p;
+#else
     if (!u_shatterEnabled) return p;
     if (!inNodeSet(NODE_SHATTER) || !inFaceMask(u_shatterMask, a_colorIndex)) return p;
     float progress = clamp(u_shatterProgress, 0.0, 1.0);
@@ -96,15 +100,20 @@ vec3 applyShatter(vec3 p, vec3 centroidW, vec3 worldNormal) {
     rel *= max(1.0 - u_shatterShrink * progress, 0.0);
 
     return centroidW + offset + rel;
+#endif
 }
 
 /**
  * Flash intensity for this triangle. Time is divided into buckets at
  * u_flashRate Hz, each bucket picks a random fraction of triangles, and
  * winners run a flash envelope for u_flashDuration seconds. Softness
- * turns the hard on/off window into a triangle fade.
+ * turns the hard on/off window into a triangle fade. Only program
+ * variants that define FX_FLASH pick triangles.
  */
 float computeFlash() {
+#ifndef FX_FLASH
+    return 0.0;
+#else
     if (!u_flashEnabled) return 0.0;
     if (!inNodeSet(NODE_FLASH) || !inFaceMask(u_flashMask, a_colorIndex)) return 0.0;
 
@@ -118,6 +127,7 @@ float computeFlash() {
 
     float soft = max(u_flashSoftness, 0.0001);
     return clamp(min(phase, 1.0 - phase) * 2.0 / soft, 0.0, 1.0);
+#endif
 }
 
 void main() {

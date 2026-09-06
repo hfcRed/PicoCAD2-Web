@@ -3,6 +3,7 @@ import * as twgl from "twgl.js";
 import floorFrag from "../shaders/floor.frag";
 import floorVert from "../shaders/floor.vert";
 import type { Color3 } from "../types/scene.ts";
+import { compilerFor, type ManagedProgram } from "./program-cache.ts";
 
 export const FLOOR_SHADOW_MAP_SIZE = 512;
 
@@ -11,14 +12,20 @@ export const FLOOR_SHADOW_MAP_SIZE = 512;
  * first use. The plate program, the depth-only shadow map the model is
  * drawn into along the shadow direction, and the reflection framebuffer
  * the mirrored model pass renders into.
+ *
+ * The reflection framebuffer carries a second color attachment that is
+ * never read, so the mirrored pass draws with the same two-output program
+ * variant as the scene pass. A program drawn into a different set of
+ * draw buffers costs a full recompile on some drivers.
  */
 export class FloorResources {
-	private program: twgl.ProgramInfo | null = null;
+	private program: ManagedProgram | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private shadowFbo: WebGLFramebuffer | null = null;
 	shadowTexture: WebGLTexture | null = null;
 	private reflectionFbo: WebGLFramebuffer | null = null;
 	reflectionTexture: WebGLTexture | null = null;
+	private reflectionIndex: WebGLTexture | null = null;
 	private reflectionDepth: WebGLRenderbuffer | null = null;
 	private reflectionWidth = 0;
 	private reflectionHeight = 0;
@@ -129,6 +136,22 @@ export class FloorResources {
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+			this.reflectionIndex = gl.createTexture();
+			gl.bindTexture(gl.TEXTURE_2D, this.reflectionIndex);
+			gl.texImage2D(
+				gl.TEXTURE_2D,
+				0,
+				gl.RGBA8,
+				w,
+				h,
+				0,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				null,
+			);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
 			this.reflectionDepth = gl.createRenderbuffer();
 			gl.bindRenderbuffer(gl.RENDERBUFFER, this.reflectionDepth);
 			gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
@@ -142,6 +165,13 @@ export class FloorResources {
 				this.reflectionTexture,
 				0,
 			);
+			gl.framebufferTexture2D(
+				gl.FRAMEBUFFER,
+				gl.COLOR_ATTACHMENT1,
+				gl.TEXTURE_2D,
+				this.reflectionIndex,
+				0,
+			);
 			gl.framebufferRenderbuffer(
 				gl.FRAMEBUFFER,
 				gl.DEPTH_ATTACHMENT,
@@ -153,29 +183,42 @@ export class FloorResources {
 		}
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.reflectionFbo);
-		gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
 		gl.viewport(0, 0, w, h);
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	}
 
 	/**
-	 * Draws the plate quad with the current uniforms into the bound
-	 * framebuffer, compiling the plate program on first use.
+	 * Starts compiling the plate program if it has not been requested yet.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
-	drawPlane(gl: WebGL2RenderingContext): void {
-		if (!this.program) {
-			this.program = twgl.createProgramInfo(gl, [floorVert, floorFrag]);
-			this.emptyVao = gl.createVertexArray();
-		}
+	ensureProgram(gl: WebGL2RenderingContext): void {
+		if (this.program) return;
+		this.program = compilerFor(gl).compile(floorVert, floorFrag);
+		this.emptyVao = gl.createVertexArray();
+	}
 
-		gl.useProgram(this.program.program);
-		twgl.setUniforms(this.program, this.uniforms);
+	/**
+	 * Draws the plate quad with the current uniforms into the bound
+	 * framebuffer, compiling the plate program on first use. Draws nothing
+	 * while the program is still compiling.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 * @returns Whether the plate was drawn.
+	 */
+	drawPlane(gl: WebGL2RenderingContext): boolean {
+		this.ensureProgram(gl);
+		const info = this.program?.info;
+		if (!info) return false;
+
+		gl.useProgram(info.program);
+		twgl.setUniforms(info, this.uniforms);
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArrays(gl.TRIANGLES, 0, 6);
 		gl.bindVertexArray(null);
+		return true;
 	}
 
 	/**
@@ -194,7 +237,8 @@ export class FloorResources {
 			this.shadowTexture = null;
 		}
 		if (this.program) {
-			gl.deleteProgram(this.program.program);
+			compilerFor(gl).forget(this.program);
+			this.program.dispose(gl);
 			this.program = null;
 		}
 		if (this.emptyVao) {
@@ -216,6 +260,10 @@ export class FloorResources {
 		if (this.reflectionTexture) {
 			gl.deleteTexture(this.reflectionTexture);
 			this.reflectionTexture = null;
+		}
+		if (this.reflectionIndex) {
+			gl.deleteTexture(this.reflectionIndex);
+			this.reflectionIndex = null;
 		}
 		if (this.reflectionDepth) {
 			gl.deleteRenderbuffer(this.reflectionDepth);

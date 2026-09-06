@@ -3,7 +3,8 @@
  * dissolve's sweep at each fragment, discards behind the front through
  * the shading checkerboard or fades it with the smooth transparency's
  * passes, and exposes the ember-edge band intensity for the surviving
- * fragments near the cut.
+ * fragments near the cut. Only program variants that define FX_DISSOLVE
+ * carry the dissolve, the others keep every fragment whole.
  */
 
 #include node-bits.glsl;
@@ -37,6 +38,9 @@ bool inDissolveMask(float colorIdx) {
  */
 float applyDissolveCutout(float colorIdx, vec3 worldPos, vec3 meshPos, out float coverage) {
     coverage = 1.0;
+#ifndef FX_DISSOLVE
+    return 0.0;
+#else
     if (!u_dissolveEnabled || !inNodeSet(NODE_DISSOLVE) || !inDissolveMask(colorIdx)) {
         if (u_fadePass == FADE_BLENDED) discard;
         return 0.0;
@@ -58,11 +62,16 @@ float applyDissolveCutout(float colorIdx, vec3 worldPos, vec3 meshPos, out float
 
     float d = sweepDistance(u_dissolveSweep, progress, worldPos, meshPos);
     return clamp(1.0 - d / u_dissolveEdgeWidth, 0.0, 1.0);
+#endif
 }
 
 /** Paints the dissolve edge over the final color. */
 vec3 applyDissolveEdge(vec3 color, float edge) {
+#ifndef FX_DISSOLVE
+    return color;
+#else
     if (edge <= 0.0) return color;
     if (u_dissolveSmooth) return mix(color, u_dissolveEdgeColor, edge);
     return checkerGate(edge) ? u_dissolveEdgeColor : color;
+#endif
 }

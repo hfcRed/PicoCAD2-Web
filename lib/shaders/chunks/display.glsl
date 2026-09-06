@@ -8,11 +8,14 @@
  * displayTexCoord). In screen space the structure follows the output
  * pixels like the post pass, but without resampling, since a fragment only
  * knows its own color. Warps, the projector's halo and ghosting stay with
- * the post pass.
+ * the post pass. The simulation only compiles into program variants that
+ * define FX_DISPLAY, no material is a display in the others.
  */
 
 #include node-bits.glsl;
+#ifdef FX_DISPLAY
 #include screen.glsl;
+#endif
 
 uniform bool u_displayEnabled;
 uniform int u_displaySpace; // 0 = uv, 1 = screen
@@ -36,11 +39,17 @@ const vec2 DISPLAY_TEXELS = vec2(128.0);
 
 /** Whether the fragment's material is a display. Same mask semantics as the other material effects (0 = all). */
 bool displayActive(float colorIdx) {
+#ifndef FX_DISPLAY
+    return false;
+#else
     if (!u_displayEnabled || !inNodeSet(NODE_DISPLAY)) return false;
     if (u_displayMask == 0) return true;
     int idx = int(colorIdx + 0.5);
     return idx < 16 && ((u_displayMask >> idx) & 1) != 0;
+#endif
 }
+
+#ifdef FX_DISPLAY
 
 /**
  * The uv-space screen position of a texel. The texture's v runs down from
@@ -80,3 +89,12 @@ vec3 applyDisplay(vec3 color, vec2 texCoord, vec2 screenUv, vec2 resolution, flo
     );
     return clamp(c * m, 0.0, 1.0);
 }
+#else
+vec2 displayTexCoord(vec2 texCoord) {
+    return texCoord;
+}
+
+vec3 applyDisplay(vec3 color, vec2 texCoord, vec2 screenUv, vec2 resolution, float time) {
+    return color;
+}
+#endif

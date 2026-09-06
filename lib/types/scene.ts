@@ -24,9 +24,15 @@ export interface Face {
 	interior?: boolean;
 }
 
+export interface MeshBounds {
+	min: [number, number, number];
+	max: [number, number, number];
+}
+
 export interface Mesh {
 	vertices: Float32Array;
 	faces: Face[];
+	bounds?: MeshBounds;
 }
 
 export interface AnimationClip {
@@ -48,6 +54,16 @@ export interface MotionData {
 	tracks: [AnimationClip[], AnimationClip[], AnimationClip[], AnimationClip[]];
 }
 
+export type AxisClips = [AnimationClip[], AnimationClip[], AnimationClip[]];
+
+export interface ClipLists {
+	pos: AxisClips;
+	rot: AxisClips;
+	scale: AxisClips;
+	visible: AnimationClip[];
+	tex: [AnimationClip[], AnimationClip[]];
+}
+
 export interface SceneNode {
 	name: string;
 	visible: boolean;
@@ -59,6 +75,8 @@ export interface SceneNode {
 	originalVisible: boolean;
 	mesh: Mesh | null;
 	motions: MotionData;
+	clipLists: ClipLists;
+	hasClips: boolean;
 	hasTexClips: boolean;
 	uvsDirty: boolean;
 	dirty: boolean;

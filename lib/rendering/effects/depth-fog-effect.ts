@@ -7,6 +7,7 @@ import {
 import depthFogFrag from "../../shaders/effects/depth-fog.frag";
 import fullscreenVert from "../../shaders/effects/fullscreen.vert";
 import type { DepthFogOptions } from "../../types/options.ts";
+import { compilerFor, type ManagedProgram } from "../program-cache.ts";
 import { packColorMask } from "./color-mask.ts";
 import {
 	type DeepRequired,
@@ -29,7 +30,7 @@ const FOG_MODE_MAP: Record<FogMode, number> = {
  * Requires the depth texture from the scene FBO.
  */
 export class DepthFogEffect implements PostProcessEffect {
-	private program: twgl.ProgramInfo | null = null;
+	private program: ManagedProgram | null = null;
 	private gl: WebGL2RenderingContext | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 
@@ -45,15 +46,20 @@ export class DepthFogEffect implements PostProcessEffect {
 		resetEffect(this, DEPTH_FOG_DEFAULTS);
 	}
 
+	/** Whether the program has linked and the effect can draw. */
+	get ready(): boolean {
+		return this.program?.ready === true;
+	}
+
 	/**
-	 * Compiles the shader program and creates the empty VAO.
+	 * Starts compiling the shader program and creates the empty VAO.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	init(gl: WebGL2RenderingContext): void {
 		if (this.initialized) return;
 		this.gl = gl;
-		this.program = twgl.createProgramInfo(gl, [fullscreenVert, depthFogFrag]);
+		this.program = compilerFor(gl).compile(fullscreenVert, depthFogFrag);
 		this.emptyVao = gl.createVertexArray();
 		this.initialized = true;
 	}
@@ -65,11 +71,13 @@ export class DepthFogEffect implements PostProcessEffect {
 	 * @param inputTexture - The color texture to read from.
 	 */
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void {
+		const info = this.program?.info;
+		if (!info) return;
 		const gl = ctx.gl;
 
-		gl.useProgram(this.program!.program);
+		gl.useProgram(info.program);
 
-		twgl.setUniforms(this.program!, {
+		twgl.setUniforms(info, {
 			u_texture: inputTexture,
 			u_depthTexture: ctx.depthTexture,
 			u_modelOnly: this.modelOnly,
@@ -100,7 +108,8 @@ export class DepthFogEffect implements PostProcessEffect {
 		if (!this.gl) return;
 
 		if (this.program) {
-			this.gl.deleteProgram(this.program.program);
+			compilerFor(this.gl).forget(this.program);
+			this.program.dispose(this.gl);
 			this.program = null;
 		}
 		if (this.emptyVao) {

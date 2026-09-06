@@ -1,17 +1,41 @@
 import { vec3 } from "gl-matrix";
-import * as twgl from "twgl.js";
 import { traverseNode } from "../scene/scene-graph.ts";
 import type { Face, Mesh, SceneNode } from "../types/scene.ts";
 
-export interface MeshBufferGroup {
-	bufferInfo: twgl.BufferInfo;
+/**
+ * The attribute locations of every program that draws model buffers,
+ * bound before the programs link. Every program variant then agrees on
+ * the layout, so one vertex array object per buffer group serves them
+ * all and a draw binds it with a single call.
+ */
+export const MODEL_ATTRIB_LOCATIONS: Readonly<Record<string, number>> =
+	Object.freeze({
+		a_position: 0,
+		a_normal: 1,
+		a_smoothNormal: 2,
+		a_texCoord: 3,
+		a_colorIndex: 4,
+		a_faceFlags: 5,
+		a_triId: 6,
+		a_triCentroid: 7,
+	});
+
+export interface VertexArray {
+	vao: WebGLVertexArrayObject;
+	buffers: WebGLBuffer[];
+	vertexCount: number;
+}
+
+export interface MeshBufferGroup extends VertexArray {
+	/** The texture coordinate buffer, re-uploaded by "tex" clip animation. */
+	texCoordBuffer: WebGLBuffer;
 	triangleCount: number;
 }
 
 export interface NodeBuffers {
 	node: SceneNode;
 	groups: (MeshBufferGroup | null)[];
-	wireframe: twgl.BufferInfo | null;
+	wireframe: VertexArray | null;
 	/**
 	 * True for buffers whose UVs are baked (voxelized meshes). Animated
 	 * "tex" clips must not re-upload the node's face UVs into them.
@@ -94,10 +118,7 @@ export function updateNodeTexCoords(
 		const group = nodeBuffers.groups[g];
 		if (!group) continue;
 
-		const attrib = group.bufferInfo.attribs?.a_texCoord;
-		if (!attrib) continue;
-
-		gl.bindBuffer(gl.ARRAY_BUFFER, attrib.buffer);
+		gl.bindBuffer(gl.ARRAY_BUFFER, group.texCoordBuffer);
 		gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(groupTexCoords[g]));
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	}
@@ -209,6 +230,45 @@ function smoothedNormalAt(
 }
 
 /**
+ * Uploads one attribute into a new buffer and points the bound vertex
+ * array object's attribute at it.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @param name - The attribute name, from {@link MODEL_ATTRIB_LOCATIONS}.
+ * @param size - Components per vertex.
+ * @param data - The interleaved values.
+ * @returns The buffer.
+ */
+function uploadAttribute(
+	gl: WebGL2RenderingContext,
+	name: string,
+	size: number,
+	data: number[],
+): WebGLBuffer {
+	const buffer = gl.createBuffer();
+	if (!buffer) throw new Error("Failed to create a vertex buffer");
+	const location = MODEL_ATTRIB_LOCATIONS[name];
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+	gl.enableVertexAttribArray(location);
+	gl.vertexAttribPointer(location, size, gl.FLOAT, false, 0, 0);
+	return buffer;
+}
+
+/**
+ * Creates a vertex array object and binds it for attribute uploads.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @returns The bound vertex array object.
+ */
+function beginVertexArray(gl: WebGL2RenderingContext): WebGLVertexArrayObject {
+	const vao = gl.createVertexArray();
+	if (!vao) throw new Error("Failed to create a vertex array object");
+	gl.bindVertexArray(vao);
+	return vao;
+}
+
+/**
  * Builds GPU buffers for a single mesh by fan-triangulating its faces
  * and sorting them into render groups.
  *
@@ -316,61 +376,56 @@ export function buildNodeBuffers(
 			continue;
 		}
 
-		const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
-			a_position: {
-				numComponents: 3,
-				data: new Float32Array(groupPositions[g]),
-			},
-			a_normal: { numComponents: 3, data: new Float32Array(groupNormals[g]) },
-			a_smoothNormal: {
-				numComponents: 3,
-				data: new Float32Array(groupSmoothNormals[g]),
-			},
-			a_texCoord: {
-				numComponents: 2,
-				data: new Float32Array(groupTexCoords[g]),
-			},
-			a_colorIndex: {
-				numComponents: 1,
-				data: new Float32Array(groupColorIndices[g]),
-			},
-			a_faceFlags: {
-				numComponents: 1,
-				data: new Float32Array(groupFaceFlags[g]),
-			},
-			a_triId: {
-				numComponents: 1,
-				data: new Float32Array(groupTriIds[g]),
-			},
-			a_triCentroid: {
-				numComponents: 3,
-				data: new Float32Array(groupTriCentroids[g]),
-			},
-		});
+		const vao = beginVertexArray(gl);
+		const buffers: WebGLBuffer[] = [];
+		buffers.push(uploadAttribute(gl, "a_position", 3, groupPositions[g]));
+		buffers.push(uploadAttribute(gl, "a_normal", 3, groupNormals[g]));
+		buffers.push(
+			uploadAttribute(gl, "a_smoothNormal", 3, groupSmoothNormals[g]),
+		);
+		const texCoordBuffer = uploadAttribute(
+			gl,
+			"a_texCoord",
+			2,
+			groupTexCoords[g],
+		);
+		buffers.push(texCoordBuffer);
+		buffers.push(uploadAttribute(gl, "a_colorIndex", 1, groupColorIndices[g]));
+		buffers.push(uploadAttribute(gl, "a_faceFlags", 1, groupFaceFlags[g]));
+		buffers.push(uploadAttribute(gl, "a_triId", 1, groupTriIds[g]));
+		buffers.push(uploadAttribute(gl, "a_triCentroid", 3, groupTriCentroids[g]));
+		gl.bindVertexArray(null);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
+		const vertexCount = groupPositions[g].length / 3;
 		groups.push({
-			bufferInfo,
-			triangleCount: groupPositions[g].length / 3,
+			vao,
+			buffers,
+			texCoordBuffer,
+			vertexCount,
+			triangleCount: vertexCount / 3,
 		});
 	}
 
-	let wireframe: twgl.BufferInfo | null = null;
+	let wireframe: VertexArray | null = null;
 	if (wirePositions.length > 0) {
-		wireframe = twgl.createBufferInfoFromArrays(gl, {
-			a_position: { numComponents: 3, data: new Float32Array(wirePositions) },
-			a_smoothNormal: {
-				numComponents: 3,
-				data: new Float32Array(wireSmoothNormals),
-			},
-		});
+		const vao = beginVertexArray(gl);
+		const buffers = [
+			uploadAttribute(gl, "a_position", 3, wirePositions),
+			uploadAttribute(gl, "a_smoothNormal", 3, wireSmoothNormals),
+		];
+		gl.bindVertexArray(null);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		wireframe = { vao, buffers, vertexCount: wirePositions.length / 3 };
 	}
 
 	return { node, groups, wireframe };
 }
 
 /**
- * Deletes the GL buffers held by a list of node buffers. Used when
- * voxelized stand-in geometry is rebuilt for a new grid size.
+ * Deletes the GL buffers and vertex array objects held by a list of node
+ * buffers. Used when voxelized stand-in geometry is rebuilt for a new
+ * grid size.
  *
  * @param gl - The WebGL 2 rendering context.
  * @param buffers - The node buffers to delete.
@@ -379,17 +434,16 @@ export function deleteNodeBuffers(
 	gl: WebGL2RenderingContext,
 	buffers: NodeBuffers[],
 ): void {
-	const deleteInfo = (info: twgl.BufferInfo): void => {
-		for (const attrib of Object.values(info.attribs ?? {})) {
-			gl.deleteBuffer(attrib.buffer);
-		}
+	const deleteArray = (array: VertexArray): void => {
+		gl.deleteVertexArray(array.vao);
+		for (const buffer of array.buffers) gl.deleteBuffer(buffer);
 	};
 
 	for (const nb of buffers) {
 		for (const group of nb.groups) {
-			if (group) deleteInfo(group.bufferInfo);
+			if (group) deleteArray(group);
 		}
-		if (nb.wireframe) deleteInfo(nb.wireframe);
+		if (nb.wireframe) deleteArray(nb.wireframe);
 	}
 }
 

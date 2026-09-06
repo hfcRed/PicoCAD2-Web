@@ -11,6 +11,9 @@
  * scales by the local progress of the deform's sweep at the vertex, so a
  * moving front bends the model instead of tearing it. Both triangles of a
  * shared edge evaluate the same field at the same position.
+ *
+ * The warps only compile into program variants that define FX_DEFORM,
+ * every other variant passes positions through.
  */
 
 #include node-bits.glsl;
@@ -44,6 +47,9 @@ float deformHalfExtent(int axis) {
 }
 
 vec3 applyMeshDeform(vec3 p) {
+#ifndef FX_DEFORM
+    return p;
+#else
     if (!u_deformEnabled || !inNodeSet(NODE_DEFORM)) return p;
 
     float local = deformProgress(p);
@@ -75,4 +81,5 @@ vec3 applyMeshDeform(vec3 p) {
     }
 
     return u_deformCenter + rel;
+#endif
 }

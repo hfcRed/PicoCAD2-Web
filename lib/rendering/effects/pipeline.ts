@@ -47,7 +47,11 @@ export class PostProcessPipeline {
 	 * @returns The effect, or undefined if not found.
 	 */
 	getPostEffect(id: string): PostProcessEffect | undefined {
-		return this.postEffects.find((e) => e.id === id);
+		const effects = this.postEffects;
+		for (let i = 0; i < effects.length; i++) {
+			if (effects[i].id === id) return effects[i];
+		}
+		return undefined;
 	}
 
 	/**
@@ -87,7 +91,11 @@ export class PostProcessPipeline {
 	 * @returns The effect, or undefined if not found.
 	 */
 	getSceneEffect(id: string): SceneEffect | undefined {
-		return this.sceneEffectsList.find((e) => e.id === id);
+		const effects = this.sceneEffectsList;
+		for (let i = 0; i < effects.length; i++) {
+			if (effects[i].id === id) return effects[i];
+		}
+		return undefined;
 	}
 
 	/**
@@ -96,7 +104,26 @@ export class PostProcessPipeline {
 	 * @returns Whether any post-process effect is active.
 	 */
 	hasActivePostEffects(): boolean {
-		return this.postEffects.some((e) => e.enabled);
+		const effects = this.postEffects;
+		for (let i = 0; i < effects.length; i++) {
+			if (effects[i].enabled) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Starts compiling the programs of every enabled effect that has not
+	 * been initialized yet, so a caller can wait for them.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	initEnabledEffects(gl: WebGL2RenderingContext): void {
+		for (const effect of this.postEffects) {
+			if (effect.enabled && !effect.initialized) effect.init(gl);
+		}
+		for (const effect of this.sceneEffectsList) {
+			if (effect.enabled && !effect.initialized) effect.init(gl);
+		}
 	}
 
 	/**
@@ -105,7 +132,11 @@ export class PostProcessPipeline {
 	 * @returns Whether any scene effect is active.
 	 */
 	hasActiveSceneEffects(): boolean {
-		return this.sceneEffectsList.some((e) => e.enabled);
+		const effects = this.sceneEffectsList;
+		for (let i = 0; i < effects.length; i++) {
+			if (effects[i].enabled) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -158,6 +189,8 @@ export class PostProcessPipeline {
 			if (!effect.initialized) {
 				effect.init(gl);
 			}
+
+			if (effect.ready === false) continue;
 
 			const inputTexture = this.pool.swap(gl);
 			gl.viewport(0, 0, ctx.width, ctx.height);

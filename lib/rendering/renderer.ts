@@ -73,7 +73,13 @@ import {
 } from "./effects/video-effects-effect.ts";
 import { FloorResources } from "./floor-resources.ts";
 import { computeNodeBits, NODE_BIT } from "./node-selection.ts";
-import { createPrograms, type ShaderPrograms } from "./programs.ts";
+import type { ProgramVariants } from "./program-cache.ts";
+import {
+	DEPTH_FEATURES,
+	FUR_FEATURES,
+	MODEL_FEATURE,
+	ShaderPrograms,
+} from "./programs.ts";
 import {
 	buildPaletteData,
 	createIndexTexture,
@@ -137,6 +143,36 @@ const FADE_DITHERED = 0;
 const FADE_OPAQUE = 1;
 const FADE_BLENDED = 2;
 
+/** The feature bits that decide a program variant's outputs. */
+const LAYOUT_FEATURES = MODEL_FEATURE.indexOut | MODEL_FEATURE.depthOnly;
+
+/**
+ * The model program features a frame's settings ask for. Keyed on the
+ * effects' enabled flags rather than on whether they touch the model this
+ * frame, so a cycling effect keeps one variant instead of flipping.
+ *
+ * @param settings - The current render settings.
+ * @returns The feature bits, without the output layout bits.
+ */
+export function modelFeatureKey(settings: RenderSettings): number {
+	let key = 0;
+	if (settings.meshDeform?.enabled) key |= MODEL_FEATURE.deform;
+	if (settings.vertexGlitch?.enabled) key |= MODEL_FEATURE.vertexGlitch;
+	if (settings.triangleShatter?.enabled) key |= MODEL_FEATURE.shatter;
+	if (settings.triangleFlash?.enabled) key |= MODEL_FEATURE.flash;
+	if (settings.dissolve?.enabled) key |= MODEL_FEATURE.dissolve;
+	if (settings.paletteSwap?.enabled) key |= MODEL_FEATURE.paletteBlend;
+	if (settings.interior?.enabled) key |= MODEL_FEATURE.interior;
+	if (settings.rimLight?.enabled) key |= MODEL_FEATURE.rimLight;
+	if (settings.gradientLight?.enabled) key |= MODEL_FEATURE.gradientLight;
+	if (settings.specular?.enabled) key |= MODEL_FEATURE.specular;
+	if (settings.glitter?.enabled) key |= MODEL_FEATURE.glitter;
+	if (settings.emission?.enabled) key |= MODEL_FEATURE.emission;
+	if (settings.projection?.enabled) key |= MODEL_FEATURE.projection;
+	if (settings.display?.enabled) key |= MODEL_FEATURE.display;
+	return key;
+}
+
 export interface ModelResources {
 	indexTexture: WebGLTexture;
 	paletteTexture: WebGLTexture;
@@ -161,6 +197,17 @@ export class Renderer {
 	readonly stats: RenderStats = { drawCalls: 0, polyCount: 0 };
 	private readonly lightDirWorld: vec3 = vec3.create();
 	private programs: ShaderPrograms;
+
+	/** This frame's model feature bits, see {@link modelFeatureKey}. */
+	private modelFeatures = 0;
+	/** The model program variant the current pass draws with. */
+	private modelProgram: twgl.ProgramInfo;
+	/** The fur program variant the current pass draws with, null skips the fur. */
+	private furProgram: twgl.ProgramInfo | null = null;
+	/** Per output layout, the last variant key that was ready to draw with. */
+	private readonly lastModelKey = new Map<number, number>();
+	private readonly lastFurKey = new Map<number, number>();
+
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	private readonly effectCtx: EffectContext;
 	private shatterActive = false;
@@ -188,7 +235,7 @@ export class Renderer {
 		u_voxelSide: -1,
 	};
 	/** Per-node effect selection bits for the current frame. */
-	private readonly nodeBits = new Map<SceneNode, number>();
+	private readonly nodeBits = new WeakMap<SceneNode, number>();
 	private readonly modelUniforms = {
 		u_vp: mat4.create() as mat4,
 		u_indexTexture: null as WebGLTexture | null,
@@ -402,7 +449,8 @@ export class Renderer {
 	 */
 	constructor(gl: WebGL2RenderingContext) {
 		this.gl = gl;
-		this.programs = createPrograms(gl);
+		this.programs = new ShaderPrograms(gl);
+		this.modelProgram = this.programs.model.ready(MODEL_FEATURE.indexOut)!;
 		this.effectCtx = {
 			gl,
 			width: 0,
@@ -434,7 +482,95 @@ export class Renderer {
 			shatterActive: false,
 			transparency: "dithered",
 			smoothFades: false,
+			modelFeatures: 0,
 		};
+	}
+
+	/**
+	 * Starts compiling every program a frame with these settings would draw
+	 * with, so a caller can wait for them before drawing. The programs a
+	 * frame finds still compiling are stood in for by the ones it has.
+	 *
+	 * @param settings - The current render settings.
+	 * @param pipeline - The per-viewer post-process pipeline.
+	 */
+	requestPrograms(
+		settings: RenderSettings,
+		pipeline: PostProcessPipeline,
+	): void {
+		const features = modelFeatureKey(settings);
+		const sceneKey = features | MODEL_FEATURE.indexOut;
+		this.programs.model.get(sceneKey);
+		if (settings.fur?.enabled) {
+			this.programs.fur.get(sceneKey & FUR_FEATURES);
+		}
+		if (settings.floor?.enabled) {
+			if (!this.floor) this.floor = new FloorResources();
+			this.floor.ensureProgram(this.gl);
+			if (settings.floor.shadow.enabled) {
+				const depthKey = (features & DEPTH_FEATURES) | MODEL_FEATURE.depthOnly;
+				this.programs.model.get(depthKey);
+				if (settings.fur?.enabled) {
+					this.programs.fur.get(depthKey & FUR_FEATURES);
+				}
+			}
+		}
+		pipeline.initEnabledEffects(this.gl);
+	}
+
+	/**
+	 * The variant to draw a pass with. The exact variant when it is ready,
+	 * else the last variant with the same outputs that was drawn with, else
+	 * that layout's plain variant. Requesting a variant starts its compile.
+	 *
+	 * @param variants - The program's variants.
+	 * @param key - The wanted feature bits, output layout bits included.
+	 * @param last - The per-layout memory of the last ready key.
+	 * @returns The program to draw with, or null when none is ready.
+	 */
+	private selectVariant(
+		variants: ProgramVariants,
+		key: number,
+		last: Map<number, number>,
+	): twgl.ProgramInfo | null {
+		const layout = key & LAYOUT_FEATURES;
+		const exact = variants.get(key);
+		if (exact.info) {
+			last.set(layout, key);
+			return exact.info;
+		}
+		const previous = last.get(layout);
+		if (previous !== undefined) {
+			const info = variants.ready(previous);
+			if (info) return info;
+		}
+		return variants.ready(layout);
+	}
+
+	/**
+	 * Selects the model and fur programs of a pass.
+	 *
+	 * @param key - The model feature bits with the pass's output layout bits.
+	 * @returns Whether the model program is ready. The fur program is null
+	 *   when the fur is off or its variant is still compiling.
+	 */
+	private selectPassPrograms(key: number): boolean {
+		const model = this.selectVariant(
+			this.programs.model,
+			key,
+			this.lastModelKey,
+		);
+		if (!model) return false;
+		this.modelProgram = model;
+		this.furProgram =
+			this.furLayers > 0
+				? this.selectVariant(
+						this.programs.fur,
+						key & FUR_FEATURES,
+						this.lastFurKey,
+					)
+				: null;
+		return true;
 	}
 
 	/**
@@ -490,13 +626,25 @@ export class Renderer {
 		h: number,
 	): void {
 		const gl = this.gl;
+		this.programs.compiler.poll();
 
 		const gradOutline = pipeline.getPostEffect("gradientOutline");
 		const useGradientOutline =
 			gradOutline instanceof GradientOutlineEffect && gradOutline.enabled;
 		const useOutline = settings.outlineSize > 0 && !useGradientOutline;
 		const hasEffects = pipeline.hasActiveEffects();
-		const useFbo = useOutline || hasEffects;
+
+		// Every model-pass feature draws into the scene target, so the
+		// direct path only ever needs the plain single-output variant and
+		// the featured variants keep one output layout each.
+		const features = modelFeatureKey(settings);
+		this.modelFeatures = features;
+		const useFbo =
+			useOutline ||
+			hasEffects ||
+			features !== 0 ||
+			settings.fur?.enabled === true ||
+			settings.floor?.enabled === true;
 
 		this.stats.drawCalls = 0;
 		this.stats.polyCount = 0;
@@ -650,6 +798,7 @@ export class Renderer {
 		ctx.cameraAzimuth = camera.omega + camera.omegaOffset;
 		ctx.cameraElevation = camera.theta;
 		ctx.palette = model.texture.colors;
+		ctx.modelFeatures = features;
 
 		this.prepareModelUniforms(settings, model, resources);
 
@@ -719,6 +868,9 @@ export class Renderer {
 		}
 
 		if (settings.renderMode < 2) {
+			this.selectPassPrograms(
+				useFbo ? features | MODEL_FEATURE.indexOut : features,
+			);
 			this.drawModel(resources);
 		}
 
@@ -741,6 +893,7 @@ export class Renderer {
 				if (!effect.initialized) {
 					effect.init(gl);
 				}
+				if (effect.ready === false) continue;
 
 				const writesIndex = useFbo && effect.writesIndex === true;
 				if (writesIndex) pipeline.pool.enableIndexWrites(gl);
@@ -824,9 +977,7 @@ export class Renderer {
 	 */
 	dispose(): void {
 		const gl = this.gl;
-		gl.deleteProgram(this.programs.model.program);
-		gl.deleteProgram(this.programs.outline.program);
-		gl.deleteProgram(this.programs.fur.program);
+		this.programs.dispose(gl);
 
 		if (this.floor) {
 			this.floor.dispose(gl);
@@ -874,7 +1025,8 @@ export class Renderer {
 		gl.viewport(0, 0, w, h);
 		gl.disable(gl.DEPTH_TEST);
 
-		gl.useProgram(this.programs.outline.program);
+		const outline = this.programs.outline.info!;
+		gl.useProgram(outline.program);
 
 		const uniforms = this.outlineUniforms;
 		uniforms.u_texture = inputTexture;
@@ -888,7 +1040,7 @@ export class Renderer {
 		uniforms.u_backgroundColor[2] = bgB;
 		uniforms.u_premultiplied = premultiplied;
 		uniforms.u_smoothTransparency = settings.transparency === "smooth";
-		twgl.setUniforms(this.programs.outline, uniforms);
+		twgl.setUniforms(outline, uniforms);
 
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -944,11 +1096,11 @@ export class Renderer {
 	private drawModel(resources: ModelResources): void {
 		const gl = this.gl;
 
-		gl.useProgram(this.programs.model.program);
+		gl.useProgram(this.modelProgram.program);
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LEQUAL);
 		gl.depthMask(true);
-		twgl.setUniforms(this.programs.model, this.modelUniforms);
+		twgl.setUniforms(this.modelProgram, this.modelUniforms);
 
 		this.drawModelPhases(resources);
 
@@ -1017,7 +1169,7 @@ export class Renderer {
 		this.modelUniforms.u_fadePass = pass;
 		this.furUniforms.u_fadePass = pass;
 		this.fadePassUniforms.u_fadePass = pass;
-		twgl.setUniforms(this.programs.model, this.fadePassUniforms);
+		twgl.setUniforms(this.modelProgram, this.fadePassUniforms);
 	}
 
 	/**
@@ -1053,11 +1205,14 @@ export class Renderer {
 		const planeY = this.floorPlane.center[1];
 		if (mu.u_cameraPos[1] <= planeY) return;
 
-		gl.useProgram(this.programs.model.program);
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LEQUAL);
 		gl.depthMask(true);
 
+		// The shadow map takes the depth-only variant, which carries only
+		// the features that decide which fragments survive. A pass whose
+		// variant is still compiling is skipped for the frame.
+		const features = this.modelFeatures;
 		const shadow = floor.shadow;
 		const reach =
 			shadow.enabled && shadow.strength > 0
@@ -1068,12 +1223,18 @@ export class Renderer {
 						planeY,
 					)
 				: 0;
-		if (reach > 0) {
+		if (
+			reach > 0 &&
+			this.selectPassPrograms(
+				(features & DEPTH_FEATURES) | MODEL_FEATURE.depthOnly,
+			)
+		) {
 			mat4.copy(mu.u_vp, res.lightVp);
 			mat4.copy(fu.u_vp, res.lightVp);
 			res.bindShadowMap(gl);
 			this.cullOff = true;
-			twgl.setUniforms(this.programs.model, mu);
+			gl.useProgram(this.modelProgram.program);
+			twgl.setUniforms(this.modelProgram, mu);
 
 			const fadePasses = this.fadePasses;
 			this.fadePasses = false;
@@ -1085,7 +1246,11 @@ export class Renderer {
 		}
 
 		const reflection = floor.reflection;
-		if (reflection.enabled && reflection.strength > 0) {
+		if (
+			reflection.enabled &&
+			reflection.strength > 0 &&
+			this.selectPassPrograms(features | MODEL_FEATURE.indexOut)
+		) {
 			writeFloorMirror(res.mirror, planeY);
 			mat4.multiply(mu.u_vp, vpMatrix, res.mirror);
 			mat4.copy(fu.u_vp, mu.u_vp);
@@ -1099,7 +1264,8 @@ export class Renderer {
 
 			res.bindReflection(gl, w, h);
 			gl.frontFace(gl.CW);
-			twgl.setUniforms(this.programs.model, mu);
+			gl.useProgram(this.modelProgram.program);
+			twgl.setUniforms(this.modelProgram, mu);
 			this.drawModelPhases(resources);
 			gl.frontFace(gl.CCW);
 
@@ -1221,10 +1387,11 @@ export class Renderer {
 			gl.enable(gl.BLEND);
 			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		}
-		res.drawPlane(gl);
+		const drawn = res.drawPlane(gl);
 		if (smooth) gl.disable(gl.BLEND);
 		gl.disable(gl.DEPTH_TEST);
 
+		if (!drawn) return;
 		this.stats.drawCalls++;
 		this.stats.polyCount += 2;
 	}
@@ -1765,14 +1932,16 @@ export class Renderer {
 					gl.cullFace(gl.FRONT);
 				}
 
-				twgl.setBuffersAndAttributes(gl, this.programs.model, group.bufferInfo);
-				twgl.setUniforms(this.programs.model, this.nodeUniforms);
-				twgl.drawBufferInfo(gl, group.bufferInfo);
+				gl.bindVertexArray(group.vao);
+				twgl.setUniforms(this.modelProgram, this.nodeUniforms);
+				gl.drawArrays(gl.TRIANGLES, 0, group.vertexCount);
 
 				this.stats.drawCalls++;
-				this.stats.polyCount += (group.bufferInfo.numElements ?? 0) / 3;
+				this.stats.polyCount += group.triangleCount;
 			}
 		}
+
+		gl.bindVertexArray(null);
 	}
 
 	/**
@@ -1844,7 +2013,8 @@ export class Renderer {
 	 * Draws the fur shells for specific render groups as one instanced
 	 * draw per group (gl_InstanceID = shell index). Runs while the index
 	 * attachment is still bound, so strands write their base palette index
-	 * like the model does. Rebinds the model program afterwards.
+	 * like the model does. Rebinds the model program afterwards. Draws
+	 * nothing while the pass's fur variant is still compiling.
 	 *
 	 * @param groupIndices - Which render groups to draw shells for.
 	 * @param resources - The GPU resources.
@@ -1856,7 +2026,8 @@ export class Renderer {
 		layers: number,
 	): void {
 		const gl = this.gl;
-		const program = this.programs.fur;
+		const program = this.furProgram;
+		if (!program) return;
 
 		gl.useProgram(program.program);
 		twgl.setUniforms(program, this.furUniforms);
@@ -1883,24 +2054,17 @@ export class Renderer {
 					gl.cullFace(gl.FRONT);
 				}
 
-				twgl.setBuffersAndAttributes(gl, program, group.bufferInfo);
+				gl.bindVertexArray(group.vao);
 				twgl.setUniforms(program, this.nodeUniforms);
-				twgl.drawBufferInfo(
-					gl,
-					group.bufferInfo,
-					gl.TRIANGLES,
-					undefined,
-					undefined,
-					layers,
-				);
+				gl.drawArraysInstanced(gl.TRIANGLES, 0, group.vertexCount, layers);
 
 				this.stats.drawCalls++;
-				this.stats.polyCount +=
-					((group.bufferInfo.numElements ?? 0) / 3) * layers;
+				this.stats.polyCount += group.triangleCount * layers;
 			}
 		}
 
-		gl.useProgram(this.programs.model.program);
+		gl.bindVertexArray(null);
+		gl.useProgram(this.modelProgram.program);
 	}
 
 	/**

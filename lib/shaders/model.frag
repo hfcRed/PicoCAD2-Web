@@ -1,6 +1,14 @@
 #version 300 es
 precision highp float;
 
+ /**
+ * The model surface. Program variants compile in only the features a
+ * frame uses (see programs.ts). FX_INDEX_OUT adds the palette index
+ * output for the scene target, FX_DEPTH_ONLY drops every color output for
+ * the floor's shadow map and stops after the discards, and each effect
+ * chunk carries its own feature switch.
+ */
+
 in vec3 v_normal;
 in vec3 v_worldPos;
 in vec3 v_meshPos;
@@ -25,8 +33,12 @@ uniform float u_clipBelowY; // the floor's reflection pass clips real geometry b
 #include chunks/voxel-cut.glsl;
 #include chunks/display.glsl;
 
+#ifndef FX_DEPTH_ONLY
 layout(location = 0) out vec4 fragColor;
+#endif
+#ifdef FX_INDEX_OUT
 layout(location = 1) out vec4 fragIndex;
+#endif
 
 void main() {
     int flags = int(v_faceFlags + 0.5);
@@ -69,6 +81,7 @@ void main() {
     float coverage;
     float dissolveEdge = applyDissolveCutout(colorIdx, v_worldPos, v_meshPos, coverage);
 
+#ifndef FX_DEPTH_ONLY
     vec3 normal = normalize(v_normal);
     if (gl_FrontFacing) normal = -normal;
 
@@ -135,11 +148,13 @@ void main() {
     float alpha = fadeAlpha(coverage);
     fragColor = vec4(color * alpha, alpha);
 
+#ifdef FX_INDEX_OUT
     // Base palette index (R), shade row (G) and the fade's coverage (B) for
     // the screen-space index buffer used by effect color masks and the
     // outlines. The base index is written before the shade-row remap so
     // masks select materials, not displayed colors. The alpha of 1 keeps
-    // the index whole under the blended pass's blending. Ignored when no
-    // second color attachment is bound.
+    // the index whole under the blended pass's blending.
     fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, coverage, 1.0);
+#endif
+#endif
 }

@@ -2,6 +2,11 @@ import type { OrbitCamera } from "./camera/orbit-camera.ts";
 import type { PostProcessPipeline } from "./rendering/effects/pipeline.ts";
 import { BitmapFont } from "./rendering/font.ts";
 import {
+	compilerFor,
+	type ProgramCompiler,
+	type ShaderCompileMode,
+} from "./rendering/program-cache.ts";
+import {
 	type ModelResources,
 	Renderer,
 	type RenderSettings,
@@ -9,6 +14,10 @@ import {
 } from "./rendering/renderer.ts";
 import type { PicoCAD2Model } from "./types/scene.ts";
 import type { PicoCAD2Viewer } from "./viewer.ts";
+
+export interface PicoCAD2ContextOptions {
+	shaderCompile?: ShaderCompileMode;
+}
 
 /** A viewer's assigned region in the shared atlas, in image space (top-left origin). */
 interface ViewerSlot {
@@ -36,6 +45,7 @@ export class PicoCAD2Context {
 	readonly canvas: OffscreenCanvas;
 	readonly gl: WebGL2RenderingContext;
 	private renderer: Renderer;
+	private readonly compiler: ProgramCompiler;
 	font: BitmapFont | null = null;
 
 	private readonly slots: ViewerSlot[] = [];
@@ -58,9 +68,28 @@ export class PicoCAD2Context {
 	}
 
 	/**
-	 * Creates a new shared rendering context with an offscreen canvas.
+	 * Whether every requested shader program has finished compiling. While
+	 * false, frames draw without the effects whose programs are pending.
 	 */
-	constructor() {
+	get shadersReady(): boolean {
+		return this.compiler.pendingCount === 0;
+	}
+
+	/**
+	 * Resolves once every requested shader program has finished compiling.
+	 * A viewer's {@link PicoCAD2Viewer.whenReady} requests its programs
+	 * first, which this does not.
+	 */
+	whenShadersReady(): Promise<void> {
+		return this.compiler.whenReady();
+	}
+
+	/**
+	 * Creates a new shared rendering context with an offscreen canvas.
+	 *
+	 * @param options - Context options.
+	 */
+	constructor(options?: PicoCAD2ContextOptions) {
 		this.canvas = new OffscreenCanvas(1, 1);
 
 		// The drawing buffer holds premultiplied alpha: the renderer clears to
@@ -80,6 +109,8 @@ export class PicoCAD2Context {
 			gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number,
 		);
 
+		this.compiler = compilerFor(gl);
+		this.compiler.mode = options?.shaderCompile ?? "async";
 		this.renderer = new Renderer(gl);
 
 		BitmapFont.loadDefault()
@@ -140,6 +171,18 @@ export class PicoCAD2Context {
 			width,
 			height,
 		);
+	}
+
+	/**
+	 * Starts compiling every program a frame with these settings needs.
+	 *
+	 * @internal
+	 */
+	_requestPrograms(
+		settings: RenderSettings,
+		pipeline: PostProcessPipeline,
+	): void {
+		this.renderer.requestPrograms(settings, pipeline);
 	}
 
 	/**

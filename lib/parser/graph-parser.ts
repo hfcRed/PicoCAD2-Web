@@ -1,4 +1,5 @@
 import { mat4 } from "gl-matrix";
+import { buildClipLists } from "../animation/animator.ts";
 import type { RawGraphNode } from "../types/model.ts";
 import type {
 	Face,
@@ -111,6 +112,8 @@ function parseNode(raw: RawGraphNode): SceneNode {
 		originalVisible: raw.visible,
 		mesh: raw.mesh ? parseMesh(raw.mesh) : null,
 		motions,
+		clipLists: buildClipLists(motions),
+		hasClips: motions.tracks.some((track) => track.length > 0),
 		hasTexClips: containsTexClips(motions),
 		uvsDirty: false,
 		dirty: true,

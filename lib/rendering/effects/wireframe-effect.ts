@@ -4,6 +4,9 @@ import wireframeFrag from "../../shaders/wireframe.frag";
 import wireframeVert from "../../shaders/wireframe.vert";
 import type { WireframeOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import { MODEL_ATTRIB_LOCATIONS } from "../buffers.ts";
+import { compilerFor, ProgramVariants } from "../program-cache.ts";
+import { MODEL_FEATURE_NAMES, WIREFRAME_FEATURES } from "../programs.ts";
 import type { ModelResources } from "../renderer.ts";
 import {
 	type DeepRequired,
@@ -23,14 +26,16 @@ import {
 /**
  * Renders wireframe edges over the model as GL_LINES.
  * This is a scene effect (geometry-based), not a post-process effect.
- * Follows the mesh deform through the shared shader chunk, and hides
- * itself while a triangle shatter is in progress.
+ * Follows the mesh deform and the vertex glitch through the shared shader
+ * chunks, in program variants keyed like the model's, and hides itself
+ * while a triangle shatter is in progress.
  */
 export class WireframeEffect implements SceneEffect {
 	readonly id = "wireframe";
 	initialized = false;
 
-	private program: twgl.ProgramInfo | null = null;
+	private programs: ProgramVariants | null = null;
+	private lastKey = 0;
 	private gl: WebGL2RenderingContext | null = null;
 	private readonly uniforms = {
 		u_vp: mat4.create() as mat4,
@@ -52,15 +57,28 @@ export class WireframeEffect implements SceneEffect {
 		resetEffect(this, WIREFRAME_DEFAULTS);
 	}
 
+	/** Whether the plain program has linked and the effect can draw. */
+	get ready(): boolean {
+		return this.programs?.ready(0) !== null;
+	}
+
 	/**
-	 * Compiles the wireframe shader program.
+	 * Starts compiling the plain wireframe program. The variants for the
+	 * deform and the glitch compile when a frame first needs them.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	init(gl: WebGL2RenderingContext): void {
 		if (this.initialized) return;
 		this.gl = gl;
-		this.program = twgl.createProgramInfo(gl, [wireframeVert, wireframeFrag]);
+		this.programs = new ProgramVariants(
+			compilerFor(gl),
+			wireframeVert,
+			wireframeFrag,
+			MODEL_FEATURE_NAMES,
+			MODEL_ATTRIB_LOCATIONS,
+		);
+		this.programs.get(0);
 		this.initialized = true;
 	}
 
@@ -72,7 +90,7 @@ export class WireframeEffect implements SceneEffect {
 	 * @param resources - The GPU resources for the current model.
 	 */
 	render(ctx: EffectContext, vpMatrix: mat4, resources: ModelResources): void {
-		if (ctx.shatterActive) return;
+		if (ctx.shatterActive || !this.programs) return;
 
 		const glitch = ctx.vertexGlitch;
 		if (
@@ -83,9 +101,20 @@ export class WireframeEffect implements SceneEffect {
 			return;
 		}
 
+		// The variant matching the model's, else the last one drawn with
+		// until it has compiled, else the plain one.
+		const key = ctx.modelFeatures & WIREFRAME_FEATURES;
+		let program = this.programs.get(key).info;
+		if (program) {
+			this.lastKey = key;
+		} else {
+			program = this.programs.ready(this.lastKey) ?? this.programs.ready(0);
+		}
+		if (!program) return;
+
 		const gl = ctx.gl;
 
-		gl.useProgram(this.program!.program);
+		gl.useProgram(program.program);
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LEQUAL);
 		gl.disable(gl.CULL_FACE);
@@ -117,25 +146,26 @@ export class WireframeEffect implements SceneEffect {
 			uniforms.u_nodeBits = ctx.nodeBits.get(nb.node) ?? 0;
 			uniforms.u_voxelSide = nb.voxelSide ?? -1;
 
-			twgl.setBuffersAndAttributes(gl, this.program!, nb.wireframe);
-			twgl.setUniforms(this.program!, uniforms);
-			twgl.drawBufferInfo(gl, nb.wireframe, gl.LINES);
+			gl.bindVertexArray(nb.wireframe.vao);
+			twgl.setUniforms(program, uniforms);
+			gl.drawArrays(gl.LINES, 0, nb.wireframe.vertexCount);
 
 			ctx.stats.drawCalls++;
 		}
 
+		gl.bindVertexArray(null);
 		gl.disable(gl.DEPTH_TEST);
 	}
 
 	/**
-	 * Frees the shader program.
+	 * Frees the shader programs.
 	 */
 	dispose(): void {
 		if (!this.gl) return;
 
-		if (this.program) {
-			this.gl.deleteProgram(this.program.program);
-			this.program = null;
+		if (this.programs) {
+			this.programs.dispose();
+			this.programs = null;
 		}
 
 		this.initialized = false;

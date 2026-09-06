@@ -12,17 +12,34 @@ import {
 } from "./effect-defaults.ts";
 import type { EffectContext, SceneEffect } from "./types.ts";
 
-export type ParticleShape = "pixel" | "quad" | "cube" | "triangle";
+export type ParticleShape =
+	| "pixel"
+	| "quad"
+	| "cube"
+	| "triangle"
+	| "line"
+	| "circle";
 
 export type ParticleMotion = "drift" | "orbit" | "linear";
 
-const MAX_PARTICLES = 2000;
+const MAX_PARTICLES = 10000;
 
 const SHAPE_INDEX: Record<ParticleShape, number> = {
 	pixel: 0,
 	quad: 1,
 	cube: 2,
 	triangle: 3,
+	line: 4,
+	circle: 5,
+};
+
+const SHAPE_VERTICES: Record<ParticleShape, number> = {
+	pixel: 6,
+	quad: 6,
+	cube: 36,
+	triangle: 3,
+	line: 6,
+	circle: 6,
 };
 
 const MOTION_INDEX: Record<ParticleMotion, number> = {
@@ -32,13 +49,22 @@ const MOTION_INDEX: Record<ParticleMotion, number> = {
 };
 
 /**
- * Snow, rain, embers, sparkles or dust motes around the model. One
+ * Snow, rain, embers, sparkles or dust motes around the camera. One
  * attribute-less instanced draw of hashed particles, stateless and
  * looping. Depth writes stay off so particles never punch holes in each other.
  *
+ * The particles fill a cube around the camera whose edge is `areaScale`
+ * times the model's largest extent. They form a world-space lattice that
+ * repeats every box length, and each particle renders the copy nearest the
+ * camera, so the field is always in view while no particle ever moves with
+ * the camera. World-sized shapes shrink to nothing in the camera's
+ * immediate vicinity, so a particle passing through the camera never
+ * flashes across the frame.
+ *
  * `motion` layers a procedural movement style (scaled by `speed`) on top of
  * `velocity`, a constant directional movement in box lengths per second
- * that `speed` does not scale. `"linear"` adds no motion of its own.
+ * that `speed` does not scale. `"linear"` adds no motion of its own, and
+ * `"orbit"` circles the lattice cells' centers.
  *
  * `paletteIndices` is a color source and not a mask. Particles sample the
  * model's palette at those indices (empty = plain white). `randomHue`
@@ -46,7 +72,9 @@ const MOTION_INDEX: Record<ParticleMotion, number> = {
  * and `twinkle` fades particles in and out, through alpha with smooth
  * transparency and through the Bayer dither otherwise. For the `"pixel"`
  * shape, `size` is in output pixels. For the world-space shapes it is in
- * world units.
+ * world units: the edge of a quad, cube or circle, the height of a
+ * triangle, or the length of a `"line"` streak, which runs along the
+ * velocity (down when there is none) one pixel thick.
  *
  * Particles are scenery. They keep the palette index of whatever they
  * cover and add their twinkle's coverage to the index buffer, so outlines
@@ -63,8 +91,9 @@ export class ParticlesEffect implements SceneEffect {
 	private readonly uniforms = {
 		u_vp: null as mat4 | null,
 		u_time: 0,
-		u_areaCenter: [0, 0, 0] as Color3,
-		u_areaSize: [1, 1, 1] as Color3,
+		u_cameraPos: [0, 0, 0] as Color3,
+		u_areaSize: 1,
+		u_lineDir: [0, -1, 0] as Color3,
 		u_cameraRight: [1, 0, 0] as Color3,
 		u_cameraUp: [0, 1, 0] as Color3,
 		u_resolution: [1, 1] as [number, number],
@@ -131,10 +160,26 @@ export class ParticlesEffect implements SceneEffect {
 
 		const u = this.uniforms;
 		const b = resources.bounds;
-		for (let axis = 0; axis < 3; axis++) {
-			u.u_areaCenter[axis] = (b.min[axis] + b.max[axis]) * 0.5;
-			u.u_areaSize[axis] =
-				Math.max(b.max[axis] - b.min[axis], 1e-3) * this.areaScale;
+		const extent = Math.max(
+			b.max[0] - b.min[0],
+			b.max[1] - b.min[1],
+			b.max[2] - b.min[2],
+			1e-3,
+		);
+		u.u_areaSize = Math.max(extent * this.areaScale, 1e-3);
+		u.u_cameraPos = ctx.cameraPos;
+
+		// Streaks run along the velocity, or fall straight down without one.
+		const [vx, vy, vz] = this.velocity;
+		const speed = Math.hypot(vx, vy, vz);
+		if (speed > 1e-6) {
+			u.u_lineDir[0] = vx / speed;
+			u.u_lineDir[1] = vy / speed;
+			u.u_lineDir[2] = vz / speed;
+		} else {
+			u.u_lineDir[0] = 0;
+			u.u_lineDir[1] = -1;
+			u.u_lineDir[2] = 0;
 		}
 
 		u.u_vp = vpMatrix;
@@ -162,8 +207,7 @@ export class ParticlesEffect implements SceneEffect {
 		}
 		twgl.setUniforms(this.program!, u);
 
-		const verts =
-			this.shape === "cube" ? 36 : this.shape === "triangle" ? 3 : 6;
+		const verts = SHAPE_VERTICES[this.shape] ?? 6;
 		gl.bindVertexArray(this.emptyVao);
 		gl.drawArraysInstanced(gl.TRIANGLES, 0, verts, count);
 		gl.bindVertexArray(null);
@@ -201,7 +245,7 @@ export interface ParticlesEffect extends Required<ParticlesOptions> {}
 /** Default settings for {@link ParticlesEffect}. */
 export const PARTICLES_DEFAULTS = deepFreeze<DeepRequired<ParticlesOptions>>({
 	enabled: false,
-	count: 300,
+	count: 1000,
 	shape: "pixel",
 	paletteIndices: [],
 	size: 2,
@@ -209,7 +253,7 @@ export const PARTICLES_DEFAULTS = deepFreeze<DeepRequired<ParticlesOptions>>({
 	motion: "drift",
 	speed: 1,
 	velocity: [0, 0, 0],
-	areaScale: 1.5,
+	areaScale: 8,
 	twinkle: 0.3,
 	randomHue: false,
 	hueRange: 0.5,

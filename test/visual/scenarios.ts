@@ -1576,6 +1576,41 @@ const post: Scenario[] = [
 		},
 		time: 1,
 	},
+	// Rain: one-pixel streaks of size world units along the velocity.
+	{
+		name: "post/particles-line-rain",
+		model: "rig",
+		extras: {
+			particles: {
+				enabled: true,
+				shape: "line",
+				size: 1.5,
+				count: 2000,
+				motion: "linear",
+				velocity: [0.1, -0.6, 0],
+				twinkle: 0,
+				sizeJitter: 0.4,
+			},
+		},
+		time: 0.7,
+	},
+	// Snow: camera-facing discs drifting down on the transparent path.
+	{
+		name: "post/particles-circle-snow",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK },
+		extras: {
+			particles: {
+				enabled: true,
+				shape: "circle",
+				size: 0.25,
+				count: 1500,
+				velocity: [0.03, -0.15, 0],
+				speed: 0.5,
+			},
+		},
+		time: 1.3,
+	},
 	// The twinkle takes the Bayer dither by default. Smooth transparency
 	// fades it through alpha instead, the former look.
 	{

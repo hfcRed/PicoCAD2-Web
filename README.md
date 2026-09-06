@@ -736,17 +736,18 @@ viewer.extras.wireframe.color = [0, 1, 0];    // Wireframe color (default: [1, 1
 
 ### Particles
 
-Snow, rain, embers, sparkles or dust motes around the model. One instanced draw of hashed, stateless, looping particles.
+Snow, rain, embers, sparkles or dust motes around the camera. One instanced draw of hashed, stateless, looping particles.
 
 ```typescript
 viewer.extras.particles.enabled = true;
-viewer.extras.particles.count = 300;           // Particle count, up to 2000 (default: 300)
-viewer.extras.particles.shape = "pixel";       // "pixel" | "quad" | "cube" | "triangle" (default: "pixel")
-viewer.extras.particles.size = 2;              // Output pixels for "pixel", world units otherwise (default: 2)
+viewer.extras.particles.count = 1000;          // Particle count, up to 10000 (default: 1000)
+viewer.extras.particles.shape = "pixel";       // "pixel" | "quad" | "cube" | "triangle" | "line" | "circle" (default: "pixel")
+viewer.extras.particles.size = 2;              // Output pixels for "pixel", world units otherwise: the edge of a quad, cube or circle, the height of a triangle, the length of a line (default: 2)
 viewer.extras.particles.sizeJitter = 0.5;      // Random per-particle shrink, 0-1 (default: 0.5)
 viewer.extras.particles.motion = "drift";      // "drift" | "orbit" | "linear" (default: "drift")
 viewer.extras.particles.speed = 1;             // Motion rate (default: 1)
-viewer.extras.particles.areaScale = 1.5;       // Particle volume as a multiple of the model bounds (default: 1.5)
+viewer.extras.particles.velocity = [0, -0.3, 0]; // Constant movement in box lengths per second, per axis (default: [0, 0, 0])
+viewer.extras.particles.areaScale = 8;         // Edge of the cube around the camera as a multiple of the model's largest extent (default: 8)
 viewer.extras.particles.twinkle = 0.3;         // Per-particle fade in and out, 0-1, dithered or blended per the viewer's transparency (default: 0.3)
 viewer.extras.particles.paletteIndices = [7];  // Color source: particles sample these palette colors (default: [] = white)
 ```

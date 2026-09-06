@@ -1271,6 +1271,23 @@ Frames render on SwiftShader (Chromium's software rasterizer) so baselines repro
 
 Playwright's Chromium is required once `pnpm exec playwright install chromium`.
 
+### Performance Tests
+
+`test/perf/` measures builds of the library against each other on the same scenarios. The main-thread and GPU time per frame, the frame time with the GPU drained, the bytes allocated per frame, the first draw after a load, the main-thread time a first load blocks in a fresh browser (context creation, load, first draw, and how long background compiles take to finish), and the library's render loop. Builds are the working tree (`dist`), the unbundled sources (`src`, readable in a profile), and snapshots in the form of a published npm version, a git ref built in a temporary worktree, or a copy of the current bundle. The intended chain for an optimization pass is the previous release, the state before the first optimization, one snapshot after each optimization, and the working tree.
+
+```bash
+pnpm test:perf:snapshot 1.3.0 --npm 1.3.0        # the previous release
+pnpm test:perf:snapshot base --ref 51731ac       # the state before optimizing
+pnpm test:perf:snapshot opt1 --dist              # after an optimization landed
+pnpm test:perf                                   # 1.3.0, base and dist on the GPU
+pnpm test:perf --builds base,opt1,dist --cpu 4   # a 4x slower main thread
+pnpm test:perf --device swiftshader post/        # the software rasterizer
+pnpm test:perf --builds src --profile src rig    # the hottest functions
+pnpm test:perf --builds src --alloc src rig      # the biggest allocators
+```
+
+Frames scenarios run interleaved per build in one browser and report medians. Compile scenarios open a fresh browser per measurement because the GPU process caches compiled programs. `--device gpu` runs on the machine's GPU, `--device swiftshader` on the software rasterizer that stands in for a device without one. There the timer-query column is the rasterizer's cost per frame, and a main-thread number that grows to match it means the page is waiting on the rasterizer. `--cpu N` slows the main thread N times through DevTools. Results go to `test/perf/results/<label>.json`, and `--md` writes the tables as Markdown.
+
 ## License
 
 MIT

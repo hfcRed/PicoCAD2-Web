@@ -2,3 +2,5 @@ node_modules
 dist
 .npmrc
 test/visual/output
+test/perf/builds
+test/perf/results

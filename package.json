@@ -29,7 +29,9 @@
 		"lint": "biome lint --write .",
 		"check": "biome check --write .",
 		"test:visual": "node test/visual/run.ts",
-		"test:visual:update": "node test/visual/run.ts --update"
+		"test:visual:update": "node test/visual/run.ts --update",
+		"test:perf": "node test/perf/run.ts",
+		"test:perf:snapshot": "node test/perf/snapshot.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.8",

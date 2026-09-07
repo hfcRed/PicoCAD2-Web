@@ -193,6 +193,7 @@ export class PostProcessPipeline {
 			if (effect.ready === false) continue;
 
 			const inputTexture = this.pool.swap(gl);
+			ctx.framebuffer = this.pool.getFramebuffer();
 			gl.viewport(0, 0, ctx.width, ctx.height);
 			gl.disable(gl.DEPTH_TEST);
 

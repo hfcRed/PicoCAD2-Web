@@ -16,9 +16,12 @@ export function createIndexTexture(
 	const tex = gl.createTexture();
 	if (!tex) throw new Error("Failed to create index texture");
 
-	const data = new Uint8Array(128 * 128);
-	for (let i = 0; i < 128 * 128; i++) {
-		data[i] = texture.pixels[i];
+	// The parser fills exactly 128 by 128 bytes, so its pixels upload as
+	// they are. Any other length is padded or cut to the texture size.
+	let data = texture.pixels;
+	if (data.length !== 128 * 128) {
+		data = new Uint8Array(128 * 128);
+		data.set(texture.pixels.subarray(0, 128 * 128));
 	}
 
 	gl.bindTexture(gl.TEXTURE_2D, tex);

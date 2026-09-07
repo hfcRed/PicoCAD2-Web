@@ -39,6 +39,7 @@ export interface EffectContext {
 	transparency: TransparencyMode;
 	smoothFades: boolean;
 	modelFeatures: number;
+	framebuffer: WebGLFramebuffer | null;
 }
 
 export interface PostProcessEffect {

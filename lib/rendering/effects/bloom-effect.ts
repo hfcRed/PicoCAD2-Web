@@ -94,11 +94,7 @@ export class BloomEffect implements PostProcessEffect {
 		if (!threshold || !blur || !composite) return;
 		const gl = ctx.gl;
 
-		// Capture the output FBO before creating internal FBOs, which rebind
-		// the framebuffer when the canvas size changes.
-		const outputFbo = gl.getParameter(
-			gl.FRAMEBUFFER_BINDING,
-		) as WebGLFramebuffer | null;
+		const outputFbo = ctx.framebuffer;
 
 		this.ensureInternalFbos(gl, ctx.width, ctx.height);
 

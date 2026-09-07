@@ -281,6 +281,16 @@ export class FramebufferPool {
 	}
 
 	/**
+	 * Returns the framebuffer drawn into at the moment, the one the last
+	 * {@link swap} or {@link bindScene} bound.
+	 *
+	 * @returns The current framebuffer, or null if not yet created.
+	 */
+	getFramebuffer(): WebGLFramebuffer | null {
+		return this.fbos[this.currentIndex]?.fbo ?? null;
+	}
+
+	/**
 	 * Returns the depth texture from the scene FBO for sampling in effects.
 	 *
 	 * @returns The depth texture, or null if not yet created.

@@ -483,6 +483,7 @@ export class Renderer {
 			cameraElevation: 0,
 			palette: new Float32Array(0),
 			paletteBlend: 0,
+			framebuffer: null,
 			meshDeform: null,
 			deformPhase: { progress: 1, returning: false },
 			vertexGlitch: null,
@@ -902,6 +903,7 @@ export class Renderer {
 		if (pipeline.hasActiveSceneEffects()) {
 			ctx.depthTexture = pipeline.pool.getDepthTexture();
 			ctx.indexTexture = pipeline.pool.getIndexTexture();
+			ctx.framebuffer = pipeline.pool.getFramebuffer();
 			for (const effect of pipeline.sceneEffects) {
 				if (!effect.enabled) continue;
 				if (!effect.initialized) {

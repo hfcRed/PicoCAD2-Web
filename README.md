@@ -1195,7 +1195,7 @@ invertEffect.enabled = true;
 
 The fragment shader receives `v_texCoord` (0-1 UV coordinates) and must write to `fragColor`. The base class automatically binds the input texture as `u_texture`.
 
-Custom effects can also be color-masked: the scene's palette index buffer is available as `EffectContext.indexTexture` (R = base palette index, 255 = no model pixel; G = shade row; B = the fade coverage the outlines read, 0 where nothing was drawn). `FullscreenEffect` binds it as `u_indexTexture` automatically, together with a `u_colorMask` bitmask packed from the effect's `maskedColors` array (the packing helper is exported as `packColorMask`).
+Custom effects can also be color-masked: the scene's palette index buffer is available as `EffectContext.indexTexture` (R = base palette index, 255 = no model pixel; G = shade row; B = the fade coverage the outlines read, 0 where nothing was drawn). `FullscreenEffect` binds it as `u_indexTexture` automatically, together with a `u_colorMask` bitmask packed from the effect's `maskedColors` array (the packing helper is exported as `packColorMask`). `EffectContext.framebuffer` is the framebuffer the effect's output goes to, so an effect with passes of its own can bind it back for its last pass.
 
 ### Implementing PostProcessEffect
 

@@ -304,7 +304,7 @@ Callbacks can also be set via constructor options (`onLoad`, `onFrame`, `onDispo
 
 ## State Serialization
 
-A state is the model source plus everything that differs from a plain `load()` of it, in three optional groups. `model` holds the settings the file carries where they differ from the file, `viewer` holds the viewer's own settings where they differ from `VIEWER_SETTINGS_DEFAULTS`, and `extras` holds the effects that differ from their defaults. The source alone is a valid state.
+A state is the model source plus everything that differs from a plain `load()` of it, in three optional groups. `model` holds the settings the file carries where they differ from the file, `viewer` holds the viewer's own settings where they differ from `VIEWER_SETTINGS_DEFAULTS`, and `extras` holds the effects that differ from their defaults. The source alone is a valid state. `source` is the viewer's own parse of the file and is frozen, so copy it before changing it.
 
 ```typescript
 // Capture state (JSON-serializable)

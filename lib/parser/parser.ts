@@ -132,27 +132,34 @@ function parseExportSettings(
 }
 
 /**
- * Parses a PicoCAD 2 model file from a JSON string.
- * Throws an error if the string appears to be a PicoCAD 1 file.
+ * Parses the JSON text of a PicoCAD 2 file into its raw file object.
+ * Throws an error if the text appears to be a PicoCAD 1 file.
  *
  * @param source - The raw JSON string content of the model file.
- * @returns The fully parsed PicoCAD 2 model ready for rendering.
+ * @returns The raw file object.
  * @throws Error if the source is a PicoCAD 1 file or invalid JSON.
  */
-export function parseModel(source: string): PicoCAD2Model {
+export function parseSource(source: string): RawPicoCAD2File {
 	if (source.startsWith("picocad;")) {
 		throw new Error(
 			"PicoCAD 1 file detected. Only PicoCAD 2 files are supported.",
 		);
 	}
 
-	let raw: RawPicoCAD2File;
 	try {
-		raw = JSON.parse(source);
+		return JSON.parse(source) as RawPicoCAD2File;
 	} catch {
 		throw new Error("Failed to parse PicoCAD 2 model: invalid JSON");
 	}
+}
 
+/**
+ * Builds the model of a raw PicoCAD 2 file object.
+ *
+ * @param raw - The raw file object, as {@link parseSource} returns it.
+ * @returns The fully parsed PicoCAD 2 model ready for rendering.
+ */
+export function parseModel(raw: RawPicoCAD2File): PicoCAD2Model {
 	const texture = parseTexture(raw.texture);
 
 	return {

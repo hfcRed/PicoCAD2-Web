@@ -3,10 +3,11 @@ import { evaluateMotions } from "./animation/animator.ts";
 import { CAMERA_NEAR, OrbitCamera } from "./camera/orbit-camera.ts";
 import { FISHEYE_STRENGTH, GLOBAL_W } from "./camera/projection.ts";
 import { PicoCAD2Context } from "./context.ts";
-import { parseModel } from "./parser/parser.ts";
+import { parseModel, parseSource } from "./parser/parser.ts";
 import { packColorMask } from "./rendering/effects/color-mask.ts";
 import {
 	type DeepPartial,
+	deepFreeze,
 	diffFromDefaults,
 	mergeDefaults,
 } from "./rendering/effects/effect-defaults.ts";
@@ -193,7 +194,7 @@ export class PicoCAD2Viewer {
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
 	private ctx2d: CanvasRenderingContext2D;
-	private source: string | null = null;
+	private source: RawPicoCAD2File | null = null;
 	private model: PicoCAD2Model | null = null;
 	private resources: ModelResources | null = null;
 	private renderWidth = 128;
@@ -407,8 +408,12 @@ export class PicoCAD2Viewer {
 			this.resources = null;
 		}
 
-		this.source = source;
-		this.model = parseModel(source);
+		const raw = parseSource(source);
+		this.model = parseModel(raw);
+
+		deepFreeze(raw);
+		this.source = raw;
+
 		this.resources = this.context.createModelResources(this.model);
 		this.shadingMode = this.model.shadingMode;
 		this.renderMode = this.model.renderMode;
@@ -1133,7 +1138,7 @@ export class PicoCAD2Viewer {
 	getState(): PicoCAD2ViewerState {
 		const fileSettings = this._modelInfo?.settings ?? MODEL_SETTINGS_DEFAULTS;
 		return {
-			source: this.source ? (JSON.parse(this.source) as RawPicoCAD2File) : null,
+			source: this.source,
 			model: (diffFromDefaults(fileSettings, this.readModelSettings()) ??
 				{}) as DeepPartial<ModelSettings>,
 			viewer: (diffFromDefaults(

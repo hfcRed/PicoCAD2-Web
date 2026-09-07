@@ -88,6 +88,16 @@ import {
 } from "./textures.ts";
 import { voxelizeModel } from "./voxelize.ts";
 
+const CULL_UNKNOWN = -1;
+const CULL_OFF = 0;
+const CULL_FRONT = 1;
+
+/** The node uniforms a program was last given. */
+interface NodeUniformState {
+	bits: number;
+	voxelSide: number;
+}
+
 export interface RenderSettings {
 	shading: boolean;
 	renderMode: number;
@@ -229,13 +239,13 @@ export class Renderer {
 	private smoothFades = false;
 	private fadePasses = false;
 	private readonly fadePassUniforms = { u_fadePass: FADE_DITHERED };
-	private readonly nodeUniforms = {
-		u_worldMatrix: mat4.create() as mat4,
-		u_nodeBits: 0,
-		u_voxelSide: -1,
-	};
 	/** Per-node effect selection bits for the current frame. */
 	private readonly nodeBits = new WeakMap<SceneNode, number>();
+	/** What each program was last given for the node uniforms that rarely change. */
+	private readonly nodeUniformStates = new WeakMap<
+		twgl.ProgramInfo,
+		NodeUniformState
+	>();
 	private readonly modelUniforms = {
 		u_vp: mat4.create() as mat4,
 		u_indexTexture: null as WebGLTexture | null,
@@ -1902,6 +1912,9 @@ export class Renderer {
 		resources: ModelResources,
 	): void {
 		const gl = this.gl;
+		const program = this.modelProgram;
+		const state = this.nodeUniformState(program);
+		let culling = CULL_UNKNOWN;
 
 		for (const nb of resources.nodeBuffers) {
 			// Ghost ("editor only") meshes are hidden outside the editor,
@@ -1915,9 +1928,7 @@ export class Renderer {
 				nb.node.uvsDirty = false;
 			}
 
-			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
-			this.nodeUniforms.u_nodeBits = this.nodeBits.get(nb.node) ?? 0;
-			this.nodeUniforms.u_voxelSide = nb.voxelSide ?? -1;
+			this.setNodeUniforms(program, state, nb);
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
@@ -1925,15 +1936,9 @@ export class Renderer {
 
 				const isDoubleSided =
 					(groupIdx & 1) !== 0 || this.shatterActive || this.cullOff;
-				if (isDoubleSided) {
-					gl.disable(gl.CULL_FACE);
-				} else {
-					gl.enable(gl.CULL_FACE);
-					gl.cullFace(gl.FRONT);
-				}
+				culling = this.setCulling(culling, isDoubleSided);
 
 				gl.bindVertexArray(group.vao);
-				twgl.setUniforms(this.modelProgram, this.nodeUniforms);
 				gl.drawArrays(gl.TRIANGLES, 0, group.vertexCount);
 
 				this.stats.drawCalls++;
@@ -1942,6 +1947,76 @@ export class Renderer {
 		}
 
 		gl.bindVertexArray(null);
+	}
+
+	/**
+	 * The node uniform values a program was last given, unknown for a
+	 * program drawn with for the first time.
+	 *
+	 * @param program - The program about to draw nodes.
+	 * @returns The program's node uniform state.
+	 */
+	private nodeUniformState(program: twgl.ProgramInfo): NodeUniformState {
+		let state = this.nodeUniformStates.get(program);
+		if (!state) {
+			state = { bits: -1, voxelSide: Number.NaN };
+			this.nodeUniformStates.set(program, state);
+		}
+		return state;
+	}
+
+	/**
+	 * Uploads a node's uniforms. The world matrix changes with every node,
+	 * while the selection bits and the voxel side mostly repeat from node
+	 * to node, so those two are only uploaded when they differ from what
+	 * the program holds. A variant that does not use one has no setter.
+	 *
+	 * @param program - The program drawing the node.
+	 * @param state - The program's node uniform state.
+	 * @param nb - The node's buffers.
+	 */
+	private setNodeUniforms(
+		program: twgl.ProgramInfo,
+		state: NodeUniformState,
+		nb: NodeBuffers,
+	): void {
+		const setters = program.uniformSetters;
+		setters.u_worldMatrix(nb.node.worldMatrix);
+
+		const bits = this.nodeBits.get(nb.node) ?? 0;
+		if (bits !== state.bits) {
+			state.bits = bits;
+			setters.u_nodeBits?.(bits);
+		}
+
+		const voxelSide = nb.voxelSide ?? -1;
+		if (voxelSide !== state.voxelSide) {
+			state.voxelSide = voxelSide;
+			setters.u_voxelSide?.(voxelSide);
+		}
+	}
+
+	/**
+	 * Switches face culling for a draw when it differs from the last draw
+	 * of the pass. Culling is unknown when a pass starts, since effects and
+	 * the other passes leave it as they please.
+	 *
+	 * @param culling - The pass's current culling.
+	 * @param doubleSided - Whether the draw shows both faces.
+	 * @returns The culling after the switch.
+	 */
+	private setCulling(culling: number, doubleSided: boolean): number {
+		const wanted = doubleSided ? CULL_OFF : CULL_FRONT;
+		if (wanted === culling) return culling;
+
+		const gl = this.gl;
+		if (doubleSided) {
+			gl.disable(gl.CULL_FACE);
+		} else {
+			gl.enable(gl.CULL_FACE);
+			gl.cullFace(gl.FRONT);
+		}
+		return wanted;
 	}
 
 	/**
@@ -2031,6 +2106,8 @@ export class Renderer {
 
 		gl.useProgram(program.program);
 		twgl.setUniforms(program, this.furUniforms);
+		const state = this.nodeUniformState(program);
+		let culling = CULL_UNKNOWN;
 
 		for (const nb of resources.nodeBuffers) {
 			if (!nb.node.renderVisible || nb.node.ghost) continue;
@@ -2038,24 +2115,16 @@ export class Renderer {
 			const bits = this.nodeBits.get(nb.node) ?? 0;
 			if ((bits & NODE_BIT.fur) === 0) continue;
 
-			this.nodeUniforms.u_worldMatrix = nb.node.worldMatrix;
-			this.nodeUniforms.u_nodeBits = bits;
-			this.nodeUniforms.u_voxelSide = nb.voxelSide ?? -1;
+			this.setNodeUniforms(program, state, nb);
 
 			for (const groupIdx of groupIndices) {
 				const group = nb.groups[groupIdx];
 				if (!group) continue;
 
 				const isDoubleSided = (groupIdx & 1) !== 0 || this.cullOff;
-				if (isDoubleSided) {
-					gl.disable(gl.CULL_FACE);
-				} else {
-					gl.enable(gl.CULL_FACE);
-					gl.cullFace(gl.FRONT);
-				}
+				culling = this.setCulling(culling, isDoubleSided);
 
 				gl.bindVertexArray(group.vao);
-				twgl.setUniforms(program, this.nodeUniforms);
 				gl.drawArraysInstanced(gl.TRIANGLES, 0, group.vertexCount, layers);
 
 				this.stats.drawCalls++;

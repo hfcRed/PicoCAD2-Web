@@ -460,7 +460,7 @@ export class Renderer {
 	constructor(gl: WebGL2RenderingContext) {
 		this.gl = gl;
 		this.programs = new ShaderPrograms(gl);
-		this.modelProgram = this.programs.model.ready(MODEL_FEATURE.indexOut)!;
+		this.modelProgram = this.programs.model.ready(0)!;
 		this.effectCtx = {
 			gl,
 			width: 0,
@@ -877,10 +877,14 @@ export class Renderer {
 			gl.viewport(x, y, w, h);
 		}
 
-		if (settings.renderMode < 2) {
+		// Right after context creation the scene-target variant of the plain
+		// model may still be linking, and the pass has nothing to draw with.
+		if (
+			settings.renderMode < 2 &&
 			this.selectPassPrograms(
 				useFbo ? features | MODEL_FEATURE.indexOut : features,
-			);
+			)
+		) {
 			this.drawModel(resources);
 		}
 
@@ -919,7 +923,7 @@ export class Renderer {
 		// outlines have read its coverage.
 		const resolve = this.smoothFades && !bgIsTransparent;
 
-		if (useOutline) {
+		if (useOutline && this.programs.outline.ready) {
 			const inputTexture = pipeline.pool.swap(gl);
 			gl.viewport(0, 0, w, h);
 			this.drawOutline(
@@ -1035,7 +1039,8 @@ export class Renderer {
 		gl.viewport(0, 0, w, h);
 		gl.disable(gl.DEPTH_TEST);
 
-		const outline = this.programs.outline.info!;
+		const outline = this.programs.outline.info;
+		if (!outline) return;
 		gl.useProgram(outline.program);
 
 		const uniforms = this.outlineUniforms;

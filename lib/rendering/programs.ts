@@ -116,9 +116,14 @@ export class ShaderPrograms {
 			MODEL_FEATURE_NAMES,
 			MODEL_ATTRIB_LOCATIONS,
 		);
-		this.outline = this.compiler.compile(outlineVert, outlineFrag, [], true);
-		this.model.get(MODEL_FEATURE.indexOut, true);
+
+		// Only the plain single-output variant links before the first frame,
+		// since a plain model on the direct path cannot draw without it. The
+		// scene-target variant and the outline link in the background and a
+		// first frame that needs them draws without the model or the outline.
 		this.model.get(0, true);
+		this.model.get(MODEL_FEATURE.indexOut);
+		this.outline = this.compiler.compile(outlineVert, outlineFrag);
 	}
 
 	/**

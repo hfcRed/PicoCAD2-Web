@@ -16,6 +16,9 @@ const ALPHABET = [
 	..."ÖÓÒÔÕŸÝYöóòôõÿýyËÉÈÊ",
 ];
 
+/** How many rendered strings a font keeps before it starts over. */
+const RENDER_CACHE_LIMIT = 64;
+
 /**
  * A bitmap font parsed from a font spritesheet.
  * Used for rendering pixel-perfect text overlays like viewport tags.
@@ -23,16 +26,24 @@ const ALPHABET = [
 export class BitmapFont {
 	private readonly glyphs: Map<string, Glyph>;
 	private readonly offset: number;
+	private readonly height: number;
+	private readonly rendered = new Map<string, ImageBitmap>();
 
 	/**
 	 * Creates a BitmapFont from pre-parsed glyph data.
 	 *
 	 * @param glyphs - Map of character to glyph data.
 	 * @param offset - The vertical offset to apply when drawing.
+	 * @param height - The glyph height in pixels.
 	 */
-	private constructor(glyphs: Map<string, Glyph>, offset: number) {
+	private constructor(
+		glyphs: Map<string, Glyph>,
+		offset: number,
+		height: number,
+	) {
 		this.glyphs = glyphs;
 		this.offset = offset;
+		this.height = height;
 	}
 
 	/**
@@ -167,7 +178,7 @@ export class BitmapFont {
 
 		const offset = aY - 1;
 
-		return new BitmapFont(glyphs, offset);
+		return new BitmapFont(glyphs, offset, glyphH);
 	}
 
 	/**
@@ -187,7 +198,7 @@ export class BitmapFont {
 
 	/**
 	 * Draws text onto a 2D canvas context at the given position.
-	 * Each glyph pixel is drawn as a 1x1 fillRect for pixel-perfect rendering.
+	 * The text is rendered pixel by pixel once and copied on later calls.
 	 *
 	 * @param ctx - The 2D canvas rendering context.
 	 * @param text - The text to draw.
@@ -204,20 +215,59 @@ export class BitmapFont {
 		color: Color3,
 		right?: boolean,
 	): void {
+		const image = this.render(text, color);
+		if (!image) return;
+
 		const width = this.getTextWidth(text);
-		let sx = right ? Math.floor(x - width) : Math.floor(x);
+		const sx = right ? Math.floor(x - width) : Math.floor(x);
 		const sy = Math.floor(y - this.offset);
+		ctx.drawImage(image, sx, sy);
+	}
 
-		ctx.fillStyle = `rgb(${Math.round(color[0] * 255)},${Math.round(color[1] * 255)},${Math.round(color[2] * 255)})`;
+	/**
+	 * Renders a string in a color into a bitmap of its own, one fill per
+	 * glyph pixel, and keeps it so a tag drawn every frame costs one image
+	 * copy instead. Unknown characters draw as "?".
+	 *
+	 * @param text - The text to render.
+	 * @param color - The text color as [r, g, b] in 0-1 range.
+	 * @returns The rendered text, or null when nothing would be drawn.
+	 */
+	private render(text: string, color: Color3): ImageBitmap | null {
+		const rgb = `${Math.round(color[0] * 255)},${Math.round(color[1] * 255)},${Math.round(color[2] * 255)}`;
+		const key = `${rgb}|${text}`;
+		const cached = this.rendered.get(key);
+		if (cached) return cached;
 
+		let width = 0;
+		for (const char of text) {
+			const glyph = this.glyphs.get(char) ?? this.glyphs.get("?");
+			if (glyph) width += glyph.kerning;
+		}
+		if (width === 0) return null;
+
+		const canvas = new OffscreenCanvas(width, this.height);
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return null;
+
+		ctx.fillStyle = `rgb(${rgb})`;
+		let sx = 0;
 		for (const char of text) {
 			const glyph = this.glyphs.get(char) ?? this.glyphs.get("?");
 			if (!glyph) continue;
 
 			for (const [px, py] of glyph.pixels) {
-				ctx.fillRect(sx + px, sy + py, 1, 1);
+				ctx.fillRect(sx + px, py, 1, 1);
 			}
 			sx += glyph.kerning;
 		}
+
+		const image = canvas.transferToImageBitmap();
+		if (this.rendered.size >= RENDER_CACHE_LIMIT) {
+			for (const old of this.rendered.values()) old.close();
+			this.rendered.clear();
+		}
+		this.rendered.set(key, image);
+		return image;
 	}
 }

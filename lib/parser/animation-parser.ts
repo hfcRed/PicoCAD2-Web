@@ -1,3 +1,4 @@
+import { getEasingFunction, pingpong } from "../animation/easing.ts";
 import type { RawClip, RawMotions } from "../types/model.ts";
 import type { AnimationClip, MotionData } from "../types/scene.ts";
 
@@ -18,6 +19,10 @@ function parseClip(raw: RawClip): AnimationClip | null {
 		delta = delta * 2 * Math.PI;
 	}
 
+	const curve = raw.curve ?? "linear";
+	const isPingpong = raw.pingpong ?? false;
+	const base = getEasingFunction(curve);
+
 	return {
 		prop: raw.prop,
 		axes: raw.axises ?? [],
@@ -25,8 +30,9 @@ function parseClip(raw: RawClip): AnimationClip | null {
 		stop: raw.stop ?? 1,
 		delta,
 		times: raw.times,
-		curve: raw.curve ?? "linear",
-		pingpong: raw.pingpong ?? false,
+		curve,
+		pingpong: isPingpong,
+		easing: isPingpong ? pingpong(base) : base,
 		faceIndex: raw.face_id !== undefined ? raw.face_id - 1 : undefined,
 		frames: raw.frames,
 		step: raw.step,

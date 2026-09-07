@@ -1,4 +1,5 @@
 import type { mat4 } from "gl-matrix";
+import type { EasingFunction } from "../animation/easing.ts";
 
 export type Color3 = [number, number, number];
 
@@ -44,6 +45,7 @@ export interface AnimationClip {
 	times?: number | undefined;
 	curve: string;
 	pingpong: boolean;
+	easing: EasingFunction;
 	faceIndex?: number | undefined;
 	frames?: number | undefined;
 	step?: number | undefined;

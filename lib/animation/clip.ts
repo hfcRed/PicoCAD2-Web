@@ -1,5 +1,4 @@
 import type { AnimationClip } from "../types/scene.ts";
-import { type EasingFunction, getEasingFunction, pingpong } from "./easing.ts";
 
 /**
  * Evaluates an animation clip at a given time, returning the modified value.
@@ -50,14 +49,9 @@ export function evaluateClip(
 		return startValue;
 	}
 
-	let easingFunc: EasingFunction = getEasingFunction(clip.curve);
-	if (clip.pingpong) {
-		easingFunc = pingpong(easingFunc);
-	}
-
 	const duration = clip.stop - clip.start;
 	const ts = Math.max(0, Math.min(t - clip.start, duration));
-	return startValue + delta * easingFunc(ts, 0, 1, duration);
+	return startValue + delta * clip.easing(ts, 0, 1, duration);
 }
 
 /**

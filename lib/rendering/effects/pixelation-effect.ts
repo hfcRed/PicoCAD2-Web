@@ -1,4 +1,10 @@
 import pixelationFrag from "../../shaders/effects/pixelation.frag";
+import type { PixelationOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
 
@@ -25,17 +31,22 @@ const SHAPE_MAP: Record<PixelShape, number> = {
  * Applies pixelation with multiple shape modes.
  */
 export class PixelationEffect extends FullscreenEffect {
-	pixelSize = 4.0;
-	shape: PixelShape = "square";
-	blend = 1.0;
-
 	/**
 	 * Creates a new pixelation effect.
 	 */
 	constructor() {
-		super("pixelation", pixelationFrag, (ctx: EffectContext) =>
-			this.getUniforms(ctx),
+		super(
+			"pixelation",
+			pixelationFrag,
+			(ctx: EffectContext) => this.getUniforms(ctx),
+			true,
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, PIXELATION_DEFAULTS);
 	}
 
 	/**
@@ -53,3 +64,15 @@ export class PixelationEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface PixelationEffect extends Required<PixelationOptions> {}
+
+/** Default settings for {@link PixelationEffect}. */
+export const PIXELATION_DEFAULTS = deepFreeze<DeepRequired<PixelationOptions>>({
+	enabled: false,
+	modelOnly: true,
+	pixelSize: 4,
+	shape: "square",
+	blend: 1,
+	maskedColors: [],
+});

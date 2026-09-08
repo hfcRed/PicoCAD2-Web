@@ -12,6 +12,8 @@ uniform vec2 u_resolution;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 float luminance(vec3 c) {
@@ -19,6 +21,11 @@ float luminance(vec3 c) {
 }
 
 void main() {
+    if (!inColorMask(v_texCoord)) {
+        fragColor = texture(u_texture, v_texCoord);
+        return;
+    }
+
     vec2 texel = 1.0 / u_resolution;
 
     float tl = luminance(texture(u_texture, v_texCoord + vec2(-texel.x,  texel.y)).rgb);

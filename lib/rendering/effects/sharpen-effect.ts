@@ -1,4 +1,10 @@
 import sharpenFrag from "../../shaders/effects/sharpen.frag";
+import type { SharpenOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 import type { EffectContext } from "./types.ts";
 
@@ -6,9 +12,6 @@ import type { EffectContext } from "./types.ts";
  * Sharpens the image using a Laplacian convolution kernel.
  */
 export class SharpenEffect extends FullscreenEffect {
-	strength = 1.0;
-	threshold = 0.0;
-
 	/**
 	 * Creates a new sharpen effect.
 	 */
@@ -16,6 +19,12 @@ export class SharpenEffect extends FullscreenEffect {
 		super("sharpen", sharpenFrag, (ctx: EffectContext) =>
 			this.getUniforms(ctx),
 		);
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, SHARPEN_DEFAULTS);
 	}
 
 	/**
@@ -32,3 +41,14 @@ export class SharpenEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface SharpenEffect extends Required<SharpenOptions> {}
+
+/** Default settings for {@link SharpenEffect}. */
+export const SHARPEN_DEFAULTS = deepFreeze<DeepRequired<SharpenOptions>>({
+	enabled: false,
+	modelOnly: true,
+	strength: 1,
+	threshold: 0,
+	maskedColors: [],
+});

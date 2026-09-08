@@ -1,4 +1,10 @@
 import colorTintFrag from "../../shaders/effects/color-tint.frag";
+import type { ColorTintOptions } from "../../types/options.ts";
+import {
+	type DeepRequired,
+	deepFreeze,
+	resetEffect,
+} from "./effect-defaults.ts";
 import { FullscreenEffect } from "./fullscreen-effect.ts";
 
 /** Color tint rendering mode. */
@@ -13,18 +19,17 @@ const COLOR_TINT_MODE_MAP: Record<ColorTintMode, number> = {
  * Applies a color tint or duotone mapping to the scene.
  */
 export class ColorTintEffect extends FullscreenEffect {
-	mode: ColorTintMode = "tint";
-	color: [number, number, number] = [1.0, 0.9, 0.7];
-	intensity = 1.0;
-	shadowColor: [number, number, number] = [0.0, 0.0, 0.2];
-	highlightColor: [number, number, number] = [1.0, 1.0, 0.8];
-	blend = 1.0;
-
 	/**
 	 * Creates a new color tint effect.
 	 */
 	constructor() {
 		super("colorTint", colorTintFrag, () => this.getUniforms());
+		this.reset();
+	}
+
+	/** Restores every setting to its default value, keeping the enabled state. */
+	reset(): void {
+		resetEffect(this, COLOR_TINT_DEFAULTS);
 	}
 
 	/**
@@ -43,3 +48,18 @@ export class ColorTintEffect extends FullscreenEffect {
 		};
 	}
 }
+
+export interface ColorTintEffect extends Required<ColorTintOptions> {}
+
+/** Default settings for {@link ColorTintEffect}. */
+export const COLOR_TINT_DEFAULTS = deepFreeze<DeepRequired<ColorTintOptions>>({
+	enabled: false,
+	modelOnly: true,
+	mode: "tint",
+	color: [1, 0.9, 0.7],
+	intensity: 1,
+	shadowColor: [0, 0, 0.2],
+	highlightColor: [1, 1, 0.8],
+	blend: 1,
+	maskedColors: [],
+});

@@ -8,9 +8,16 @@ uniform float u_threshold;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 void main() {
+    if (!inColorMask(v_texCoord)) {
+        fragColor = u_bgIsTransparent ? vec4(0.0) : vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+
     vec4 col = texture(u_texture, v_texCoord);
 
     if (u_bgIsTransparent) {

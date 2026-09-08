@@ -79,24 +79,52 @@ function findNearestColor(
 }
 
 /**
- * Auto-generates a shade palette by darkening each color and finding the nearest match.
+ * Auto-generates the first shade palette by darkening each color by 0.7 and
+ * finding the nearest palette match, bounded to the 16 base colors.
+ * Matches PicoCAD 2.2's auto_ramps (2.1 searched past the base palette,
+ * sometimes inventing a 17th color).
  *
  * @param colors - Flat RGB float array of palette colors.
  * @param count - Number of colors in the palette.
- * @param factor - Darkening factor (0-1, default 0.7 for shade_pal_1).
  * @returns A Uint8Array of palette indices mapping each color to its darkened variant.
  */
-function autoGenerateShadePalette(
+function autoGenerateShadePalette1(
 	colors: Float32Array,
 	count: number,
-	factor: number,
 ): Uint8Array {
 	const palette = new Uint8Array(16);
 
 	for (let i = 0; i < count; i++) {
-		const r = colors[i * 3] * factor;
-		const g = colors[i * 3 + 1] * factor;
-		const b = colors[i * 3 + 2] * factor;
+		const r = colors[i * 3] * 0.7;
+		const g = colors[i * 3 + 1] * 0.7;
+		const b = colors[i * 3 + 2] * 0.7;
+		palette[i] = findNearestColor(r, g, b, colors, count);
+	}
+
+	return palette;
+}
+
+/**
+ * Auto-generates the second shade palette by darkening each color's
+ * first-shade match by 0.6 and matching again, chaining from the first palette.
+ *
+ * @param colors - Flat RGB float array of palette colors.
+ * @param count - Number of colors in the palette.
+ * @param shadePalette1 - The first shade palette to chain from.
+ * @returns A Uint8Array of palette indices for the darker shade level.
+ */
+function autoGenerateShadePalette2(
+	colors: Float32Array,
+	count: number,
+	shadePalette1: Uint8Array,
+): Uint8Array {
+	const palette = new Uint8Array(16);
+
+	for (let i = 0; i < count; i++) {
+		const base = shadePalette1[i] * 3;
+		const r = colors[base] * 0.6;
+		const g = colors[base + 1] * 0.6;
+		const b = colors[base + 2] * 0.6;
 		palette[i] = findNearestColor(r, g, b, colors, count);
 	}
 
@@ -133,14 +161,18 @@ export function parseTexture(raw: RawTexture): TextureData {
 	if (raw.shade_pal_1) {
 		shadePalette1 = new Uint8Array(raw.shade_pal_1);
 	} else {
-		shadePalette1 = autoGenerateShadePalette(colors, colorCount, 0.7);
+		shadePalette1 = autoGenerateShadePalette1(colors, colorCount);
 	}
 
 	let shadePalette2: Uint8Array;
 	if (raw.shade_pal_2) {
 		shadePalette2 = new Uint8Array(raw.shade_pal_2);
 	} else {
-		shadePalette2 = autoGenerateShadePalette(colors, colorCount, 0.42);
+		shadePalette2 = autoGenerateShadePalette2(
+			colors,
+			colorCount,
+			shadePalette1,
+		);
 	}
 
 	return {

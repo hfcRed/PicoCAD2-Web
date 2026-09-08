@@ -10,12 +10,20 @@ uniform vec2 u_resolution;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 void main() {
     vec2 texel = 1.0 / u_resolution;
 
     vec4 center = texture(u_texture, v_texCoord);
+
+    if (!inColorMask(v_texCoord)) {
+        fragColor = center;
+        return;
+    }
+
     vec4 top    = texture(u_texture, v_texCoord + vec2(0.0, texel.y));
     vec4 bottom = texture(u_texture, v_texCoord - vec2(0.0, texel.y));
     vec4 left   = texture(u_texture, v_texCoord - vec2(texel.x, 0.0));

@@ -2,9 +2,23 @@
 precision highp float;
 
 in vec3 a_position;
+in vec3 a_smoothNormal;
 
-uniform mat4 u_mvp;
+uniform mat4 u_vp;
+uniform mat4 u_worldMatrix;
+uniform float u_time;
+
+#include chunks/deform.glsl;
+#include chunks/vertex-glitch.glsl;
+
+out vec3 v_worldPos;
 
 void main() {
-    gl_Position = u_mvp * vec4(a_position, 1.0);
+    vec3 worldPos = (u_worldMatrix * vec4(a_position, 1.0)).xyz;
+    worldPos = applyMeshDeform(worldPos);
+
+    vec3 smoothN = normalize(mat3(u_worldMatrix) * a_smoothNormal);
+    worldPos = glitchVertex(worldPos, a_position, smoothN, 0.0);
+    gl_Position = u_vp * vec4(worldPos, 1.0);
+    v_worldPos = worldPos;
 }

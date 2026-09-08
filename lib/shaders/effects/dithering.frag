@@ -11,6 +11,8 @@ uniform vec3 u_channelAmount;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 float bayer4x4(int x, int y) {
@@ -35,6 +37,12 @@ float bayer4x4(int x, int y) {
 
 void main() {
     vec4 orig = texture(u_texture, v_texCoord);
+
+    if (!inColorMask(v_texCoord)) {
+        fragColor = orig;
+        return;
+    }
+
     vec4 col = orig;
     vec2 pos = v_texCoord * u_resolution;
 

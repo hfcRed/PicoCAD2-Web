@@ -16,6 +16,8 @@ uniform bool u_orthographic;
 uniform bool u_modelOnly;
 uniform bool u_bgIsTransparent;
 
+#include color-mask.glsl;
+
 out vec4 fragColor;
 
 /**
@@ -33,6 +35,12 @@ float linearizeDepth(float d) {
 
 void main() {
     vec4 col = texture(u_texture, v_texCoord);
+
+    if (!inColorMask(v_texCoord)) {
+        fragColor = col;
+        return;
+    }
+
     float depth = texture(u_depthTexture, v_texCoord).r;
     float linearDepth = linearizeDepth(depth * 2.0 - 1.0);
 

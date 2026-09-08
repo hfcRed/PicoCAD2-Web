@@ -892,6 +892,23 @@ const material: Scenario[] = [
 		},
 		time: 1.5,
 	},
+	// Mid-blend (blend 0.83 at 0.45 s) so SSAO's palette re-indexing has to
+	// follow the dithered row-set flip, which post effects only see through
+	// their own palette blend define.
+	{
+		name: "material/palette-swap-cycle-ssao",
+		model: "rig",
+		extras: {
+			paletteSwap: {
+				enabled: true,
+				cycleIndices: [7, 12, 6],
+				cycleSpeed: 2,
+				cycleBlendTime: 0.3,
+			},
+			ssao: { enabled: true, radius: 2, intensity: 1.5 },
+		},
+		time: 0.45,
+	},
 ];
 
 const geometry: Scenario[] = [

@@ -17,6 +17,11 @@ uniform bool u_orthographic;
 uniform bool u_bgIsTransparent;
 
 #include color-mask.glsl;
+
+// Post effects compile without the model's feature defines. The palette
+// cycle's dithered blend must still reach the re-indexed rows here, or the
+// occlusion re-shades pixels the model pass already flipped to the target.
+#define FX_PALETTE_BLEND 1
 #include ../chunks/palette-blend.glsl;
 
 out vec4 fragColor;

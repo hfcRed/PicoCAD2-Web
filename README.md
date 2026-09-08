@@ -202,10 +202,11 @@ viewer.enableCameraControls({
   },
 });
 
-// Access the camera directly
+// Access the camera directly (theta is kept short of the poles)
 viewer.camera.theta = Math.PI / 4;
 viewer.camera.omega = Math.PI / 6;
 viewer.camera.distanceToTarget = 5;
+viewer.camera.target[1] = 2;    // the orbit target can be edited in place
 
 // Reset camera to the model's bookmarked position
 viewer.useBookmark();

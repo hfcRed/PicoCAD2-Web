@@ -15,18 +15,71 @@ export const CAMERA_FAR = 1000;
  */
 export const CAMERA_ORTHO_NEAR = -CAMERA_FAR;
 
-/** Orbital camera matching PicoCAD 2's spherical coordinate system. */
-export class OrbitCamera {
-	/** Horizontal orbit angle (azimuth) in radians. */
-	omega = 0.5;
-	/** Vertical orbit angle (elevation) in radians. */
-	theta = 0.4;
+/**
+ * Keeps the elevation just short of the poles, where the view's up vector
+ * would align with the view direction.
+ *
+ * @param theta - The elevation in radians.
+ * @returns The clamped elevation.
+ */
+function clampTheta(theta: number): number {
+	return Math.max(
+		-Math.PI / 2 + EPSILON,
+		Math.min(Math.PI / 2 - EPSILON, theta),
+	);
+}
 
+/**
+ * Orbital camera matching PicoCAD 2's spherical coordinate system.
+ *
+ * The view matrix is cached and rebuilt when any of the orbit properties
+ * changes, so they can be written directly. `target` may also be edited in
+ * place; its components are compared on the next read.
+ */
+export class OrbitCamera {
+	private _omega = 0.5;
+	private _theta = 0.4;
+	private _distanceToTarget = 20;
 	private _omegaOffset = 0;
-	distanceToTarget = 20;
 	target: vec3 = vec3.fromValues(0, 0, 0);
 	zoom = 1;
 	projectionMode: ProjectionMode = "perspective";
+
+	/** Horizontal orbit angle (azimuth) in radians. */
+	get omega(): number {
+		return this._omega;
+	}
+
+	set omega(value: number) {
+		if (this._omega !== value) {
+			this._omega = value;
+			this.needsUpdate = true;
+		}
+	}
+
+	/** Vertical orbit angle (elevation) in radians, kept short of the poles. */
+	get theta(): number {
+		return this._theta;
+	}
+
+	set theta(value: number) {
+		const clamped = clampTheta(value);
+		if (this._theta !== clamped) {
+			this._theta = clamped;
+			this.needsUpdate = true;
+		}
+	}
+
+	get distanceToTarget(): number {
+		return this._distanceToTarget;
+	}
+
+	set distanceToTarget(value: number) {
+		if (this._distanceToTarget !== value) {
+			this._distanceToTarget = value;
+			this.needsUpdate = true;
+		}
+	}
 
 	/**
 	 * Additional horizontal rotation offset in radians, applied on top of omega.
@@ -45,6 +98,8 @@ export class OrbitCamera {
 	}
 
 	private readonly position: vec3 = vec3.create();
+	/** The target the view matrix was last built from, to catch in-place edits. */
+	private readonly viewTarget: vec3 = vec3.fromValues(Number.NaN, 0, 0);
 	private readonly viewMatrix: mat4 = mat4.create();
 	private readonly projectionMatrix: mat4 = mat4.create();
 	private readonly viewProjectionMatrix: mat4 = mat4.create();
@@ -149,10 +204,6 @@ export class OrbitCamera {
 
 		this.omega += deltaOmega;
 		this.theta += deltaTheta;
-		this.theta = Math.max(
-			-Math.PI / 2 + EPSILON,
-			Math.min(Math.PI / 2 - EPSILON, this.theta),
-		);
 		this.needsUpdate = true;
 	}
 
@@ -207,7 +258,7 @@ export class OrbitCamera {
 	 * @returns The current view matrix.
 	 */
 	getViewMatrix(): mat4 {
-		if (this.needsUpdate) {
+		if (this.needsUpdate || !vec3.exactEquals(this.target, this.viewTarget)) {
 			this.update();
 		}
 		return this.viewMatrix;
@@ -239,7 +290,7 @@ export class OrbitCamera {
 	 * @returns The view-projection matrix.
 	 */
 	getViewProjectionMatrix(aspect: number): mat4 {
-		if (this.needsUpdate) {
+		if (this.needsUpdate || !vec3.exactEquals(this.target, this.viewTarget)) {
 			this.update();
 		}
 		const proj = this.getProjectionMatrix(aspect);
@@ -272,6 +323,7 @@ export class OrbitCamera {
 
 		this.updatePosition();
 		mat4.lookAt(this.viewMatrix, this.position, this.target, UP);
+		vec3.copy(this.viewTarget, this.target);
 		this.needsUpdate = this.lerping;
 	}
 }

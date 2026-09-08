@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.0.1
+## 2.0.2
+
+### Fixed
+
+- **`instant` clips no longer apply before they start** — A clip with the `"instant"` curve took effect from time 0 instead of at its start time, because the clip time was clamped to 0 before the curve parsed it. A model with a late instant scale clip therefore started scaled by that clip's delta, which for a negative delta mirrored the mesh and made it shrink instead of grow. Clip time is now passed to the curve unclamped, matching PicoCAD 2.2, and the other curves clamp it themselves as before.
 
 ### Fixed
 

@@ -52,7 +52,10 @@ export function evaluateClip(
 	const duration = clip.stop - clip.start;
 	if (duration <= 0) return t >= clip.start ? startValue + delta : startValue;
 
-	const ts = Math.max(0, Math.min(t - clip.start, duration));
+	// Negative time before the clip starts is the easing's to handle, as in
+	// PicoCAD, the curves clamp it to 0, but "instant" must return the start
+	// value, so clamping here would apply an instant clip from time 0.
+	const ts = Math.min(t - clip.start, duration);
 	return startValue + delta * clip.easing(ts, 0, 1, duration);
 }
 

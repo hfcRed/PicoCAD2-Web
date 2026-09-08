@@ -30,6 +30,7 @@ import { RENDER_MODE, SHADING_MODE } from "../../lib/main.ts";
 export type ModelName =
 	| "advanced_meshes"
 	| "helicopter_takeoff"
+	| "instant_clip"
 	| "livingroom"
 	| "pig"
 	| "pirate"
@@ -73,6 +74,7 @@ export interface Scenario {
 const ALL_MODELS: ModelName[] = [
 	"advanced_meshes",
 	"helicopter_takeoff",
+	"instant_clip",
 	"livingroom",
 	"pig",
 	"pirate",
@@ -167,6 +169,19 @@ const core: Scenario[] = [
 		name: "core/animation-pose-pig",
 		model: "pig",
 		animationTime: 0.5,
+	},
+	// An "instant" clip only takes effect from its own start. The cube's
+	// -0.5 scale clip starts at 1 s, so at 0.5 s only the soft grow from 0 s
+	// shows and the cube must be larger than at 1.5 s, not mirrored.
+	{
+		name: "core/animation-instant-before-start",
+		model: "instant_clip",
+		animationTime: 0.5,
+	},
+	{
+		name: "core/animation-instant-after-start",
+		model: "instant_clip",
+		animationTime: 1.5,
 	},
 	{
 		name: "core/camera-moved",

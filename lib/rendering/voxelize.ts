@@ -72,9 +72,12 @@ export function voxelizeModel(
 	const restMatrices = new Map<SceneNode, mat4>();
 
 	// Walk the graph composing rest-pose (static transform) world matrices,
-	// mirroring updateRenderState's composition of the animated ones.
+	// mirroring updateRenderState's composition of the animated ones. A
+	// hidden subtree never draws.
 	const walk = (parent: SceneNode, parentWorld: mat4): void => {
 		for (const child of parent.children) {
+			if (!child.originalVisible) continue;
+
 			const local = mat4.create();
 			computeLocalMatrix(local, child.staticTransform);
 			const world = mat4.multiply(mat4.create(), parentWorld, local);

@@ -10,5 +10,9 @@
 		"strict": true,
 		"noEmit": true
 	},
-	"include": ["vite.config.ts", "scripts/minify-glsl.ts"]
+	"include": [
+		"vite.config.ts",
+		"scripts/minify-glsl.ts",
+		"scripts/check-shaders.ts"
+	]
 }

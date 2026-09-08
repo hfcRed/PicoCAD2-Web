@@ -26,8 +26,8 @@ struct ScreenGrid {
 };
 
 /**
- * The virtual pixel grid over a space of `space` pixels, `virtualRes`
- * virtual pixels along its height. Color is meant to be sampled once per
+ * The virtual pixel grid over a space of the given pixel size, with the
+ * virtual resolution as the number of virtual pixels along its height. Color is meant to be sampled once per
  * virtual pixel, at sampleUv, while the structure renders per output
  * pixel, which is what makes it read as a screen instead of downscaled
  * pixelation. Below 1 there is no grid and the space's own pixels are the

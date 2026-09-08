@@ -927,6 +927,10 @@ export class PicoCAD2Viewer {
 		this.cameraControlsEnabled = false;
 		this.restoreCameraMode(null);
 
+		this.activePointers.clear();
+		this.inertiaActive = false;
+		this.pinchStartDist = 0;
+
 		this.canvas.removeEventListener(
 			"pointerdown",
 			this.boundHandlers.onPointerDown,
@@ -969,14 +973,18 @@ export class PicoCAD2Viewer {
 	 * @param scale - The pixel scale factor (default: 1).
 	 */
 	setResolution(width: number, height: number, scale = 1): void {
-		this.renderWidth = width;
-		this.renderHeight = height;
-		this.renderScale = scale;
-		this.canvas.width = width * scale;
-		this.canvas.height = height * scale;
+		const w = Number.isFinite(width) ? Math.max(1, Math.floor(width)) : 1;
+		const h = Number.isFinite(height) ? Math.max(1, Math.floor(height)) : 1;
+		const s = Number.isFinite(scale) && scale > 0 ? scale : 1;
+
+		this.renderWidth = w;
+		this.renderHeight = h;
+		this.renderScale = s;
+		this.canvas.width = w * s;
+		this.canvas.height = h * s;
 		this.ctx2d.imageSmoothingEnabled = false;
-		this.canvas.style.width = `${width * scale}px`;
-		this.canvas.style.height = `${height * scale}px`;
+		this.canvas.style.width = `${w * s}px`;
+		this.canvas.style.height = `${h * s}px`;
 	}
 
 	/**
@@ -1385,6 +1393,8 @@ export class PicoCAD2Viewer {
 			time = this.cameraModeTime;
 			cycleDuration = this.cameraModeSpeed;
 		}
+
+		if (!(cycleDuration > 0)) return 0;
 
 		switch (this.cameraMode) {
 			case "spin": {

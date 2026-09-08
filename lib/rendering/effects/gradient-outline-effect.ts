@@ -63,7 +63,7 @@ export class GradientOutlineEffect extends FullscreenEffect {
 			u_colorTo: this.colorTo,
 			u_gradient: this.gradient,
 			u_gradientDirection: this.gradientDirection,
-			u_growthDirection: (this.growthDirection * Math.PI) / 180,
+			u_growthDirection: this.growthDirection,
 			u_growthFactor: Math.min(Math.max(this.growthFactor, 0), 1),
 			u_mode: OUTLINE_MODE_MAP[this.mode] ?? 0,
 			u_shadowOffset: this.shadowOffset,

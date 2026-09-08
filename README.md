@@ -838,7 +838,7 @@ viewer.extras.proceduralBackground.dither = false;           // Checkerboard-qua
 
 Screen-space ambient occlusion. Crevices, corners and contact areas darken based on the surrounding geometry, grounding the model. Runs early in the chain, so fog and color work apply over it.
 
-The default `"palette"` style darkens by stepping each pixel to a deeper shade row of the model's palette, dithered with the same checkerboard the shading system uses. The occlusion looks hand-drawn instead of smeared. `"smooth"` multiplies plain RGB instead. `maskedColors` selects which colors receive occlusion.
+The default `"palette"` style darkens by stepping each pixel to a deeper shade row of the model's palette, dithered with the same checkerboard the shading system uses. The occlusion looks hand-drawn instead of smeared. `"dithered"` darkens the RGB in the same stepped checkerboard without re-indexing, and `"smooth"` multiplies plain RGB instead. `maskedColors` selects which colors receive occlusion.
 
 ```typescript
 viewer.extras.ssao.enabled = true;
@@ -846,7 +846,7 @@ viewer.extras.ssao.radius = 1;             // Sampling radius in world units (de
 viewer.extras.ssao.intensity = 1;          // Occlusion strength (default: 1)
 viewer.extras.ssao.power = 1;              // Falloff exponent, higher = darkens crevices only (default: 1)
 viewer.extras.ssao.samples = 16;           // Samples per pixel: 8 | 16 | 32 (default: 16)
-viewer.extras.ssao.style = "palette";      // "palette" | "smooth" (default: "palette")
+viewer.extras.ssao.style = "palette";      // "palette" | "dithered" | "smooth" (default: "palette")
 ```
 
 ### Noise
@@ -1002,7 +1002,7 @@ viewer.extras.gradientOutline.colorFrom = [1, 0.5, 0];       // Gradient start c
 viewer.extras.gradientOutline.colorTo = [0, 0.5, 1];         // Gradient end color (default: [0, 0, 0])
 viewer.extras.gradientOutline.gradient = 1.0;                // Gradient intensity (default: 1.0)
 viewer.extras.gradientOutline.gradientDirection = Math.PI;   // Gradient angle in radians (default: 0)
-viewer.extras.gradientOutline.growthDirection = 90;          // Growth direction in degrees, 0 = right, 90 = up (default: 0)
+viewer.extras.gradientOutline.growthDirection = Math.PI / 2; // Growth direction in radians, 0 = right, π/2 = up (default: 0)
 viewer.extras.gradientOutline.growthFactor = 0;              // 0 = uniform outline, 1 = one-sided (default: 0)
 viewer.extras.gradientOutline.mode = "outline";              // "outline" | "dropShadow" (default: "outline")
 viewer.extras.gradientOutline.shadowOffset = [2, -2];        // Drop shadow offset in pixels, +x = right, +y = up (default: [2, -2])

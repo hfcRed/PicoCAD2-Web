@@ -1843,7 +1843,7 @@ const post: Scenario[] = [
 			gradientOutline: {
 				enabled: true,
 				size: 3,
-				growthDirection: 90,
+				growthDirection: (90 * Math.PI) / 180,
 				growthFactor: 1,
 			},
 		},

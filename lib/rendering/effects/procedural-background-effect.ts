@@ -40,7 +40,6 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 			this.getUniforms(ctx),
 		);
 		this.reset();
-		this.modelOnly = false;
 	}
 
 	/** Restores every setting to its default value, keeping the enabled state. */

@@ -4,6 +4,21 @@ import { compilerFor, type ManagedProgram } from "../program-cache.ts";
 import { packColorMask } from "./color-mask.ts";
 import type { EffectContext, PostProcessEffect } from "./types.ts";
 
+interface MaskSettings {
+	modelOnly?: boolean;
+	maskedColors?: readonly number[];
+}
+
+/**
+ * Reads an effect's mask settings, whether or not it declares them.
+ *
+ * @param effect - The effect.
+ * @returns The settings it carries.
+ */
+function maskSettingsOf(effect: object): MaskSettings {
+	return effect as MaskSettings;
+}
+
 /**
  * A single-pass fullscreen post-process effect.
  * Handles shader compilation, empty VAO management, and fullscreen triangle rendering.
@@ -12,6 +27,11 @@ import type { EffectContext, PostProcessEffect } from "./types.ts";
  * The program compiles through the context's compiler, in the background
  * where the browser allows, and the effect reports itself not ready until
  * the link has finished, so enabling it never stalls the frame.
+ *
+ * `modelOnly` and `maskedColors` are not declared here. An effect whose
+ * options include them gets them through its declaration merging, and the
+ * base draw reads them when present, so an effect whose shader ignores
+ * them does not expose inert settings.
  */
 export class FullscreenEffect implements PostProcessEffect {
 	private program: ManagedProgram | null = null;
@@ -26,8 +46,6 @@ export class FullscreenEffect implements PostProcessEffect {
 	readonly warpsIndex: boolean;
 	enabled = false;
 	initialized = false;
-	modelOnly = true;
-	maskedColors: number[] = [];
 
 	/**
 	 * Creates a new fullscreen effect.
@@ -79,12 +97,13 @@ export class FullscreenEffect implements PostProcessEffect {
 		const gl = ctx.gl;
 
 		gl.useProgram(info.program);
+		const mask = maskSettingsOf(this);
 		twgl.setUniforms(info, {
 			u_texture: inputTexture,
-			u_modelOnly: this.modelOnly,
+			u_modelOnly: mask.modelOnly ?? true,
 			u_bgIsTransparent: ctx.bgIsTransparent,
 			u_indexTexture: ctx.indexTexture,
-			u_colorMask: packColorMask(this.maskedColors),
+			u_colorMask: packColorMask(mask.maskedColors ?? []),
 			...this.getUniformsFn(ctx),
 		});
 

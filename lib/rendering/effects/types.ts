@@ -48,8 +48,8 @@ export interface PostProcessEffect {
 	readonly ready?: boolean;
 	readonly warpsIndex?: boolean;
 	enabled: boolean;
-	modelOnly: boolean;
-	maskedColors: number[];
+	modelOnly?: boolean;
+	maskedColors?: number[];
 	init(gl: WebGL2RenderingContext): void;
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void;
 	dispose(): void;

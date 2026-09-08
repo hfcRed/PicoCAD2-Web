@@ -87,8 +87,8 @@ function toCameraState(settings: BookmarkSettings): CameraState {
 	};
 }
 
-/** Controls animation playback state and timing. */
-class AnimationController {
+/** Controls animation playback state and timing, as `viewer.animation`. */
+export class AnimationController {
 	private duration = 0;
 
 	playing = false;

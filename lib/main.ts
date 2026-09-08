@@ -1,4 +1,5 @@
 export const COMPATIBLE_VERSION = "2.2.0-b16";
+export { OrbitCamera } from "./camera/orbit-camera.ts";
 export { PicoCAD2Context, type PicoCAD2ContextOptions } from "./context.ts";
 export {
 	type MeshBufferGroup,
@@ -257,6 +258,7 @@ export type {
 	ModelInfo,
 	ModelSettings,
 	NoiseOptions,
+	PaletteSwapOptions,
 	ParticlesOptions,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
@@ -269,6 +271,7 @@ export type {
 	SharpenOptions,
 	SpecularEnvironmentOptions,
 	SpecularOptions,
+	SSAOOptions,
 	SweepOptions,
 	TriangleFlashOptions,
 	TriangleShatterOptions,
@@ -288,7 +291,11 @@ export type {
 	ProjectionMode,
 	TextureData,
 } from "./types/scene.ts";
-export { PicoCAD2Viewer, type ViewerTag } from "./viewer.ts";
+export {
+	AnimationController,
+	PicoCAD2Viewer,
+	type ViewerTag,
+} from "./viewer.ts";
 export {
 	EXTRAS_DEFAULTS,
 	getDefaultExtras,

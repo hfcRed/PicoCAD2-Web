@@ -195,7 +195,7 @@ export class PicoCAD2Viewer {
 	private context: PicoCAD2Context;
 	private ownsContext: boolean;
 	private ctx2d: CanvasRenderingContext2D;
-	private source: RawPicoCAD2File | null = null;
+	private source: PicoCAD2ViewerState["source"] = null;
 	private model: PicoCAD2Model | null = null;
 	private resources: ModelResources | null = null;
 	private renderWidth = 128;
@@ -386,6 +386,25 @@ export class PicoCAD2Viewer {
 	 * @param useBookmark - If true, initializes the camera from the model's bookmark instead of the default camera state.
 	 */
 	load(source: string, useBookmark = false): void {
+		this.loadModel(parseSource(source), useBookmark);
+		this.emitLoad();
+	}
+
+	/**
+	 * Replaces the current model with a parsed file and applies the file's
+	 * settings, the same way a state's model group is applied. The file is
+	 * parsed before the previous model's resources go, so a file that fails
+	 * to parse leaves the viewer as it was. The load callback is left to the
+	 * caller, so a state restore can fire it once everything is applied.
+	 *
+	 * @param raw - The raw file object, frozen unless the caller owns it.
+	 * @param useBookmark - Whether the camera starts from the model's bookmark.
+	 */
+	private loadModel(
+		raw: NonNullable<PicoCAD2ViewerState["source"]>,
+		useBookmark: boolean,
+	): void {
+		const model = parseModel(raw as RawPicoCAD2File);
 		this._loadedWithBookmark = useBookmark;
 		this.cancelCameraModeRestore();
 
@@ -394,60 +413,25 @@ export class PicoCAD2Viewer {
 			this.resources = null;
 		}
 
-		const raw = parseSource(source);
-		this.model = parseModel(raw);
-
-		deepFreeze(raw);
+		if (!Object.isFrozen(raw)) deepFreeze(raw);
 		this.source = raw;
+		this.model = model;
+		this.resources = this.context.createModelResources(model);
+		this.animation.setDuration(model.motionDuration);
 
-		this.resources = this.context.createModelResources(this.model);
-		this.shadingMode = this.model.shadingMode;
-		this.renderMode = this.model.renderMode;
-		this.projectionMode = this.model.projectionMode;
+		this._modelInfo = this.computeModelInfo(model);
+		this.applyModelSettings(this._modelInfo.settings, useBookmark);
 
-		this.animation.setDuration(this.model.motionDuration);
-		this.animation.time = 0;
-		this.animation.loops = this.model.exportSettings.animateLoops;
-
-		const es = this.model.exportSettings;
-		this.cameraMode = es.cameraMode;
-		this.cameraModeDirection = es.cameraModeDirection;
-		this.cameraModeSpeed = es.cameraModeSpeed;
-		this.outlineSize = es.outlineSize;
-		this.outlineColor = es.outlineColor;
-		this.scanlines = es.scanlines;
-		this.scanlineColor = es.scanlineColor;
-
-		if (es.animate) {
-			this.animation.play();
-		} else {
-			this.animation.pause();
-		}
-
-		if (es.watermark) {
-			this.rightTag = { text: es.watermark, color: es.watermarkColor };
-		} else {
-			this.rightTag = null;
-		}
-
-		if (es.watermark2) {
-			this.leftTag = { text: es.watermark2, color: es.watermark2Color };
-		} else {
-			this.leftTag = null;
-		}
-
-		if (useBookmark) {
-			this.camera.initFromState(this.model.bookmark);
-		} else {
-			this.camera.initFromState(this.model.camera);
-		}
-
-		storeStaticTransforms(this.model.root);
+		storeStaticTransforms(model.root);
 		this.wasAnimating = false;
 		this.clampBaseline = null;
+	}
 
-		this._modelInfo = this.computeModelInfo(this.model);
-		this.onLoad?.(this._modelInfo);
+	/**
+	 * Fires the load callback with the loaded model's info.
+	 */
+	private emitLoad(): void {
+		if (this._modelInfo) this.onLoad?.(this._modelInfo);
 	}
 
 	/**
@@ -1148,7 +1132,10 @@ export class PicoCAD2Viewer {
 	setState(state: PicoCAD2ViewerState, useBookmark = false): void {
 		if (!state.source) return;
 
-		this.load(JSON.stringify(state.source), useBookmark);
+		const raw = Object.isFrozen(state.source)
+			? state.source
+			: structuredClone(state.source);
+		this.loadModel(raw, useBookmark);
 		if (!this.model || !this._modelInfo) return;
 
 		this.applyModelSettings(
@@ -1163,6 +1150,7 @@ export class PicoCAD2Viewer {
 		// returns to its defaults.
 		this._extras.reset();
 		this.applyExtrasOptions(state.extras ?? {});
+		this.emitLoad();
 	}
 
 	/**

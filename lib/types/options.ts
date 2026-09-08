@@ -4,7 +4,10 @@ import type { ColorTintMode } from "../rendering/effects/color-tint-effect.ts";
 import type { CycleMode } from "../rendering/effects/cycle.ts";
 import type { FogMode } from "../rendering/effects/depth-fog-effect.ts";
 import type { DisplaySpace } from "../rendering/effects/display-effect.ts";
-import type { DeepPartial } from "../rendering/effects/effect-defaults.ts";
+import type {
+	DeepPartial,
+	DeepReadonly,
+} from "../rendering/effects/effect-defaults.ts";
 import type { EmissionBlinkMode } from "../rendering/effects/emission-effect.ts";
 import type {
 	GlitterShape,
@@ -667,7 +670,8 @@ export interface ViewerSettings {
 export type ExtrasState = Required<ExtrasOptions>;
 
 export interface PicoCAD2ViewerState {
-	source: RawPicoCAD2File | null;
+	/** The raw file, frozen by the viewer once loaded. Copy it before editing. */
+	source: DeepReadonly<RawPicoCAD2File> | null;
 	model?: DeepPartial<ModelSettings>;
 	viewer?: DeepPartial<ViewerSettings>;
 	extras?: ExtrasOptions;

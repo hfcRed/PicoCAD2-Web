@@ -6,9 +6,13 @@
 
 - **`instant` clips no longer apply before they start** — A clip with the `"instant"` curve took effect from time 0 instead of at its start time, because the clip time was clamped to 0 before the curve parsed it. A model with a late instant scale clip therefore started scaled by that clip's delta, which for a negative delta mirrored the mesh and made it shrink instead of grow. Clip time is now passed to the curve unclamped, matching PicoCAD 2.2, and the other curves clamp it themselves as before.
 
+## 2.0.1
+
 ### Fixed
 
 - **`colorScheme` is no longer part of the viewer state** — `ViewerSettings` and `VIEWER_SETTINGS_DEFAULTS` drop `colorScheme`, `getState()` no longer writes it and `setState()` no longer resets it to the default. A page that passed `colorScheme` to the constructor and then loaded a state saw the scheme fall back to `"auto"`, and a state exported while previewing one scheme would have forced it on every page rendering it. The scheme describes the embedding page, not the model, so it stays a constructor option and a viewer property only.
+
+## 2.0.0
 
 Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a new viewer state format. The two 1.4.0 betas are folded into this entry.
 

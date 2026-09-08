@@ -182,6 +182,15 @@ export class BitmapFont {
 	}
 
 	/**
+	 * Closes the rendered text bitmaps. The font can still draw afterwards,
+	 * rendering its texts again on demand.
+	 */
+	dispose(): void {
+		for (const image of this.rendered.values()) image.close();
+		this.rendered.clear();
+	}
+
+	/**
 	 * Computes the width of a text string in pixels.
 	 *
 	 * @param text - The text to measure.

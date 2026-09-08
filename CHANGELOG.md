@@ -89,6 +89,7 @@ Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a n
 - **`instant` easing at clip start** — The jump now happens at exactly the clip start time, matching PicoCAD 2.
 - **Stale pose after stopping animation** — Stopping the animation with `animation.stop()` now restores the model's static pose instead of freezing the last animated frame.
 - **Zero-length motion clips** — A clip whose start and stop coincide now jumps to its end value at that time. Its easing used to divide by the zero duration and turn the node's transform into NaN for the whole timeline, and a zero-length `"tex"` clip did the same to the face UVs.
+- **Disposing a context releases it** — `PicoCAD2Context.dispose()` (and `viewer.dispose()` for a viewer that owns its context) now loses the WebGL context and closes the font's cached text bitmaps. The context used to stay alive until garbage collection and count toward the browser's context limit meanwhile.
 
 ## 1.3.0
 

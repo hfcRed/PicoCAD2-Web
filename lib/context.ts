@@ -57,6 +57,7 @@ export class PicoCAD2Context {
 	private atlasOverflowed = false;
 	private readonly maxAtlasSize: number;
 	private frameId: number | null = null;
+	private disposed = false;
 
 	/**
 	 * Rendering statistics from the most recent draw call.
@@ -115,6 +116,10 @@ export class PicoCAD2Context {
 
 		BitmapFont.loadDefault()
 			.then((font) => {
+				if (this.disposed) {
+					font.dispose();
+					return;
+				}
 				this.font = font;
 			})
 			.catch((err) => {
@@ -396,14 +401,21 @@ export class PicoCAD2Context {
 	}
 
 	/**
-	 * Frees all resources held by this context.
+	 * Frees all resources held by this context and releases its WebGL
+	 * context.
 	 */
 	dispose(): void {
+		if (this.disposed) return;
+		this.disposed = true;
+
 		if (this.frameId !== null) {
 			cancelAnimationFrame(this.frameId);
 			this.frameId = null;
 		}
 		this.slots.length = 0;
 		this.renderer.dispose();
+		this.font?.dispose();
+		this.font = null;
+		this.gl.getExtension("WEBGL_lose_context")?.loseContext();
 	}
 }

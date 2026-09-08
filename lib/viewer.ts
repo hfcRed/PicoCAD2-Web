@@ -6,6 +6,7 @@ import { PicoCAD2Context } from "./context.ts";
 import { parseModel, parseSource } from "./parser/parser.ts";
 import { packColorMask } from "./rendering/effects/color-mask.ts";
 import {
+	assignSettings,
 	type DeepPartial,
 	deepFreeze,
 	diffFromDefaults,
@@ -1288,118 +1289,17 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
-	 * Applies extras configuration from options to the viewer's effects.
+	 * Lays effect options over the viewer's effects, following the shape of
+	 * {@link EXTRAS_DEFAULTS}. Nested groups merge, arrays are copied, and
+	 * keys the effects do not know are ignored.
 	 */
 	private applyExtrasOptions(extras: ExtrasOptions): void {
-		const assign = <T>(target: T, source: Partial<T> | undefined) => {
-			if (!source) return;
-			for (const key of Object.keys(source) as (keyof T)[]) {
-				if (source[key] !== undefined) {
-					target[key] = source[key] as T[keyof T];
-				}
-			}
-		};
-
-		assign(this.extras.wireframe, extras.wireframe);
-		assign(this.extras.particles, extras.particles);
-		assign(this.extras.proceduralBackground, extras.proceduralBackground);
-		assign(this.extras.colorCutout, extras.colorCutout);
-		assign(this.extras.paletteSwap, extras.paletteSwap);
-		assign(this.extras.interior, extras.interior);
-		assign(this.extras.rimLight, extras.rimLight);
-		assign(this.extras.gradientLight, extras.gradientLight);
-		assign(this.extras.glitter, extras.glitter);
-		assign(this.extras.emission, extras.emission);
-		assign(this.extras.projection, extras.projection);
-		assign(this.extras.gradientOutline, extras.gradientOutline);
-		assign(this.extras.ssao, extras.ssao);
-		assign(this.extras.colorGrading, extras.colorGrading);
-		assign(this.extras.posterization, extras.posterization);
-		assign(this.extras.bloom, extras.bloom);
-		assign(this.extras.dithering, extras.dithering);
-		assign(this.extras.pixelation, extras.pixelation);
-		assign(this.extras.lensDistortion, extras.lensDistortion);
-		assign(this.extras.noise, extras.noise);
-		assign(this.extras.chromaticAberration, extras.chromaticAberration);
-		assign(this.extras.vignette, extras.vignette);
-		assign(this.extras.depthFog, extras.depthFog);
-		assign(this.extras.halftone, extras.halftone);
-		assign(this.extras.glitch, extras.glitch);
-		assign(this.extras.colorTint, extras.colorTint);
-		assign(this.extras.sharpen, extras.sharpen);
-		assign(this.extras.edgeDetection, extras.edgeDetection);
-
-		if (extras.display) {
-			const { crt, gameboy, tn, oled, projector, ...display } = extras.display;
-			assign(this.extras.display, display);
-			assign(this.extras.display.crt, crt);
-			assign(this.extras.display.gameboy, gameboy);
-			assign(this.extras.display.tn, tn);
-			assign(this.extras.display.oled, oled);
-			assign(this.extras.display.projector, projector);
-		}
-
-		if (extras.dissolve) {
-			const { cycle, sweep, ...dissolve } = extras.dissolve;
-			assign(this.extras.dissolve, dissolve);
-			assign(this.extras.dissolve.cycle, cycle);
-			assign(this.extras.dissolve.sweep, sweep);
-		}
-
-		if (extras.specular) {
-			const { environment, ...specular } = extras.specular;
-			assign(this.extras.specular, specular);
-			assign(this.extras.specular.environment, environment);
-		}
-
-		if (extras.meshDeform) {
-			const { cycle, sweep, voxel, barrel, spherify, twist, ...deform } =
-				extras.meshDeform;
-			assign(this.extras.meshDeform, deform);
-			assign(this.extras.meshDeform.cycle, cycle);
-			assign(this.extras.meshDeform.sweep, sweep);
-			assign(this.extras.meshDeform.voxel, voxel);
-			assign(this.extras.meshDeform.barrel, barrel);
-			assign(this.extras.meshDeform.spherify, spherify);
-			assign(this.extras.meshDeform.twist, twist);
-		}
-
-		assign(this.extras.triangleFlash, extras.triangleFlash);
-		assign(this.extras.fur, extras.fur);
-
-		if (extras.triangleShatter) {
-			const { cycle, sweep, ...shatter } = extras.triangleShatter;
-			assign(this.extras.triangleShatter, shatter);
-			assign(this.extras.triangleShatter.cycle, cycle);
-			assign(this.extras.triangleShatter.sweep, sweep);
-		}
-
-		if (extras.vertexGlitch) {
-			const { cycle, sweep, ...glitch } = extras.vertexGlitch;
-			assign(this.extras.vertexGlitch, glitch);
-			assign(this.extras.vertexGlitch.cycle, cycle);
-			assign(this.extras.vertexGlitch.sweep, sweep);
-		}
-
-		assign(this.extras.billboard, extras.billboard);
-
-		if (extras.floor) {
-			const { grid, shadow, reflection, ...floor } = extras.floor;
-			assign(this.extras.floor, floor);
-			assign(this.extras.floor.grid, grid);
-			assign(this.extras.floor.shadow, shadow);
-			assign(this.extras.floor.reflection, reflection);
-		}
-
-		if (extras.videoEffects) {
-			const { crt, gameboy, tn, oled, projector, ...video } =
-				extras.videoEffects;
-			assign(this.extras.videoEffects, video);
-			assign(this.extras.videoEffects.crt, crt);
-			assign(this.extras.videoEffects.gameboy, gameboy);
-			assign(this.extras.videoEffects.tn, tn);
-			assign(this.extras.videoEffects.oled, oled);
-			assign(this.extras.videoEffects.projector, projector);
+		for (const key of Object.keys(
+			EXTRAS_DEFAULTS,
+		) as (keyof typeof EXTRAS_DEFAULTS)[]) {
+			const options = extras[key];
+			if (!options) continue;
+			assignSettings(this.extras[key], options, EXTRAS_DEFAULTS[key]);
 		}
 	}
 

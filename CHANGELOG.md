@@ -74,6 +74,7 @@ Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a n
 - **Orthographic near plane** — Faces at or behind the camera plane are no longer clipped in orthographic projection (matching PicoCAD 2.2).
 - **`animate` export setting** — Parses both the 2.1.0 boolean and the 2.2.0 `"off"`/`"1x"`/`"2x"` string forms. `"off"` no longer counts as enabled.
 - **`motion_duration` fallback** — Files without a timeline length now default to 6.4 seconds (matching PicoCAD 2.2).
+- **Effect options are copied in** — The constructor's `extras` and `setState()` now copy arrays and nested groups onto the effects instead of keeping the caller's objects, and ignore keys an effect does not know.
 - **Auto-generated shade palettes** — When a file has no `shade_pal_1`/`shade_pal_2`, the second ramp is now derived from the first ramp's matched color darkened by 0.6 (matching PicoCAD 2.2, previously approximated with a single 0.42 factor).
 
 ### Fixed

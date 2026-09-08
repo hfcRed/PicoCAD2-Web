@@ -140,6 +140,40 @@ export function mergeDefaults<T extends object>(
 }
 
 /**
+ * Lays settings over a target in place, following the shape of the
+ * defaults. Nested groups merge, arrays and values are copied so the
+ * target never shares a caller's objects, and keys the defaults do not
+ * know are ignored, so a state written by another build cannot plant
+ * stray fields on an effect.
+ *
+ * @param target - The effect or settings object to write into.
+ * @param source - The partial settings to lay over it.
+ * @param defaults - The complete defaults describing the shape.
+ */
+export function assignSettings(
+	target: object,
+	source: object,
+	defaults: object,
+): void {
+	const out = target as Record<string, unknown>;
+	const values = source as Record<string, unknown>;
+	const shape = defaults as Record<string, unknown>;
+	for (const key of Object.keys(shape)) {
+		const value = values[key];
+		if (value === undefined) continue;
+
+		const group = shape[key];
+		if (!isRecord(group)) {
+			out[key] = copyValue(value);
+			continue;
+		}
+		if (!isRecord(value)) continue;
+		if (!isRecord(out[key])) out[key] = copyValue(group);
+		assignSettings(out[key] as object, value, group);
+	}
+}
+
+/**
  * Restores an effect's settings from its defaults, keeping the effect's
  * current enabled state.
  */

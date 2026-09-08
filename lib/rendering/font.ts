@@ -199,7 +199,7 @@ export class BitmapFont {
 	getTextWidth(text: string): number {
 		let w = 0;
 		for (const char of text) {
-			const glyph = this.glyphs.get(char);
+			const glyph = this.glyphs.get(char) ?? this.glyphs.get("?");
 			if (glyph) w += glyph.kerning;
 		}
 		return w > 0 ? w - 1 : 0;

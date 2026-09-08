@@ -1298,6 +1298,10 @@ pnpm test:perf --builds src --alloc src rig      # the biggest allocators
 
 Frames scenarios run interleaved per build in one browser and report medians. Compile scenarios open a fresh browser per measurement because the GPU process caches compiled programs. `--device gpu` runs on the machine's GPU, `--device swiftshader` on the software rasterizer that stands in for a device without one. There the timer-query column is the rasterizer's cost per frame, and a main-thread number that grows to match it means the page is waiting on the rasterizer. `--cpu N` slows the main thread N times through DevTools. Results go to `test/perf/results/<label>.json`, and `--md` writes the tables as Markdown.
 
+### Releasing
+
+`pnpm run release` checks the working tree and branch, prompts for an npm token when the registry rejects the saved one, and publishes a prerelease version under its dist-tag (`2.1.0-beta.1` under `beta`) instead of `latest`. Use it instead of `pnpm publish`, which uploads under `latest` before any script runs.
+
 ## License
 
 MIT

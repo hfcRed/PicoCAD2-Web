@@ -298,27 +298,10 @@ export class PicoCAD2Viewer {
 			this.setResolution(resolution.width, resolution.height, resolution.scale);
 		}
 
-		if (options?.shadingMode !== undefined) {
-			this.shadingMode = options.shadingMode;
-		}
-		if (options?.renderMode) this.renderMode = options.renderMode;
-		if (options?.projectionMode) this.projectionMode = options.projectionMode;
 		if (options?.backgroundColor !== undefined)
 			this.backgroundColor = options.backgroundColor;
-		if (options?.outlineSize !== undefined)
-			this.outlineSize = options.outlineSize;
-		if (options?.outlineColor) this.outlineColor = options.outlineColor;
-		if (options?.scanlines !== undefined) this.scanlines = options.scanlines;
-		if (options?.scanlineColor) this.scanlineColor = options.scanlineColor;
 		if (options?.animationSpeed !== undefined) {
 			this.animation.speed = options.animationSpeed;
-		}
-		if (options?.cameraMode) this.cameraMode = options.cameraMode;
-		if (options?.cameraModeSpeed !== undefined) {
-			this.cameraModeSpeed = options.cameraModeSpeed;
-		}
-		if (options?.cameraModeDirection) {
-			this.cameraModeDirection = options.cameraModeDirection;
 		}
 		if (options?.maxFps !== undefined) this.maxFps = options.maxFps;
 		if (options?.clampCameraDistance) {

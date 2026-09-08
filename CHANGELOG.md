@@ -13,6 +13,7 @@ Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a n
 - **Inert `modelOnly` settings removed** — The `wireframe` and `particles` effects no longer carry a `modelOnly` property, and `gradientOutline` no longer accepts one in its options or saved state. None of them ever read the value.
 - **Euler rotation order** — Node rotations now compose as Z·Y·X (matching PicoCAD 2.2) instead of X·Y·Z. Models using rotation on more than one axis render differently.
 - **`onFrame` follows the frame cap** — With `maxFps` set, the `onFrame` callback fires once per drawn frame with the elapsed time since the previous drawn frame, instead of once per display refresh.
+- **Model settings are no longer constructor options** — `shadingMode`, `renderMode`, `projectionMode`, `outlineSize`, `outlineColor`, `scanlines`, `scanlineColor`, `cameraMode`, `cameraModeSpeed` and `cameraModeDirection` are removed from `PicoCAD2ViewerOptions`. Every `load()` applies the file's values, which silently discarded them. Set them as viewer properties after loading, or through the `model` group of a state.
 
 ### Added
 

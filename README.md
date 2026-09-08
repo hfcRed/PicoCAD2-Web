@@ -72,7 +72,7 @@ const context = new PicoCAD2Context({ shaderCompile: "sync" });
 
 ## Viewer Options
 
-All options are optional and can be passed to the `PicoCAD2Viewer` constructor:
+All options are optional and can be passed to the `PicoCAD2Viewer` constructor. They are the viewer's own settings, the settings a model file carries are applied by every `load()` and are set as [viewer properties](#viewer-properties) afterwards.
 
 ```typescript
 const viewer = new PicoCAD2Viewer({
@@ -85,24 +85,10 @@ const viewer = new PicoCAD2Viewer({
 
   // Rendering
   maxFps: 60,                       // Max render loop rate in fps, 0 = display refresh rate (default: 60)
-  shadingMode: SHADING_MODE.on,     // SHADING_MODE.off | .on, as PicoCAD 2 writes it (default: on)
-  renderMode: RENDER_MODE.texture,  // RENDER_MODE.none | .color | .texture, PicoCAD 2's face mode (default: texture)
-  projectionMode: "perspective",    // "perspective" | "orthographic" | "fisheye" (default: "perspective")
   backgroundColor: [0.1, 0.1, 0.1], // Override background color, or null for model default (default: null)
   transparency: "dithered",         // "dithered" | "smooth", how fades resolve against the background (default: "dithered")
 
-  // Outline
-  outlineSize: 0,                 // Outline width in pixels (default: 0, disabled)
-  outlineColor: [0, 0, 0],        // Outline RGB color, 0-1 range (default: black)
-
-  // Scanlines
-  scanlines: false,               // Enable scanline overlay (default: false)
-  scanlineColor: [0, 0, 0],       // Scanline RGB color, 0-1 range (default: black)
-
   // Camera
-  cameraMode: "fixed",            // "fixed" | "spin" | "sway" | "pingpong" (default: "fixed")
-  cameraModeSpeed: 5,             // Camera mode cycle duration in seconds (default: 5)
-  cameraModeDirection: "left",    // "left" | "right" (default: "left")
   clampCameraDistance: {          // Keep the camera outside the model's surfaces so the view can't clip into the geometry
     enabled: false,               // (default: false)
     minimumDistance: 0,           // Minimum distance to keep to the surfaces the camera stops at, in world units (default: 0)

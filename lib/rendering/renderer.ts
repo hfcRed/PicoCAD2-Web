@@ -984,6 +984,7 @@ export class Renderer {
 			resources.voxelDual = null;
 			resources.voxelKey = "";
 		}
+		deleteNodeBuffers(gl, resources.baseBuffers);
 		resources.nodeBuffers = [];
 		resources.baseBuffers = [];
 	}

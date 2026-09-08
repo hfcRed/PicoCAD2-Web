@@ -417,6 +417,8 @@ export class PicoCAD2Viewer {
 
 		if (es.animate) {
 			this.animation.play();
+		} else {
+			this.animation.pause();
 		}
 
 		if (es.watermark) {

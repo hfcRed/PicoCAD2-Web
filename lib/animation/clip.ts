@@ -50,6 +50,8 @@ export function evaluateClip(
 	}
 
 	const duration = clip.stop - clip.start;
+	if (duration <= 0) return t >= clip.start ? startValue + delta : startValue;
+
 	const ts = Math.max(0, Math.min(t - clip.start, duration));
 	return startValue + delta * clip.easing(ts, 0, 1, duration);
 }
@@ -70,11 +72,14 @@ export function evaluateTexClipFrame(clip: AnimationClip, t: number): number {
 
 	const frames = clip.frames ?? 0;
 	const step = clip.step ?? 0;
+	if (frames <= 0) return 0;
+	if (clip.returnUv && t >= clip.stop) return 0;
+
 	const duration = clip.stop - clip.start;
+	if (duration <= 0) return frames * step;
+
 	const frameLength = duration / frames;
 	let newFrame = Math.floor((t - clip.start) / frameLength) + 1;
-
-	if (clip.returnUv && t >= clip.stop) return 0;
 	if (t >= clip.stop) newFrame = frames;
 
 	return Math.max(1, Math.min(newFrame, frames)) * step;

@@ -88,6 +88,7 @@ Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a n
 - **Malformed motion clips** — Clips missing a `prop` are skipped on load instead of producing broken animation state, matching PicoCAD 2.2's load guard.
 - **`instant` easing at clip start** — The jump now happens at exactly the clip start time, matching PicoCAD 2.
 - **Stale pose after stopping animation** — Stopping the animation with `animation.stop()` now restores the model's static pose instead of freezing the last animated frame.
+- **Zero-length motion clips** — A clip whose start and stop coincide now jumps to its end value at that time. Its easing used to divide by the zero duration and turn the node's transform into NaN for the whole timeline, and a zero-length `"tex"` clip did the same to the face UVs.
 
 ## 1.3.0
 

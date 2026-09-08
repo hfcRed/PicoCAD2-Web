@@ -385,6 +385,7 @@ export class PicoCAD2Viewer {
 	 */
 	load(source: string, useBookmark = false): void {
 		this._loadedWithBookmark = useBookmark;
+		this.cancelCameraModeRestore();
 
 		if (this.resources) {
 			this.context.disposeModelResources(this.resources);
@@ -891,6 +892,10 @@ export class PicoCAD2Viewer {
 		);
 		this.fixedOnInteract = options?.useFixedOnInteract ?? null;
 
+		if (!this.fixedOnInteract?.enabled) {
+			this.restoreCameraMode(null);
+		}
+
 		if (this.cameraControlsEnabled) return;
 		this.cameraControlsEnabled = true;
 
@@ -934,12 +939,7 @@ export class PicoCAD2Viewer {
 	disableCameraControls(): void {
 		if (!this.cameraControlsEnabled) return;
 		this.cameraControlsEnabled = false;
-
-		if (this.fixedOnInteractTimer !== null) {
-			clearTimeout(this.fixedOnInteractTimer);
-			this.fixedOnInteractTimer = null;
-		}
-		this.savedCameraMode = null;
+		this.restoreCameraMode(null);
 
 		this.canvas.removeEventListener(
 			"pointerdown",
@@ -1561,12 +1561,14 @@ export class PicoCAD2Viewer {
 	/**
 	 * Debounces restoring the camera mode after a useFixedOnInteract switch.
 	 * While a pointer is still held down the restore keeps deferring, so the
-	 * delay effectively counts from the last release.
+	 * delay effectively counts from the last release. The options are
+	 * captured, so a later change to the controls cannot pull them out from
+	 * under the timer.
 	 */
 	private scheduleCameraModeRestore(): void {
-		if (this.fixedOnInteractTimer !== null) {
-			clearTimeout(this.fixedOnInteractTimer);
-		}
+		const options = this.fixedOnInteract;
+		if (!options?.enabled) return;
+		this.clearCameraModeRestoreTimer();
 
 		this.fixedOnInteractTimer = setTimeout(() => {
 			this.fixedOnInteractTimer = null;
@@ -1576,31 +1578,61 @@ export class PicoCAD2Viewer {
 				return;
 			}
 
-			this.inertiaActive = false;
+			this.restoreCameraMode(options.restoreTime);
+		}, options.delayBeforeRestore);
+	}
 
-			// Restore the camera mode. Compute the offset the restored mode
-			// will produce next frame and absorb it out of omega so there's
-			// no jump when the mode starts driving omegaOffset again. It has
-			// to come from the clock the frames use. The animation clock and
-			// the camera mode clock drift apart the moment the animation is
-			// seeked, paused or restored from a state, and the difference
-			// between the two offsets would show as a jump.
-			this.cameraMode = this.savedCameraMode!;
-			this.savedCameraMode = null;
-			const incomingOffset = this.computeCameraModeOffset(
-				this.frameSyncWithAnimation,
-			);
-			this.camera.omega -= incomingOffset;
-			this.camera.omegaOffset = incomingOffset;
+	/**
+	 * Returns the camera mode a useFixedOnInteract pause parked. The offset
+	 * the restored mode will produce next frame is absorbed out of omega so
+	 * there is no jump when the mode starts driving omegaOffset again. It
+	 * has to come from the clock the frames use: the animation clock and the
+	 * camera mode clock drift apart the moment the animation is seeked,
+	 * paused or restored from a state, and the difference between the two
+	 * offsets would show as a jump.
+	 *
+	 * @param restoreTime - Milliseconds to interpolate the camera back to
+	 *   the model's camera state over, or null to leave the camera where it is.
+	 */
+	private restoreCameraMode(restoreTime: number | null): void {
+		this.clearCameraModeRestoreTimer();
+		if (this.savedCameraMode === null) return;
 
-			const state =
-				this._loadedWithBookmark && this.model?.bookmark
-					? this.model.bookmark
-					: this.model?.camera;
-			if (state) {
-				this.camera.initFromState(state, this.fixedOnInteract!.restoreTime);
-			}
-		}, this.fixedOnInteract!.delayBeforeRestore);
+		this.inertiaActive = false;
+		this.cameraMode = this.savedCameraMode;
+		this.savedCameraMode = null;
+		const incomingOffset = this.computeCameraModeOffset(
+			this.frameSyncWithAnimation,
+		);
+		this.camera.omega -= incomingOffset;
+		this.camera.omegaOffset = incomingOffset;
+
+		if (restoreTime === null) return;
+		const state =
+			this._loadedWithBookmark && this.model?.bookmark
+				? this.model.bookmark
+				: this.model?.camera;
+		if (state) {
+			this.camera.initFromState(state, restoreTime);
+		}
+	}
+
+	/**
+	 * Drops a pending useFixedOnInteract pause without restoring anything,
+	 * for when the model changes under it.
+	 */
+	private cancelCameraModeRestore(): void {
+		this.clearCameraModeRestoreTimer();
+		this.savedCameraMode = null;
+	}
+
+	/**
+	 * Stops the pending restore timer, if any.
+	 */
+	private clearCameraModeRestoreTimer(): void {
+		if (this.fixedOnInteractTimer === null) return;
+		clearTimeout(this.fixedOnInteractTimer);
+		this.fixedOnInteractTimer = null;
 	}
 
 	/**

@@ -87,6 +87,7 @@ const viewer = new PicoCAD2Viewer({
   maxFps: 60,                       // Max render loop rate in fps, 0 = display refresh rate (default: 60)
   backgroundColor: [0.1, 0.1, 0.1], // Override background color, or null for model default (default: null)
   transparency: "dithered",         // "dithered" | "smooth", how fades resolve against the background (default: "dithered")
+  colorScheme: "auto",              // "light" | "dark" | "auto", picks dark effect colors, see Color Scheme (default: "auto")
 
   // Camera
   clampCameraDistance: {          // Keep the camera outside the model's surfaces so the view can't clip into the geometry
@@ -137,6 +138,7 @@ viewer.renderMode = RENDER_MODE.color;   // RENDER_MODE.none hides the model
 viewer.projectionMode = "orthographic";
 viewer.backgroundColor = [0.2, 0, 0.3];
 viewer.transparency = "smooth";          // Fades blend alpha instead of dithering, see Transparency
+viewer.colorScheme = "auto";             // Follow the page's light or dark mode, see Color Scheme
 
 // Outline
 viewer.outlineSize = 2;
@@ -415,6 +417,24 @@ viewer.transparency = "dithered";  // "dithered" | "smooth" (default: "dithered"
 `"dithered"` claims whole pixels through an ordered dither, so the frame stays palette-pure and a GIF, which has no alpha, still shows the fade over a transparent background. `"smooth"` blends fractional alpha instead, which reads better over an opaque background.
 
 The built-in outline and the gradient outline fade with what they trace, in either mode. Around a dissolving surface the outline continues its dither or its alpha instead of boxing every surviving pixel, and it fades around twinkling particles. The outline runs ahead of the fade, over the upper half of the coverage, so it is gone by the time the surface is half faded and never sits where the fade begins. Included in the viewer state as `viewer.transparency`.
+
+### Color Scheme
+
+A model rendered over a transparent background sits on whatever the page paints behind it, and a page with light and dark modes paints two different things. `colorScheme` tells the viewer which one it is rendering for, so effects with a dark variant can switch colors. Currently that is the [gradient outline](#gradient-outline)'s `dark` group.
+
+```typescript
+viewer.colorScheme = "auto";  // "light" | "dark" | "auto" (default: "auto")
+```
+
+`"light"` and `"dark"` are set by the page. If the page toggles a class or a `data-theme` attribute, set the scheme from the same code. `"auto"` follows the browser's `prefers-color-scheme` on every frame, with no listener to manage. Where `matchMedia` does not exist, `"auto"` renders light. Included in the viewer state as `viewer.colorScheme`.
+
+```typescript
+// A page that flips a data-theme attribute on <html>
+viewer.colorScheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+
+// A page that follows the operating system
+viewer.colorScheme = "auto";
+```
 
 ## Palette Swap & Color Cycling
 
@@ -995,11 +1015,16 @@ A gradient colored outline effect. When enabled, it automatically replaces the b
 
 The outline can grow directionally. `growthFactor` 0 (the default) grows it evenly on all sides, 1 grows it only toward `growthDirection`, with a smooth falloff to the sides. The `"dropShadow"` mode instead repeats the whole silhouette displaced by `shadowOffset`, for a sticker-style shadow (`size` still fattens the shadow shape; use `size = 0` for an exact copy).
 
+The `dark` group holds a second color pair for the viewer's dark [color scheme](#color-scheme), so an outline over a transparent background can match a page with light and dark modes. It only renders while `dark.enabled` is set and the scheme resolves to `"dark"`, otherwise `colorFrom` and `colorTo` render in every scheme. For a single-color outline that follows the page, set `colorFrom` and `colorTo` to the same color in both groups.
+
 ```typescript
 viewer.extras.gradientOutline.enabled = true;
 viewer.extras.gradientOutline.size = 1;                      // Outline radius (default: 1)
 viewer.extras.gradientOutline.colorFrom = [1, 0.5, 0];       // Gradient start color (default: [1, 1, 1])
 viewer.extras.gradientOutline.colorTo = [0, 0.5, 1];         // Gradient end color (default: [0, 0, 0])
+viewer.extras.gradientOutline.dark.enabled = true;           // Use the dark colors in the dark color scheme (default: false)
+viewer.extras.gradientOutline.dark.colorFrom = [0, 0, 0];    // Dark scheme gradient start color (default: [0, 0, 0])
+viewer.extras.gradientOutline.dark.colorTo = [1, 1, 1];      // Dark scheme gradient end color (default: [1, 1, 1])
 viewer.extras.gradientOutline.gradient = 1.0;                // Gradient intensity (default: 1.0)
 viewer.extras.gradientOutline.gradientDirection = Math.PI;   // Gradient angle in radians (default: 0)
 viewer.extras.gradientOutline.growthDirection = Math.PI / 2; // Growth direction in radians, 0 = right, π/2 = up (default: 0)

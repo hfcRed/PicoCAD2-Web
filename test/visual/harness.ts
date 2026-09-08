@@ -150,6 +150,7 @@ async function capture(scenario: Scenario): Promise<CaptureResult> {
 				};
 			}
 			if (s.transparency !== undefined) viewer.transparency = s.transparency;
+			if (s.colorScheme !== undefined) viewer.colorScheme = s.colorScheme;
 			if (s.camera) {
 				const c = viewer.camera;
 				// initFromState is the public way to flag the cached view

@@ -7,6 +7,7 @@ import {
 	updateRenderState,
 	type WorldBounds,
 } from "../scene/scene-graph.ts";
+import type { ResolvedColorScheme } from "../types/options.ts";
 import type { Color3, PicoCAD2Model, SceneNode } from "../types/scene.ts";
 import {
 	buildAllBuffers,
@@ -105,6 +106,7 @@ export interface RenderSettings {
 	outlineColor: Color3;
 	backgroundColor: Color3 | null;
 	transparency: TransparencyMode;
+	colorScheme: ResolvedColorScheme;
 	cutoutMask: number;
 	colorCutout: ColorCutoutEffect | null;
 	dissolve: DissolveEffect | null;
@@ -493,6 +495,7 @@ export class Renderer {
 			shatterActive: false,
 			transparency: "dithered",
 			smoothFades: false,
+			colorScheme: "light",
 			modelFeatures: 0,
 		};
 	}
@@ -829,6 +832,7 @@ export class Renderer {
 		this.smoothFades = smooth && (dissolveOn || floorOn || particlesFade);
 		ctx.transparency = settings.transparency;
 		ctx.smoothFades = this.smoothFades;
+		ctx.colorScheme = settings.colorScheme;
 
 		this.floorShadowOn = false;
 		this.floorReflectionOn = false;

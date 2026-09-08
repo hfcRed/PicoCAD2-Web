@@ -26,11 +26,13 @@ import type {
 	BookmarkSettings,
 	CameraControlOptions,
 	CameraDistanceClamp,
+	ColorScheme,
 	ExtrasOptions,
 	ModelInfo,
 	ModelSettings,
 	PicoCAD2ViewerOptions,
 	PicoCAD2ViewerState,
+	ResolvedColorScheme,
 	ViewerSettings,
 } from "./types/options.ts";
 import type {
@@ -188,6 +190,7 @@ export class PicoCAD2Viewer {
 		...VIEWER_SETTINGS_DEFAULTS.clampCameraDistance,
 	};
 	transparency: TransparencyMode = VIEWER_SETTINGS_DEFAULTS.transparency;
+	colorScheme: ColorScheme = VIEWER_SETTINGS_DEFAULTS.colorScheme;
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -228,6 +231,10 @@ export class PicoCAD2Viewer {
 	private _modelInfo: ModelInfo | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private resizeScale = 1;
+	private readonly darkSchemeQuery: MediaQueryList | null =
+		typeof matchMedia === "function"
+			? matchMedia("(prefers-color-scheme: dark)")
+			: null;
 	private inertiaActive = false;
 	private inertiaX = 0;
 	private inertiaY = 0;
@@ -240,6 +247,7 @@ export class PicoCAD2Viewer {
 		renderMode: 0,
 		backgroundColor: null,
 		transparency: "dithered",
+		colorScheme: "light",
 		outlineSize: 0,
 		outlineColor: [0, 0, 0],
 		cutoutMask: 0,
@@ -313,6 +321,7 @@ export class PicoCAD2Viewer {
 			};
 		}
 		if (options?.transparency) this.transparency = options.transparency;
+		if (options?.colorScheme) this.colorScheme = options.colorScheme;
 
 		if (options?.extras) {
 			this.applyExtrasOptions(options.extras);
@@ -545,6 +554,7 @@ export class PicoCAD2Viewer {
 					: 0;
 		settings.backgroundColor = this.backgroundColor;
 		settings.transparency = this.transparency;
+		settings.colorScheme = this.resolveColorScheme();
 		settings.outlineSize = this.outlineSize;
 		settings.outlineColor = this.outlineColor;
 
@@ -1218,7 +1228,18 @@ export class PicoCAD2Viewer {
 			animationSpeed: this.animation.speed,
 			animationLoop: this.animation.loop,
 			transparency: this.transparency,
+			colorScheme: this.colorScheme,
 		};
+	}
+
+	/**
+	 * Resolves the {@link colorScheme} to the scheme the frame renders for,
+	 * following the browser's `prefers-color-scheme` while it is `"auto"`.
+	 * Without `matchMedia`, `"auto"` renders light.
+	 */
+	resolveColorScheme(): ResolvedColorScheme {
+		if (this.colorScheme !== "auto") return this.colorScheme;
+		return this.darkSchemeQuery?.matches ? "dark" : "light";
 	}
 
 	/**
@@ -1273,6 +1294,7 @@ export class PicoCAD2Viewer {
 		this.animation.speed = s.animationSpeed;
 		this.animation.loop = s.animationLoop;
 		this.transparency = s.transparency;
+		this.colorScheme = s.colorScheme;
 	}
 
 	/**

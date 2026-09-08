@@ -1,4 +1,5 @@
 import type { mat4 } from "gl-matrix";
+import type { ResolvedColorScheme } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
 import type { NodeBits } from "../node-selection.ts";
 import type { ModelResources, RenderStats } from "../renderer.ts";
@@ -38,6 +39,7 @@ export interface EffectContext {
 	nodeBits: NodeBits;
 	transparency: TransparencyMode;
 	smoothFades: boolean;
+	colorScheme: ResolvedColorScheme;
 	modelFeatures: number;
 	framebuffer: WebGLFramebuffer | null;
 }

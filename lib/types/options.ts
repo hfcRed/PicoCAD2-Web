@@ -79,11 +79,18 @@ export interface ProceduralBackgroundOptions {
 	style?: MaterialStyle;
 }
 
+export interface GradientOutlineDarkOptions {
+	enabled?: boolean;
+	colorFrom?: Color3;
+	colorTo?: Color3;
+}
+
 export interface GradientOutlineOptions {
 	enabled?: boolean;
 	size?: number;
 	colorFrom?: Color3;
 	colorTo?: Color3;
+	dark?: GradientOutlineDarkOptions;
 	gradient?: number;
 	gradientDirection?: number;
 	growthDirection?: number;
@@ -657,8 +664,13 @@ export interface ModelSettings {
 	bookmark: BookmarkSettings;
 }
 
+export type ColorScheme = "light" | "dark" | "auto";
+
+export type ResolvedColorScheme = Exclude<ColorScheme, "auto">;
+
 export interface ViewerSettings {
 	backgroundColor: Color3 | null;
+	colorScheme: ColorScheme;
 	resolution: ResolutionSettings;
 	maxFps: number;
 	clampCameraDistance: CameraDistanceClamp;
@@ -681,6 +693,7 @@ export interface PicoCAD2ViewerOptions {
 	canvas?: HTMLCanvasElement;
 	context?: PicoCAD2Context;
 	backgroundColor?: Color3 | null;
+	colorScheme?: ColorScheme;
 	animationSpeed?: number;
 	resolution?: {
 		width: number;

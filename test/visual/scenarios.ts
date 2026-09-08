@@ -19,6 +19,7 @@ import type {
 	CameraMode,
 	CameraSettings,
 	Color3,
+	ColorScheme,
 	ExtrasOptions,
 	ProjectionMode,
 	TransparencyMode,
@@ -52,6 +53,7 @@ export interface ScenarioSettings {
 	camera?: Partial<CameraSettings>;
 	clampCameraDistance?: Partial<CameraDistanceClamp>;
 	transparency?: TransparencyMode;
+	colorScheme?: ColorScheme;
 }
 
 export interface Scenario {
@@ -1857,6 +1859,33 @@ const post: Scenario[] = [
 				enabled: true,
 				mode: "dropShadow",
 				shadowOffset: [3, -3],
+			},
+		},
+	},
+	// The dark color pair renders only while the viewer's color scheme is
+	// dark and the pair is enabled. Disabled, the dark scheme renders the
+	// normal colors, so this matches "post/gradient-outline" exactly.
+	{
+		name: "post/gradient-outline-dark",
+		model: "pig",
+		settings: { backgroundColor: TRANSPARENT_BLACK, colorScheme: "dark" },
+		extras: {
+			gradientOutline: {
+				enabled: true,
+				size: 2,
+				dark: { enabled: true, colorFrom: [1, 0.5, 0], colorTo: [0, 0.5, 1] },
+			},
+		},
+	},
+	{
+		name: "post/gradient-outline-dark-disabled",
+		model: "pig",
+		settings: { colorScheme: "dark" },
+		extras: {
+			gradientOutline: {
+				enabled: true,
+				size: 2,
+				dark: { enabled: false, colorFrom: [1, 0.5, 0], colorTo: [0, 0.5, 1] },
 			},
 		},
 	},

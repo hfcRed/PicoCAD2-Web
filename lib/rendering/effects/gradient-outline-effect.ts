@@ -25,6 +25,10 @@ const OUTLINE_MODE_MAP: Record<OutlineMode, number> = {
  * `growthDirection`. The `"dropShadow"` mode instead offsets the whole
  * silhouette by `shadowOffset` pixels for a sticker-style shadow.
  *
+ * The `dark` group holds a second color pair for the viewer's `"dark"`
+ * color scheme, so an outline over a transparent background can match a
+ * page with light and dark modes. It is inert until `dark.enabled` is set.
+ *
  * When enabled, this effect automatically replaces the built-in solid outline —
  * the renderer skips the official outline pass.
  */
@@ -57,10 +61,11 @@ export class GradientOutlineEffect extends FullscreenEffect {
 	 * @returns The uniform values.
 	 */
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
+		const dark = this.dark.enabled && ctx.colorScheme === "dark";
 		return {
 			u_outlineSize: this.size,
-			u_colorFrom: this.colorFrom,
-			u_colorTo: this.colorTo,
+			u_colorFrom: dark ? this.dark.colorFrom : this.colorFrom,
+			u_colorTo: dark ? this.dark.colorTo : this.colorTo,
 			u_gradient: this.gradient,
 			u_gradientDirection: this.gradientDirection,
 			u_growthDirection: this.growthDirection,
@@ -86,6 +91,7 @@ export const GRADIENT_OUTLINE_DEFAULTS = deepFreeze<
 	size: 1,
 	colorFrom: [1, 1, 1],
 	colorTo: [0, 0, 0],
+	dark: { enabled: false, colorFrom: [0, 0, 0], colorTo: [1, 1, 1] },
 	gradient: 1,
 	gradientDirection: 0,
 	growthDirection: 0,

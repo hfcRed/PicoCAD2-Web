@@ -228,8 +228,9 @@ export class OrbitCamera {
 	pan(dx: number, dy: number): void {
 		this.lerping = false;
 
-		const cosOmega = Math.cos(this.omega);
-		const sinOmega = Math.sin(this.omega);
+		const omega = this.omega + this._omegaOffset;
+		const cosOmega = Math.cos(omega);
+		const sinOmega = Math.sin(omega);
 
 		this.target[0] += sinOmega * dx;
 		this.target[2] -= cosOmega * dx;

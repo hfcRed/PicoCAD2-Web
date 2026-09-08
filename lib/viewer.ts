@@ -214,6 +214,7 @@ export class PicoCAD2Viewer {
 		null;
 	private fixedOnInteractTimer: ReturnType<typeof setTimeout> | null = null;
 	private savedCameraMode: CameraMode | null = null;
+	private absorbedOmegaOffset = 0;
 	private _loadedWithBookmark = false;
 	private dragButton = 0;
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
@@ -1167,6 +1168,8 @@ export class PicoCAD2Viewer {
 	 * Reads the complete current model settings.
 	 */
 	private readModelSettings(): ModelSettings {
+		const paused = this.savedCameraMode !== null;
+
 		return {
 			shadingMode: this.shadingMode,
 			renderMode: this.renderMode,
@@ -1175,7 +1178,7 @@ export class PicoCAD2Viewer {
 			outlineColor: [...this.outlineColor],
 			scanlines: this.scanlines,
 			scanlineColor: [...this.scanlineColor],
-			cameraMode: this.cameraMode,
+			cameraMode: this.savedCameraMode ?? this.cameraMode,
 			cameraModeSpeed: this.cameraModeSpeed,
 			cameraModeDirection: this.cameraModeDirection,
 			leftTag: copyTag(this.leftTag),
@@ -1186,7 +1189,7 @@ export class PicoCAD2Viewer {
 				loops: this.animation.loops,
 			},
 			camera: {
-				omega: this.camera.omega,
+				omega: this.camera.omega - (paused ? this.absorbedOmegaOffset : 0),
 				theta: this.camera.theta,
 				distanceToTarget: this.camera.distanceToTarget,
 				target: [
@@ -1549,7 +1552,9 @@ export class PicoCAD2Viewer {
 		if (this.savedCameraMode === null) {
 			this.savedCameraMode = this.cameraMode;
 			// Absorb the current omegaOffset into omega so switching to "fixed"
-			// (which returns offset 0) doesn't cause a visual jump.
+			// (which returns offset 0) doesn't cause a visual jump. The amount
+			// is kept so a state read meanwhile records the unabsorbed omega.
+			this.absorbedOmegaOffset = this.camera.omegaOffset;
 			this.camera.omega += this.camera.omegaOffset;
 			this.camera.omegaOffset = 0;
 		}

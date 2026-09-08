@@ -93,6 +93,7 @@ Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a n
 - **Disposing a context releases it** — `PicoCAD2Context.dispose()` (and `viewer.dispose()` for a viewer that owns its context) now loses the WebGL context and closes the font's cached text bitmaps. The context used to stay alive until garbage collection and count toward the browser's context limit meanwhile.
 - **Playback follows the loaded file** — Loading a model exported with animation off now pauses playback. It used to keep playing after an animated model, and `getState()` then reported a `playing` difference.
 - **`useFixedOnInteract` pauses that outlive their setup** — Loading a model during the pause no longer restores the previous model's camera mode later on. Turning the option off or disabling the controls during a pause returns the parked mode where the camera is instead of leaving it fixed forever, and re-configuring the controls while a restore is pending no longer throws inside the timer.
+- **States saved during a `useFixedOnInteract` pause** — `getState()` used to record the temporary `"fixed"` camera mode and the omega with the paused mode's offset folded in, so a state saved shortly after a drag lost the spin, sway or pingpong. It now records the mode and the omega the restore returns to.
 
 ## 1.3.0
 

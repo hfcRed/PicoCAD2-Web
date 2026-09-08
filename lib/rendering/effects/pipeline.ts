@@ -173,24 +173,24 @@ export class PostProcessPipeline {
 		let resolvePending = resolve;
 
 		for (const effect of this.postEffects) {
+			if (effect.enabled && !effect.initialized) {
+				effect.init(gl);
+			}
+			const active = effect.enabled && effect.ready !== false;
+
 			// The gradient outline reads the true coverage and writes
 			// premultiplied like the scene, so the resolve runs right after
 			// it. The procedural background composites the fades over its
-			// pattern itself and takes the resolve's place when enabled.
+			// pattern itself and takes the resolve's place, but only once it
+			// can draw, while its program links the resolve still has to run.
 			if (resolvePending && effect.id !== "gradientOutline") {
 				resolvePending = false;
-				if (!(effect.id === "proceduralBackground" && effect.enabled)) {
+				if (!(effect.id === "proceduralBackground" && active)) {
 					this.resolve(ctx, backgroundColor);
 				}
 			}
 
-			if (!effect.enabled) continue;
-
-			if (!effect.initialized) {
-				effect.init(gl);
-			}
-
-			if (effect.ready === false) continue;
+			if (!active) continue;
 
 			const inputTexture = this.pool.swap(gl);
 			ctx.framebuffer = this.pool.getFramebuffer();

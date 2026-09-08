@@ -190,7 +190,7 @@ export class PicoCAD2Viewer {
 		...VIEWER_SETTINGS_DEFAULTS.clampCameraDistance,
 	};
 	transparency: TransparencyMode = VIEWER_SETTINGS_DEFAULTS.transparency;
-	colorScheme: ColorScheme = VIEWER_SETTINGS_DEFAULTS.colorScheme;
+	colorScheme: ColorScheme = "auto";
 	onLoad: ((info: ModelInfo) => void) | null = null;
 	onFrame: ((dt: number) => void) | null = null;
 	onDispose: (() => void) | null = null;
@@ -1228,7 +1228,6 @@ export class PicoCAD2Viewer {
 			animationSpeed: this.animation.speed,
 			animationLoop: this.animation.loop,
 			transparency: this.transparency,
-			colorScheme: this.colorScheme,
 		};
 	}
 
@@ -1294,7 +1293,6 @@ export class PicoCAD2Viewer {
 		this.animation.speed = s.animationSpeed;
 		this.animation.loop = s.animationLoop;
 		this.transparency = s.transparency;
-		this.colorScheme = s.colorScheme;
 	}
 
 	/**

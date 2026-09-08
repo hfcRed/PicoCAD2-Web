@@ -426,7 +426,7 @@ A model rendered over a transparent background sits on whatever the page paints 
 viewer.colorScheme = "auto";  // "light" | "dark" | "auto" (default: "auto")
 ```
 
-`"light"` and `"dark"` are set by the page. If the page toggles a class or a `data-theme` attribute, set the scheme from the same code. `"auto"` follows the browser's `prefers-color-scheme` on every frame, with no listener to manage. Where `matchMedia` does not exist, `"auto"` renders light. Included in the viewer state as `viewer.colorScheme`.
+`"light"` and `"dark"` are set by the page. If the page toggles a class or a `data-theme` attribute, set the scheme from the same code. `"auto"` follows the browser's `prefers-color-scheme` on every frame, with no listener to manage. Where `matchMedia` does not exist, `"auto"` renders light. The scheme belongs to the page, not to the model, so it is not part of the viewer state and `setState()` leaves it alone.
 
 ```typescript
 // A page that flips a data-theme attribute on <html>

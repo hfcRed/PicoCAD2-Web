@@ -670,7 +670,6 @@ export type ResolvedColorScheme = Exclude<ColorScheme, "auto">;
 
 export interface ViewerSettings {
 	backgroundColor: Color3 | null;
-	colorScheme: ColorScheme;
 	resolution: ResolutionSettings;
 	maxFps: number;
 	clampCameraDistance: CameraDistanceClamp;

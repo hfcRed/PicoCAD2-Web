@@ -70,7 +70,6 @@ export const MODEL_SETTINGS_DEFAULTS = deepFreeze<ModelSettings>({
 
 export const VIEWER_SETTINGS_DEFAULTS = deepFreeze<ViewerSettings>({
 	backgroundColor: null,
-	colorScheme: "auto",
 	resolution: { width: 128, height: 128, scale: 1 },
 	maxFps: 60,
 	clampCameraDistance: { enabled: false, minimumDistance: 0 },

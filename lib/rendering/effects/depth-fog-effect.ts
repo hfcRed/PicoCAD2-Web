@@ -86,7 +86,7 @@ export class DepthFogEffect implements PostProcessEffect {
 			u_colorMask: packColorMask(this.maskedColors),
 			u_fogColor: this.color,
 			u_near: this.near,
-			u_far: this.far,
+			u_far: Math.max(this.far, this.near + 1e-3),
 			u_density: this.density,
 			u_mode: FOG_MODE_MAP[this.mode],
 			u_camNear: ctx.isOrthographic ? CAMERA_ORTHO_NEAR : CAMERA_NEAR,

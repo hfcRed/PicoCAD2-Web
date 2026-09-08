@@ -43,7 +43,7 @@ export class ChromaticAberrationEffect extends FullscreenEffect {
 			u_redOffset: this.redOffset,
 			u_greenOffset: this.greenOffset,
 			u_blueOffset: this.blueOffset,
-			u_radialFalloff: this.radialFalloff,
+			u_radialFalloff: Math.max(this.radialFalloff, 1e-3),
 			u_center: [this.centerX, this.centerY],
 		};
 	}

@@ -32,7 +32,7 @@ export class LensDistortionEffect extends FullscreenEffect {
 	private getUniforms(): Record<string, unknown> {
 		return {
 			u_strength: this.strength,
-			u_zoom: this.zoom,
+			u_zoom: Math.max(this.zoom, 1e-3),
 		};
 	}
 }

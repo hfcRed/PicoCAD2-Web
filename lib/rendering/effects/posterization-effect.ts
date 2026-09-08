@@ -33,7 +33,7 @@ export class PosterizationEffect extends FullscreenEffect {
 		return {
 			u_levels: this.levels,
 			u_channelLevels: this.channelLevels,
-			u_gamma: this.gamma,
+			u_gamma: Math.max(this.gamma, 1e-3),
 			u_colorBanding: this.colorBanding,
 		};
 	}

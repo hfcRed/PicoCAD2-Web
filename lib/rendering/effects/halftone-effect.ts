@@ -44,7 +44,7 @@ export class HalftoneEffect extends FullscreenEffect {
 	 */
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
 		return {
-			u_dotSize: this.dotSize,
+			u_dotSize: Math.max(this.dotSize, 1e-3),
 			u_angle: this.angle,
 			u_blend: this.blend,
 			u_mode: HALFTONE_MODE_MAP[this.mode],

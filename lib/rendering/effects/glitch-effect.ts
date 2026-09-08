@@ -41,7 +41,7 @@ export class GlitchEffect extends FullscreenEffect {
 		return {
 			u_intensity: this.intensity,
 			u_speed: this.speed,
-			u_blockSize: this.blockSize,
+			u_blockSize: Math.max(this.blockSize, 1),
 			u_rgbSplit: this.rgbSplit,
 			u_lineShift: this.lineShift,
 			u_time: ctx.time,

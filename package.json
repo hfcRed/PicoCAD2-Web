@@ -8,10 +8,13 @@
 	"type": "module",
 	"exports": {
 		".": {
+			"types": "./dist/lib/main.d.ts",
 			"import": "./dist/main.js",
-			"types": "./dist/lib/main.d.ts"
+			"default": "./dist/main.js"
 		}
 	},
+	"main": "./dist/main.js",
+	"types": "./dist/lib/main.d.ts",
 	"files": [
 		"dist"
 	],

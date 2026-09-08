@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 (UNRELEASED)
+## 2.0.0
 
 Major release. It brings PicoCAD 2.2 support, a bag full of new effects, and a new viewer state format. The two 1.4.0 betas are folded into this entry.
 

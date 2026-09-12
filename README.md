@@ -200,7 +200,7 @@ viewer.enableCameraControls({
   useFixedOnInteract: {
     enabled: true,
     delayBeforeRestore: 2000, // ms after the last interaction or pointer release before restoring
-    restoreTime: 500,         // ms to interpolate back to the original camera position
+    restoreTime: 500,         // ms to interpolate back to the original camera position (a moving camera mode keeps its horizontal angle and continues from there)
   },
 });
 

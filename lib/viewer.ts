@@ -1535,6 +1535,8 @@ export class PicoCAD2Viewer {
 	 *
 	 * @param restoreTime - Milliseconds to interpolate the camera back to
 	 *   the model's camera state over, or null to leave the camera where it is.
+	 *   A moving mode keeps the horizontal angle the interaction left and
+	 *   continues from there.
 	 */
 	private restoreCameraMode(restoreTime: number | null): void {
 		this.clearCameraModeRestoreTimer();
@@ -1554,9 +1556,16 @@ export class PicoCAD2Viewer {
 			this._loadedWithBookmark && this.model?.bookmark
 				? this.model.bookmark
 				: this.model?.camera;
-		if (state) {
-			this.camera.initFromState(state, restoreTime);
-		}
+		if (!state) return;
+
+		// Interpolating omega back would spin the model around to catch up on
+		// the rotation the mode missed while it was paused (PicoCAD 2 does
+		// that). Keeping it lets the motion continue from the current angle.
+		const target =
+			this.cameraMode === "fixed"
+				? state
+				: { ...state, omega: this.camera.omega };
+		this.camera.initFromState(target, restoreTime);
 	}
 
 	/**

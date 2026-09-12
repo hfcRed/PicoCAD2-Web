@@ -2,6 +2,10 @@
 
 ## 2.0.3 (UNRELEASED)
 
+### Changed
+
+- **A moving camera mode continues from where an interaction left it** — With `useFixedOnInteract`, restoring spin, sway or pingpong interpolated the horizontal angle back to the model's camera, which after a long interaction or a rotation against the spin whipped the model around to catch up on the rotation it missed while paused, as PicoCAD 2 does. The restore now brings distance, elevation and target back and keeps the horizontal angle, so the mode continues from the current angle. Fixed mode still restores the whole camera.
+
 ### Fixed
 
 - **Animations no longer speed up under the frame cap** — With `maxFps` set, the clock now advances by the time since the last drawn frame while the cap keeps its remainder, so animation and camera mode speed match wall time regardless of refresh rate.

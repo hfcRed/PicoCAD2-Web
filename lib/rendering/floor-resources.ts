@@ -207,7 +207,6 @@ export class FloorResources {
 			this.shadowTexture = null;
 		}
 		if (this.program) {
-			compilerFor(gl).forget(this.program);
 			this.program.dispose(gl);
 			this.program = null;
 		}

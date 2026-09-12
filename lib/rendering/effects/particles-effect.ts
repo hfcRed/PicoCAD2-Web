@@ -235,7 +235,6 @@ export class ParticlesEffect implements SceneEffect {
 		if (!this.gl) return;
 
 		if (this.program) {
-			compilerFor(this.gl).forget(this.program);
 			this.program.dispose(this.gl);
 			this.program = null;
 		}

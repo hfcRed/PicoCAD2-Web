@@ -112,7 +112,6 @@ export class FullscreenEffect implements PostProcessEffect {
 	 */
 	protected disposePrograms(gl: WebGL2RenderingContext): void {
 		if (!this.program) return;
-		compilerFor(gl).forget(this.program);
 		this.program.dispose(gl);
 		this.program = null;
 	}

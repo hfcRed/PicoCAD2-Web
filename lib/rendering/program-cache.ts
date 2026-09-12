@@ -19,6 +19,8 @@ export class ManagedProgram {
 	info: twgl.ProgramInfo | null = null;
 	failed = false;
 	fence: WebGLSync | null = null;
+	linking = false;
+	doomed = false;
 	private readonly shaders: WebGLShader[];
 
 	constructor(program: WebGLProgram, shaders: WebGLShader[]) {
@@ -58,17 +60,36 @@ export class ManagedProgram {
 	}
 
 	/**
-	 * Frees the program.
+	 * Frees the program, or marks it to be freed once its link is done.
+	 * Deleting a program whose parallel link still runs makes Chrome's GPU
+	 * process query the deleted program afterwards and flag INVALID_VALUE
+	 * on the context on every later check, so the compiler frees it from
+	 * {@link ProgramCompiler.poll} instead.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	dispose(gl: WebGL2RenderingContext): void {
+		if (this.linking) {
+			this.doomed = true;
+			return;
+		}
+		this.destroy(gl);
+	}
+
+	/**
+	 * Deletes the program's GL objects. Only the compiler calls this on a
+	 * program that is still linking.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	destroy(gl: WebGL2RenderingContext): void {
 		this.deleteFence(gl);
 		for (const shader of this.shaders) gl.deleteShader(shader);
 		this.shaders.length = 0;
 		gl.deleteProgram(this.program);
 		this.info = null;
 		this.failed = true;
+		this.linking = false;
 	}
 
 	/**
@@ -210,6 +231,7 @@ export class ProgramCompiler {
 		// An unflushed link can sit in the command buffer until the next
 		// draw, which would delay the compile and make the fence wait.
 		gl.flush();
+		managed.linking = true;
 		this.pending.push(managed);
 		return managed;
 	}
@@ -219,15 +241,19 @@ export class ProgramCompiler {
 	 */
 	poll(): void {
 		if (this.pending.length === 0) return;
-		const gl = this.gl;
 
 		for (let i = this.pending.length - 1; i >= 0; i--) {
 			const managed = this.pending[i];
-			if (managed.failed || this.linkFinished(managed)) {
-				managed.finalize(gl);
-				this.pending.splice(i, 1);
-			}
+			if (!this.linkFinished(managed)) continue;
+			this.settle(managed);
+			this.pending.splice(i, 1);
 		}
+	}
+
+	private settle(managed: ManagedProgram): void {
+		managed.linking = false;
+		if (managed.doomed) managed.destroy(this.gl);
+		else managed.finalize(this.gl);
 	}
 
 	private linkFinished(managed: ManagedProgram): boolean {
@@ -247,7 +273,7 @@ export class ProgramCompiler {
 	 * Finishes every pending link, blocking until the driver is done.
 	 */
 	flush(): void {
-		for (const managed of this.pending.splice(0)) managed.finalize(this.gl);
+		for (const managed of this.pending.splice(0)) this.settle(managed);
 	}
 
 	/**
@@ -269,14 +295,13 @@ export class ProgramCompiler {
 	}
 
 	/**
-	 * Forgets a program that was disposed elsewhere.
+	 * Kept for callers that forget a program before disposing it. Disposing
+	 * alone defers the deletion past a running link, so nothing is left to
+	 * do here.
 	 *
-	 * @param managed - The disposed program.
+	 * @param _managed - The program.
 	 */
-	forget(managed: ManagedProgram): void {
-		const idx = this.pending.indexOf(managed);
-		if (idx >= 0) this.pending.splice(idx, 1);
-	}
+	forget(_managed: ManagedProgram): void {}
 }
 
 const compilers = new WeakMap<WebGL2RenderingContext, ProgramCompiler>();
@@ -390,7 +415,6 @@ export class ProgramVariants {
 	 */
 	dispose(): void {
 		for (const variant of this.variants.values()) {
-			this.compiler.forget(variant);
 			variant.dispose(this.compiler.gl);
 		}
 		this.variants.clear();

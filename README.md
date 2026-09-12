@@ -1211,7 +1211,7 @@ Custom effects can also be color-masked: the scene's palette index buffer is ava
 
 ### Implementing PostProcessEffect
 
-For multi-pass effects or effects that manage their own framebuffers. Compile programs through the context's compiler (`compilerFor(gl)`) and report `ready` while they link, so the effect joins the background compilation. The pipeline skips an effect whose `ready` is `false` for the frame. An effect without a `ready` property counts as ready. An effect that compiles a program per setting can implement `requestPrograms(modelFeatures)` to start the compile of the variant the next frame needs, so `whenReady()` waits for it too.
+For multi-pass effects or effects that manage their own framebuffers. Compile programs through the context's compiler (`compilerFor(gl)`) and report `ready` while they link, so the effect joins the background compilation. The pipeline skips an effect whose `ready` is `false` for the frame. An effect without a `ready` property counts as ready. Free a program with its `dispose(gl)` one disposed while it still links is freed once the link is done, since deleting it earlier leaves Chrome's GPU process querying the deleted program. An effect that compiles a program per setting can implement `requestPrograms(modelFeatures)` to start the compile of the variant the next frame needs, so `whenReady()` waits for it too.
 
 ```typescript
 import type { EffectContext, PostProcessEffect } from "picocad2-web";

@@ -192,7 +192,6 @@ export class ShaderPrograms {
 		this.model.dispose();
 		this.fur.dispose();
 		for (const program of [this.outline, this.blit, this.resolve]) {
-			this.compiler.forget(program);
 			program.dispose(gl);
 		}
 		programsByContext.delete(gl);

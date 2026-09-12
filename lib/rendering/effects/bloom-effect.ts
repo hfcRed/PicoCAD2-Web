@@ -163,16 +163,13 @@ export class BloomEffect implements PostProcessEffect {
 	dispose(): void {
 		if (!this.gl) return;
 		const gl = this.gl;
-		const compiler = compilerFor(gl);
 
 		for (const program of [
 			this.thresholdProgram,
 			this.blurProgram,
 			this.compositeProgram,
 		]) {
-			if (!program) continue;
-			compiler.forget(program);
-			program.dispose(gl);
+			program?.dispose(gl);
 		}
 		this.thresholdProgram = null;
 		this.blurProgram = null;

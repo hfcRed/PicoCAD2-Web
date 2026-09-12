@@ -69,6 +69,14 @@ export interface ViewerTag {
 const COPLANAR_EPSILON = 1e-4;
 
 /**
+ * How early a display refresh may arrive, in milliseconds, and still count
+ * as a frame under the {@link PicoCAD2Viewer.maxFps} cap. Refresh timestamps
+ * jitter around the nominal period, so without it a 60 fps cap skips every
+ * 60 Hz refresh that lands a fraction under the interval.
+ */
+const FRAME_CAP_TOLERANCE_MS = 1;
+
+/**
  * Copies a tag, filling in the white a missing color renders as so a state
  * always records the color it shows.
  */
@@ -820,13 +828,19 @@ export class PicoCAD2Viewer {
 	_tick(now: number): boolean {
 		const interval = this.maxFps > 0 ? 1000 / this.maxFps : 0;
 		const elapsed = now - this.lastFrameTime;
-		if (elapsed < interval) return false;
+		if (elapsed < interval - FRAME_CAP_TOLERANCE_MS) return false;
 
-		// Keep the remainder so the effective rate doesn't drift below
-		// maxFps when the display refresh doesn't divide it evenly. The clock
-		// must not measure from this anchor! The remainder would be counted
-		// again in the next frame's delta and the animation would run fast.
-		this.lastFrameTime = interval > 0 ? now - (elapsed % interval) : now;
+		// The anchor advances by whole intervals so the effective rate doesn't
+		// drift below maxFps when the display refresh doesn't divide it evenly,
+		// and a refresh within the tolerance counts as one interval, which keeps
+		// the rate from exceeding the cap. The clock must not measure from this
+		// anchor! The remainder would be counted again in the next frame's delta
+		// and the animation would run fast.
+		this.lastFrameTime =
+			interval > 0
+				? this.lastFrameTime +
+					Math.max(1, Math.floor(elapsed / interval)) * interval
+				: now;
 
 		this.lastDt = (now - this.lastDrawTime) / 1000;
 		this.lastDrawTime = now;

@@ -5,6 +5,7 @@
 ### Fixed
 
 - **Animations no longer speed up under the frame cap** — With `maxFps` set, the clock now advances by the time since the last drawn frame while the cap keeps its remainder, so animation and camera mode speed match wall time regardless of refresh rate.
+- **A frame cap holds its rate on a matching display** — A 60 fps cap on a 60 Hz display no longer drops frames whenever the refresh timestamps jitter.
 
 ## 2.0.2
 

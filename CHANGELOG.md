@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.3 (UNRELEASED)
+
+### Fixed
+
+- **Animations no longer speed up under the frame cap** — With `maxFps` set, the clock now advances by the time since the last drawn frame while the cap keeps its remainder, so animation and camera mode speed match wall time regardless of refresh rate.
+
 ## 2.0.2
 
 ### Fixed

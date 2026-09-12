@@ -207,6 +207,7 @@ export class PicoCAD2Viewer {
 	private renderLoopActive = false;
 	private loopSyncWithAnimation = true;
 	private lastFrameTime = 0;
+	private lastDrawTime = 0;
 	private lastDt = 0;
 	private elapsedTime = 0;
 	private cameraControlsEnabled = false;
@@ -778,6 +779,7 @@ export class PicoCAD2Viewer {
 		this.renderLoopActive = true;
 		this.loopSyncWithAnimation = syncWithAnimation;
 		this.lastFrameTime = performance.now();
+		this.lastDrawTime = this.lastFrameTime;
 		this.context._register(this);
 	}
 
@@ -821,10 +823,13 @@ export class PicoCAD2Viewer {
 		if (elapsed < interval) return false;
 
 		// Keep the remainder so the effective rate doesn't drift below
-		// maxFps when the display refresh doesn't divide it evenly.
+		// maxFps when the display refresh doesn't divide it evenly. The clock
+		// must not measure from this anchor! The remainder would be counted
+		// again in the next frame's delta and the animation would run fast.
 		this.lastFrameTime = interval > 0 ? now - (elapsed % interval) : now;
 
-		this.lastDt = elapsed / 1000;
+		this.lastDt = (now - this.lastDrawTime) / 1000;
+		this.lastDrawTime = now;
 		this.advanceTime(this.lastDt);
 		this.applyInertia();
 		return true;

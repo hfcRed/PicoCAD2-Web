@@ -2,6 +2,11 @@ import * as twgl from "twgl.js";
 
 export type ShaderCompileMode = "async" | "sync";
 
+interface ReadyWaiter {
+	isReady: (() => boolean) | undefined;
+	resolve: () => void;
+}
+
 interface ParallelCompileExt {
 	COMPLETION_STATUS_KHR: number;
 }
@@ -94,14 +99,18 @@ export class ManagedProgram {
 
 	/**
 	 * Whether the fence behind the link has signaled. Only meaningful on a
-	 * program that carries one.
+	 * program that carries one. Polled with the flush bit. Firefox counts
+	 * status reads made without it and warns at a hundred, whatever was
+	 * flushed in between. A wait that fails counts as signaled so a lost
+	 * context cannot hold the program pending.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 * @returns Whether the link has run.
 	 */
 	fenceSignaled(gl: WebGL2RenderingContext): boolean {
 		if (!this.fence) return true;
-		return gl.getSyncParameter(this.fence, gl.SYNC_STATUS) === gl.SIGNALED;
+		const status = gl.clientWaitSync(this.fence, gl.SYNC_FLUSH_COMMANDS_BIT, 0);
+		return status !== gl.TIMEOUT_EXPIRED;
 	}
 
 	private deleteFence(gl: WebGL2RenderingContext): void {
@@ -129,6 +138,8 @@ export class ProgramCompiler {
 	mode: ShaderCompileMode;
 	private readonly parallel: ParallelCompileExt | null;
 	private readonly pending: ManagedProgram[] = [];
+	private readonly waiters: ReadyWaiter[] = [];
+	private waiterTimer: ReturnType<typeof setTimeout> | null = null;
 
 	/**
 	 * Creates a compiler for a context.
@@ -242,11 +253,29 @@ export class ProgramCompiler {
 	poll(): void {
 		if (this.pending.length === 0) return;
 
-		for (let i = this.pending.length - 1; i >= 0; i--) {
-			const managed = this.pending[i];
-			if (!this.linkFinished(managed)) continue;
-			this.settle(managed);
-			this.pending.splice(i, 1);
+		if (this.parallel) {
+			for (let i = this.pending.length - 1; i >= 0; i--) {
+				const managed = this.pending[i];
+				const status = this.gl.getProgramParameter(
+					managed.program,
+					this.parallel.COMPLETION_STATUS_KHR,
+				) as boolean;
+
+				if (!status) continue;
+				this.settle(managed);
+				this.pending.splice(i, 1);
+			}
+			return;
+		}
+
+		// Fences signal in the order they were queued, so while the oldest
+		// link still runs the newer ones do too. Reading only that one keeps
+		// the polls per fence down, which Firefox counts.
+		while (this.pending.length > 0) {
+			const oldest = this.pending[0];
+			if (!oldest.fenceSignaled(this.gl)) break;
+			this.pending.shift();
+			this.settle(oldest);
 		}
 	}
 
@@ -254,19 +283,6 @@ export class ProgramCompiler {
 		managed.linking = false;
 		if (managed.doomed) managed.destroy(this.gl);
 		else managed.finalize(this.gl);
-	}
-
-	private linkFinished(managed: ManagedProgram): boolean {
-		const gl = this.gl;
-
-		if (this.parallel) {
-			return gl.getProgramParameter(
-				managed.program,
-				this.parallel.COMPLETION_STATUS_KHR,
-			) as boolean;
-		}
-
-		return managed.fenceSignaled(gl);
 	}
 
 	/**
@@ -285,23 +301,34 @@ export class ProgramCompiler {
 	 * link is queued in the command stream the condition does not count.
 	 * A frame drawn then could not be presented without waiting for it.
 	 *
+	 * Every waiter shares one timer, so a page full of viewers polls the
+	 * links once per tick instead of once per viewer.
+	 *
 	 * @param isReady - Reports whether the caller's programs have settled.
 	 */
 	whenReady(isReady?: () => boolean): Promise<void> {
 		return new Promise((resolve) => {
-			const check = (): void => {
-				this.poll();
-				if (
-					this.pending.length === 0 ||
-					(isReady?.() === true && !this.linkQueued)
-				) {
-					resolve();
-					return;
-				}
-				setTimeout(check, 16);
-			};
-			check();
+			this.waiters.push({ isReady, resolve });
+			if (this.waiterTimer === null) this.checkWaiters();
 		});
+	}
+
+	private checkWaiters(): void {
+		this.waiterTimer = null;
+		this.poll();
+
+		const allDone = this.pending.length === 0;
+		for (let i = this.waiters.length - 1; i >= 0; i--) {
+			const waiter = this.waiters[i];
+			const ready = waiter.isReady?.() === true && !this.linkQueued;
+
+			if (!allDone && !ready) continue;
+			this.waiters.splice(i, 1);
+			waiter.resolve();
+		}
+
+		if (this.waiters.length === 0) return;
+		this.waiterTimer = setTimeout(() => this.checkWaiters(), 16);
 	}
 
 	/**

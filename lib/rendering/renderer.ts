@@ -529,7 +529,7 @@ export class Renderer {
 				}
 			}
 		}
-		pipeline.initEnabledEffects(this.gl);
+		pipeline.initEnabledEffects(this.gl, features);
 	}
 
 	/**

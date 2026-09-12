@@ -83,6 +83,16 @@ export class WireframeEffect implements SceneEffect {
 	}
 
 	/**
+	 * Starts compiling the variant a frame with these model features draws
+	 * with.
+	 *
+	 * @param modelFeatures - The model program's feature bits.
+	 */
+	requestPrograms(modelFeatures: number): void {
+		this.programs?.get(modelFeatures & WIREFRAME_FEATURES);
+	}
+
+	/**
 	 * Draws wireframe edges for all visible mesh nodes.
 	 *
 	 * @param ctx - The rendering context info.

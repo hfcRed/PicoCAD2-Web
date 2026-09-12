@@ -1,3 +1,6 @@
+import blitFrag from "../shaders/effects/blit.frag";
+import fullscreenVert from "../shaders/effects/fullscreen.vert";
+import resolveFrag from "../shaders/effects/resolve.frag";
 import furFrag from "../shaders/fur.frag";
 import furVert from "../shaders/fur.vert";
 import modelFrag from "../shaders/model.frag";
@@ -85,15 +88,22 @@ export const DEPTH_FEATURES =
 /**
  * The renderer's shader programs. The model and fur programs come in
  * variants keyed by {@link MODEL_FEATURE} bits, compiled on first use
- * through the context's compiler, in the background where the browser
- * allows. The plain scene variants and the outline compile at startup,
- * blocking, so the first frame always has a program to draw with.
+ * through the context's compiler, in the background. The plain
+ * single-output variant and the two fullscreen programs every frame on
+ * the framebuffer path needs, the blit and the resolve, compile at
+ * startup, blocking, so a frame always has a program to draw with. They
+ * must not compile later, on a context without parallel compilation a
+ * link status query waits behind every link queued before it, so a
+ * blocking compile issued after a heavy variant was requested would
+ * block for that variant's whole compile.
  */
 export class ShaderPrograms {
 	readonly compiler: ProgramCompiler;
 	readonly model: ProgramVariants;
 	readonly fur: ProgramVariants;
 	readonly outline: ManagedProgram;
+	readonly blit: ManagedProgram;
+	readonly resolve: ManagedProgram;
 
 	/**
 	 * Creates the programs for a context.
@@ -122,8 +132,11 @@ export class ShaderPrograms {
 		// scene-target variant and the outline link in the background and a
 		// first frame that needs them draws without the model or the outline.
 		this.model.get(0, true);
+		this.blit = this.compiler.compile(fullscreenVert, blitFrag, [], true);
+		this.resolve = this.compiler.compile(fullscreenVert, resolveFrag, [], true);
 		this.model.get(MODEL_FEATURE.indexOut);
 		this.outline = this.compiler.compile(outlineVert, outlineFrag);
+		programsByContext.set(gl, this);
 	}
 
 	/**
@@ -134,7 +147,24 @@ export class ShaderPrograms {
 	dispose(gl: WebGL2RenderingContext): void {
 		this.model.dispose();
 		this.fur.dispose();
-		this.compiler.forget(this.outline);
-		this.outline.dispose(gl);
+		for (const program of [this.outline, this.blit, this.resolve]) {
+			this.compiler.forget(program);
+			program.dispose(gl);
+		}
+		programsByContext.delete(gl);
 	}
+}
+
+const programsByContext = new WeakMap<WebGL2RenderingContext, ShaderPrograms>();
+
+/**
+ * The programs of a context, created with its renderer.
+ *
+ * @param gl - The WebGL 2 rendering context.
+ * @returns The context's programs.
+ */
+export function shaderProgramsFor(gl: WebGL2RenderingContext): ShaderPrograms {
+	const programs = programsByContext.get(gl);
+	if (!programs) throw new Error("The context has no renderer");
+	return programs;
 }

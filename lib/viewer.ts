@@ -506,6 +506,8 @@ export class PicoCAD2Viewer {
 			this.pipeline,
 		);
 
+		if (this.context._linkQueued) return;
+
 		// Use transferToImageBitmap to atomically capture the WebGL drawing buffer.
 		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
 		// when multiple viewers render in sequence within the same frame.

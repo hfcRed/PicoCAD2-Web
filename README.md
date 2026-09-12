@@ -62,7 +62,7 @@ const viewer2 = new PicoCAD2Viewer({ canvas: canvas2, context });
 
 Viewers sharing a context also share a single render loop: each frame, all viewers render into one combined framebuffer that is captured once and distributed to their canvases. Capturing the drawing buffer is expensive (especially on Firefox), so sharing a context scales to much more viewers.
 
-Shader programs compile in the background where the browser supports parallel shader compilation. Until a program is ready, frames draw with the programs they already have, so enabling an effect never freezes the page. The effect appears a few frames later. Pass `shaderCompile: "sync"` to block on every compile instead, so the first frame after a change always shows it:
+Shader programs compile in the background. Until a program is ready, frames draw with the programs they already have, so enabling an effect never freezes the page. The effect appears a few frames later. Where the browser offers no parallel shader compilation (Firefox), the canvas keeps its last frame until compilation. Pass `shaderCompile: "sync"` to block on every compile instead, so the first frame after a change always shows it:
 
 ```typescript
 const context = new PicoCAD2Context({ shaderCompile: "sync" });
@@ -1245,7 +1245,7 @@ class MyEffect implements PostProcessEffect {
 
 ### Implementing SceneEffect
 
-For effects that render geometry into the scene (like wireframe). An effect whose shader also writes the palette index attachment as a second output declares `readonly writesIndex = true`, so the renderer keeps that attachment enabled while it draws. `ready` works as for post-process effects, and `EffectContext.modelFeatures` carries the model program's feature bits (`MODEL_FEATURE`) for effects that follow the model's deform or glitch. The model's buffers come as vertex array objects: each group in `resources.nodeBuffers[i].groups` has a `vao` to bind and a `vertexCount` to draw, with the attributes at the locations in `MODEL_ATTRIB_LOCATIONS`, which a shader drawing them declares with `layout(location = N)` or the program binds before linking:
+For effects that render geometry into the scene (like wireframe). An effect whose shader also writes the palette index attachment as a second output declares `readonly writesIndex = true`, so the renderer keeps that attachment enabled while it draws. `ready` works as for post-process effects, and `EffectContext.modelFeatures` carries the model program's feature bits (`MODEL_FEATURE`) for effects that follow the model's deform or glitch. An effect that compiles a program per feature combination can implement `requestPrograms(modelFeatures)` to start the compile of the variant a frame needs, so `whenReady()` waits for it too. The model's buffers come as vertex array objects: each group in `resources.nodeBuffers[i].groups` has a `vao` to bind and a `vertexCount` to draw, with the attributes at the locations in `MODEL_ATTRIB_LOCATIONS`, which a shader drawing them declares with `layout(location = N)` or the program binds before linking:
 
 ```typescript
 import type { EffectContext, SceneEffect } from "picocad2-web";

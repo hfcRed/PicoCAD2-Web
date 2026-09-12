@@ -1,8 +1,6 @@
 import * as twgl from "twgl.js";
-import blitFrag from "../../shaders/effects/blit.frag";
-import fullscreenVert from "../../shaders/effects/fullscreen.vert";
-import resolveFrag from "../../shaders/effects/resolve.frag";
 import type { Color3 } from "../../types/scene.ts";
+import { shaderProgramsFor } from "../programs.ts";
 import type { RenderStats } from "../renderer.ts";
 import { FramebufferPool } from "./framebuffer-pool.ts";
 import type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
@@ -14,8 +12,6 @@ import type { EffectContext, PostProcessEffect, SceneEffect } from "./types.ts";
 export class PostProcessPipeline {
 	private readonly postEffects: PostProcessEffect[] = [];
 	private readonly sceneEffectsList: SceneEffect[] = [];
-	private blitProgram: twgl.ProgramInfo | null = null;
-	private resolveProgram: twgl.ProgramInfo | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
 	readonly pool: FramebufferPool = new FramebufferPool();
 
@@ -113,16 +109,20 @@ export class PostProcessPipeline {
 
 	/**
 	 * Starts compiling the programs of every enabled effect that has not
-	 * been initialized yet, so a caller can wait for them.
+	 * been initialized yet, and the variants a frame with these model
+	 * features needs, so a caller can wait for them.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
+	 * @param modelFeatures - The model program's feature bits.
 	 */
-	initEnabledEffects(gl: WebGL2RenderingContext): void {
+	initEnabledEffects(gl: WebGL2RenderingContext, modelFeatures: number): void {
 		for (const effect of this.postEffects) {
 			if (effect.enabled && !effect.initialized) effect.init(gl);
 		}
 		for (const effect of this.sceneEffectsList) {
-			if (effect.enabled && !effect.initialized) effect.init(gl);
+			if (!effect.enabled) continue;
+			if (!effect.initialized) effect.init(gl);
+			effect.requestPrograms?.(modelFeatures);
 		}
 	}
 
@@ -246,17 +246,16 @@ export class PostProcessPipeline {
 		bgIsTransparent = false,
 		stats?: RenderStats,
 	): void {
-		if (!this.blitProgram) {
-			this.blitProgram = twgl.createProgramInfo(gl, [fullscreenVert, blitFrag]);
-			this.emptyVao = gl.createVertexArray();
-		}
+		const program = shaderProgramsFor(gl).blit.info;
+		if (!program) return;
+		if (!this.emptyVao) this.emptyVao = gl.createVertexArray();
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(x, y, w, h);
 		gl.disable(gl.DEPTH_TEST);
 
-		gl.useProgram(this.blitProgram.program);
-		twgl.setUniforms(this.blitProgram, {
+		gl.useProgram(program.program);
+		twgl.setUniforms(program, {
 			u_texture: this.pool.getCurrentTexture(),
 			u_backgroundColor: backgroundColor,
 			u_bgIsTransparent: bgIsTransparent ? 1.0 : 0.0,
@@ -282,20 +281,16 @@ export class PostProcessPipeline {
 	 */
 	resolve(ctx: EffectContext, backgroundColor: Color3): void {
 		const gl = ctx.gl;
-		if (!this.resolveProgram) {
-			this.resolveProgram = twgl.createProgramInfo(gl, [
-				fullscreenVert,
-				resolveFrag,
-			]);
-		}
+		const program = shaderProgramsFor(gl).resolve.info;
+		if (!program) return;
 		if (!this.emptyVao) this.emptyVao = gl.createVertexArray();
 
 		const inputTexture = this.pool.swap(gl);
 		gl.viewport(0, 0, ctx.width, ctx.height);
 		gl.disable(gl.DEPTH_TEST);
 
-		gl.useProgram(this.resolveProgram.program);
-		twgl.setUniforms(this.resolveProgram, {
+		gl.useProgram(program.program);
+		twgl.setUniforms(program, {
 			u_texture: inputTexture,
 			u_backgroundColor: backgroundColor,
 		});
@@ -337,14 +332,6 @@ export class PostProcessPipeline {
 		this.sceneEffectsList.length = 0;
 		this.pool.dispose(gl);
 
-		if (this.blitProgram) {
-			gl.deleteProgram(this.blitProgram.program);
-			this.blitProgram = null;
-		}
-		if (this.resolveProgram) {
-			gl.deleteProgram(this.resolveProgram.program);
-			this.resolveProgram = null;
-		}
 		if (this.emptyVao) {
 			gl.deleteVertexArray(this.emptyVao);
 			this.emptyVao = null;

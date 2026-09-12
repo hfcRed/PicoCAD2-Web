@@ -86,6 +86,15 @@ export class PicoCAD2Context {
 	}
 
 	/**
+	 * Whether capturing the drawing buffer would wait for a queued link.
+	 *
+	 * @internal
+	 */
+	get _linkQueued(): boolean {
+		return this.compiler.linkQueued;
+	}
+
+	/**
 	 * Creates a new shared rendering context with an offscreen canvas.
 	 *
 	 * @param options - Context options.
@@ -285,7 +294,7 @@ export class PicoCAD2Context {
 			}
 		}
 
-		if (rendered.length > 0) {
+		if (rendered.length > 0 && !this.compiler.linkQueued) {
 			const bitmap = this.canvas.transferToImageBitmap();
 			for (const slot of rendered) {
 				slot.viewer._presentFromAtlas(bitmap, slot.x, slot.y);

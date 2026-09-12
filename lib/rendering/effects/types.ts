@@ -64,7 +64,9 @@ export interface SceneEffect {
 	readonly writesIndex?: boolean;
 
 	enabled: boolean;
+
 	init(gl: WebGL2RenderingContext): void;
+	requestPrograms?(modelFeatures: number): void;
 	render(ctx: EffectContext, vpMatrix: mat4, resources: ModelResources): void;
 	dispose(): void;
 }

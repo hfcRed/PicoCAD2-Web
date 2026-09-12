@@ -10,12 +10,15 @@ interface ParallelCompileExt {
  * A shader program that may still be linking. `info` is null until the
  * link has finished and holds the program's twgl setters afterwards.
  * `failed` marks a program whose compile or link failed, which is logged
- * once and never drawn.
+ * once and never drawn. `fence` is the sync object queued behind the
+ * link on a context without parallel compilation, signaled once the
+ * link has run.
  */
 export class ManagedProgram {
 	readonly program: WebGLProgram;
 	info: twgl.ProgramInfo | null = null;
 	failed = false;
+	fence: WebGLSync | null = null;
 	private readonly shaders: WebGLShader[];
 
 	constructor(program: WebGLProgram, shaders: WebGLShader[]) {
@@ -36,6 +39,7 @@ export class ManagedProgram {
 	 */
 	finalize(gl: WebGL2RenderingContext): void {
 		if (this.info || this.failed) return;
+		this.deleteFence(gl);
 
 		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
 			this.failed = true;
@@ -59,20 +63,42 @@ export class ManagedProgram {
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	dispose(gl: WebGL2RenderingContext): void {
+		this.deleteFence(gl);
 		for (const shader of this.shaders) gl.deleteShader(shader);
 		this.shaders.length = 0;
 		gl.deleteProgram(this.program);
 		this.info = null;
 		this.failed = true;
 	}
+
+	/**
+	 * Whether the fence behind the link has signaled. Only meaningful on a
+	 * program that carries one.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 * @returns Whether the link has run.
+	 */
+	fenceSignaled(gl: WebGL2RenderingContext): boolean {
+		if (!this.fence) return true;
+		return gl.getSyncParameter(this.fence, gl.SYNC_STATUS) === gl.SIGNALED;
+	}
+
+	private deleteFence(gl: WebGL2RenderingContext): void {
+		if (!this.fence) return;
+		gl.deleteSync(this.fence);
+		this.fence = null;
+	}
 }
 
 /**
  * Compiles shader programs for one context without blocking the main
- * thread. Where the browser offers parallel shader compilation, a program
- * links in the background and {@link poll} picks up the result on a
- * later frame, so a viewer keeps drawing with the programs it already
- * has. Without it, every compile blocks like a plain WebGL link does.
+ * thread. A program links in the background and {@link poll} picks up the
+ * result on a later frame, so a viewer keeps drawing with the programs it
+ * already has. Where the browser offers parallel shader compilation the
+ * link's completion status is polled. Elsewhere the link runs in order
+ * with the other GL commands, so a fence queued right behind it signals
+ * once the link is done, and reading the link status afterwards no longer
+ * blocks; querying it earlier would wait for the whole compile.
  *
  * Preprocessor defines turn one shader source into variants, so a program
  * only carries the features a frame needs and the compile stays small.
@@ -97,9 +123,12 @@ export class ProgramCompiler {
 		) as ParallelCompileExt | null;
 	}
 
-	/** Whether programs can link in the background on this context. */
+	/**
+	 * Whether programs can link in the background on this context. Always
+	 * true since the fence path. Kept so callers need no change.
+	 */
 	get canCompileAsync(): boolean {
-		return this.parallel !== null;
+		return true;
 	}
 
 	/** How many programs are still linking. */
@@ -108,10 +137,19 @@ export class ProgramCompiler {
 	}
 
 	/**
-	 * Starts compiling a program. In async mode on a context with parallel
-	 * compilation the returned program is not ready until a later
-	 * {@link poll} finds the link finished. Otherwise it is ready (or
-	 * failed) on return.
+	 * Whether a link is still queued in the command stream. Without
+	 * parallel compilation the link runs in order with the other commands,
+	 * so anything that reads the drawing buffer back, capturing a frame
+	 * included, waits for it to finish.
+	 */
+	get linkQueued(): boolean {
+		return this.parallel === null && this.pending.length > 0;
+	}
+
+	/**
+	 * Starts compiling a program. In async mode the returned program is not
+	 * ready until a later {@link poll} finds the link finished. Otherwise
+	 * it is ready (or failed) on return.
 	 *
 	 * @param vertexSource - The vertex shader source.
 	 * @param fragmentSource - The fragment shader source.
@@ -152,11 +190,27 @@ export class ProgramCompiler {
 		gl.linkProgram(program);
 
 		const managed = new ManagedProgram(program, shaders);
-		if (sync || this.mode === "sync" || !this.parallel) {
+		if (sync || this.mode === "sync") {
 			managed.finalize(gl);
-		} else {
-			this.pending.push(managed);
+			return managed;
 		}
+
+		if (!this.parallel) {
+			// The fence covers the part of the link that runs in the command
+			// stream. A driver that hands the compile to a worker thread signals
+			// it early and the status read in poll() blocks for the rest. Every
+			// other program call blocks the same way, so nothing better exists.
+			managed.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+			if (!managed.fence) {
+				managed.finalize(gl);
+				return managed;
+			}
+		}
+
+		// An unflushed link can sit in the command buffer until the next
+		// draw, which would delay the compile and make the fence wait.
+		gl.flush();
+		this.pending.push(managed);
 		return managed;
 	}
 
@@ -164,16 +218,29 @@ export class ProgramCompiler {
 	 * Picks up finished links. Call once per frame; it never blocks.
 	 */
 	poll(): void {
-		if (this.pending.length === 0 || !this.parallel) return;
+		if (this.pending.length === 0) return;
 		const gl = this.gl;
-		const status = this.parallel.COMPLETION_STATUS_KHR;
+
 		for (let i = this.pending.length - 1; i >= 0; i--) {
 			const managed = this.pending[i];
-			if (managed.failed || gl.getProgramParameter(managed.program, status)) {
+			if (managed.failed || this.linkFinished(managed)) {
 				managed.finalize(gl);
 				this.pending.splice(i, 1);
 			}
 		}
+	}
+
+	private linkFinished(managed: ManagedProgram): boolean {
+		const gl = this.gl;
+
+		if (this.parallel) {
+			return gl.getProgramParameter(
+				managed.program,
+				this.parallel.COMPLETION_STATUS_KHR,
+			) as boolean;
+		}
+
+		return managed.fenceSignaled(gl);
 	}
 
 	/**

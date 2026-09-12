@@ -170,6 +170,11 @@ export class FloorResources {
 		this.emptyVao = gl.createVertexArray();
 	}
 
+	/** Whether the plate program's link has finished, ready or failed. */
+	get programSettled(): boolean {
+		return this.program !== null && (this.program.ready || this.program.failed);
+	}
+
 	/**
 	 * Draws the plate quad with the current uniforms into the bound
 	 * framebuffer, compiling the plate program on first use. Draws nothing

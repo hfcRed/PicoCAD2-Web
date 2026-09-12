@@ -277,14 +277,19 @@ export class ProgramCompiler {
 	}
 
 	/**
-	 * Resolves once every pending program has linked, polling once per
-	 * animation frame (or timer, when frames are not delivered).
+	 * Resolves once every pending program has linked, or earlier once the
+	 * given condition holds, polling once per animation frame (or timer,
+	 * when frames are not delivered). The condition lets a caller wait for
+	 * its own programs alone, the empty pending list still resolves it,
+	 * so a program whose link failed cannot hold the wait forever.
+	 *
+	 * @param isReady - Reports whether the caller's programs have settled.
 	 */
-	whenReady(): Promise<void> {
+	whenReady(isReady?: () => boolean): Promise<void> {
 		return new Promise((resolve) => {
 			const check = (): void => {
 				this.poll();
-				if (this.pending.length === 0) {
+				if (this.pending.length === 0 || isReady?.()) {
 					resolve();
 					return;
 				}
@@ -408,6 +413,17 @@ export class ProgramVariants {
 	 */
 	ready(key: number): twgl.ProgramInfo | null {
 		return this.variants.get(key)?.info ?? null;
+	}
+
+	/**
+	 * Whether a variant's link has finished, ready or failed.
+	 *
+	 * @param key - The feature bitmask.
+	 * @returns Whether the variant was requested and has settled.
+	 */
+	settled(key: number): boolean {
+		const variant = this.variants.get(key);
+		return variant !== undefined && (variant.info !== null || variant.failed);
 	}
 
 	/**

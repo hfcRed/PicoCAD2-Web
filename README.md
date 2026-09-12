@@ -68,7 +68,7 @@ Shader programs compile in the background. Until a program is ready, frames draw
 const context = new PicoCAD2Context({ shaderCompile: "sync" });
 ```
 
-`context.shadersReady` tells whether every requested program has finished compiling, and `viewer.whenReady()` (see [Image Export](#image-export)) waits for the programs a viewer's current settings need.
+`context.shadersReady` tells whether every requested program has finished compiling, and `viewer.whenReady()` (see [Image Export](#image-export)) waits for the programs a viewer's current settings need, not for what other viewers on the context are still compiling.
 
 ## Viewer Options
 

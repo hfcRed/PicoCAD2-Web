@@ -95,6 +95,22 @@ export class PostProcessPipeline {
 	}
 
 	/**
+	 * Whether every enabled effect can draw, so none is waiting for a
+	 * program.
+	 *
+	 * @returns Whether no enabled effect reports itself not ready.
+	 */
+	enabledEffectsReady(): boolean {
+		for (const effect of this.postEffects) {
+			if (effect.enabled && effect.ready === false) return false;
+		}
+		for (const effect of this.sceneEffectsList) {
+			if (effect.enabled && effect.ready === false) return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Returns true if any post-process effect is enabled.
 	 *
 	 * @returns Whether any post-process effect is active.

@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- **`whenReady()` waits for the viewer's own programs** — On a shared context it waited until every program any viewer had requested was linked, including those of viewers already disposed, so a page with many viewers saw them all become ready together once the slowest had compiled. It now resolves as soon as the programs the viewer's current settings need have settled.
 - **No GL errors from a viewer disposed while its programs compile** — Deleting a program whose background link was still running made Chrome's GPU process query the deleted program afterwards and log `GL_INVALID_VALUE: glGetProgramiv: Program object expected` on every later check, which a page that mounts a viewer twice during hydration hit on every first load. A program disposed while linking is now freed once its link is done.
 - **Animations no longer speed up under the frame cap** — With `maxFps` set, the clock now advances by the time since the last drawn frame while the cap keeps its remainder, so animation and camera mode speed match wall time regardless of refresh rate.
 - **A frame cap holds its rate on a matching display** — A 60 fps cap on a 60 Hz display no longer drops frames whenever the refresh timestamps jitter.

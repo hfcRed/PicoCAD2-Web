@@ -507,6 +507,41 @@ export class Renderer {
 	}
 
 	/**
+	 * Whether every program {@link requestPrograms} asks for with these
+	 * settings has settled, so a frame draws with nothing standing in.
+	 * Programs other viewers on the context requested do not count.
+	 *
+	 * @param settings - The current render settings.
+	 * @param pipeline - The per-viewer post-process pipeline.
+	 * @returns Whether the frame's programs are ready or have failed.
+	 */
+	programsReady(
+		settings: RenderSettings,
+		pipeline: PostProcessPipeline,
+	): boolean {
+		const features = modelFeatureKey(settings);
+		const keys = [features, features | MODEL_FEATURE.indexOut];
+		const floor = settings.floor;
+
+		if (floor?.enabled && floor.shadow.enabled) {
+			keys.push((features & DEPTH_FEATURES) | MODEL_FEATURE.depthOnly);
+		}
+
+		for (const key of keys) {
+			if (!this.programs.model.settled(key)) return false;
+			if (
+				settings.fur?.enabled &&
+				!this.programs.fur.settled(key & FUR_FEATURES)
+			) {
+				return false;
+			}
+		}
+
+		if (floor?.enabled && !this.floor?.programSettled) return false;
+		return pipeline.enabledEffectsReady();
+	}
+
+	/**
 	 * Starts compiling every program a frame with these settings would draw
 	 * with, so a caller can wait for them before drawing. The programs a
 	 * frame finds still compiling are stood in for by the ones it has.

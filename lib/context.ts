@@ -86,6 +86,21 @@ export class PicoCAD2Context {
 	}
 
 	/**
+	 * Resolves once every program a frame with these settings needs has
+	 * settled, or once nothing is pending on the context at all.
+	 *
+	 * @internal
+	 */
+	_whenProgramsReady(
+		settings: RenderSettings,
+		pipeline: PostProcessPipeline,
+	): Promise<void> {
+		return this.compiler.whenReady(() =>
+			this.renderer.programsReady(settings, pipeline),
+		);
+	}
+
+	/**
 	 * Whether capturing the drawing buffer would wait for a queued link.
 	 *
 	 * @internal

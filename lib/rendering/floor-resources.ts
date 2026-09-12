@@ -11,12 +11,7 @@ export const FLOOR_SHADOW_MAP_SIZE = 512;
  * GPU resources of the floor effect, owned by the renderer and created on
  * first use. The plate program, the depth-only shadow map the model is
  * drawn into along the shadow direction, and the reflection framebuffer
- * the mirrored model pass renders into.
- *
- * The reflection framebuffer carries a second color attachment that is
- * never read, so the mirrored pass draws with the same two-output program
- * variant as the scene pass. A program drawn into a different set of
- * draw buffers costs a full recompile on some drivers.
+ * the mirrored model pass renders into with the color variant.
  */
 export class FloorResources {
 	private program: ManagedProgram | null = null;
@@ -25,7 +20,6 @@ export class FloorResources {
 	shadowTexture: WebGLTexture | null = null;
 	private reflectionFbo: WebGLFramebuffer | null = null;
 	reflectionTexture: WebGLTexture | null = null;
-	private reflectionIndex: WebGLTexture | null = null;
 	private reflectionDepth: WebGLRenderbuffer | null = null;
 	private reflectionWidth = 0;
 	private reflectionHeight = 0;
@@ -136,22 +130,6 @@ export class FloorResources {
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-			this.reflectionIndex = gl.createTexture();
-			gl.bindTexture(gl.TEXTURE_2D, this.reflectionIndex);
-			gl.texImage2D(
-				gl.TEXTURE_2D,
-				0,
-				gl.RGBA8,
-				w,
-				h,
-				0,
-				gl.RGBA,
-				gl.UNSIGNED_BYTE,
-				null,
-			);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
 			this.reflectionDepth = gl.createRenderbuffer();
 			gl.bindRenderbuffer(gl.RENDERBUFFER, this.reflectionDepth);
 			gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
@@ -165,13 +143,6 @@ export class FloorResources {
 				this.reflectionTexture,
 				0,
 			);
-			gl.framebufferTexture2D(
-				gl.FRAMEBUFFER,
-				gl.COLOR_ATTACHMENT1,
-				gl.TEXTURE_2D,
-				this.reflectionIndex,
-				0,
-			);
 			gl.framebufferRenderbuffer(
 				gl.FRAMEBUFFER,
 				gl.DEPTH_ATTACHMENT,
@@ -183,7 +154,6 @@ export class FloorResources {
 		}
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.reflectionFbo);
-		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
 		gl.viewport(0, 0, w, h);
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -260,10 +230,6 @@ export class FloorResources {
 		if (this.reflectionTexture) {
 			gl.deleteTexture(this.reflectionTexture);
 			this.reflectionTexture = null;
-		}
-		if (this.reflectionIndex) {
-			gl.deleteTexture(this.reflectionIndex);
-			this.reflectionIndex = null;
 		}
 		if (this.reflectionDepth) {
 			gl.deleteRenderbuffer(this.reflectionDepth);

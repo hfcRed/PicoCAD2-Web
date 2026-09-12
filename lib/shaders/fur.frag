@@ -35,11 +35,10 @@ uniform float u_furRootShade;
 #include chunks/palette-blend.glsl;
 #include chunks/voxel-cut.glsl;
 
-#ifndef FX_DEPTH_ONLY
+#if defined(FX_INDEX_OUT)
+layout(location = 0) out vec4 fragIndex;
+#elif !defined(FX_DEPTH_ONLY)
 layout(location = 0) out vec4 fragColor;
-#endif
-#ifdef FX_INDEX_OUT
-layout(location = 1) out vec4 fragIndex;
 #endif
 
 void main() {
@@ -116,12 +115,13 @@ void main() {
     color = applyDissolveEdge(color, dissolveEdge);
 
     float alpha = fadeAlpha(coverage);
-    fragColor = vec4(color * alpha, alpha);
 
 #ifdef FX_INDEX_OUT
     // Fur strands are the material extended outward, so they write their
     // base index, with the dissolve's coverage like the surface they grow from.
     fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, coverage, 1.0);
+#else
+    fragColor = vec4(color * alpha, alpha);
 #endif
 #endif
 }

@@ -519,22 +519,30 @@ export class Renderer {
 		pipeline: PostProcessPipeline,
 	): void {
 		const features = modelFeatureKey(settings);
-		const sceneKey = features | MODEL_FEATURE.indexOut;
-		this.programs.model.get(sceneKey);
+		const indexKey = features | MODEL_FEATURE.indexOut;
+
+		this.programs.model.get(features);
+		this.programs.model.get(indexKey);
+
 		if (settings.fur?.enabled) {
-			this.programs.fur.get(sceneKey & FUR_FEATURES);
+			this.programs.fur.get(features & FUR_FEATURES);
+			this.programs.fur.get(indexKey & FUR_FEATURES);
 		}
+
 		if (settings.floor?.enabled) {
 			if (!this.floor) this.floor = new FloorResources();
 			this.floor.ensureProgram(this.gl);
+
 			if (settings.floor.shadow.enabled) {
 				const depthKey = (features & DEPTH_FEATURES) | MODEL_FEATURE.depthOnly;
 				this.programs.model.get(depthKey);
+
 				if (settings.fur?.enabled) {
 					this.programs.fur.get(depthKey & FUR_FEATURES);
 				}
 			}
 		}
+
 		pipeline.initEnabledEffects(this.gl, features);
 	}
 
@@ -654,9 +662,18 @@ export class Renderer {
 		const useOutline = settings.outlineSize > 0 && !useGradientOutline;
 		const hasEffects = pipeline.hasActiveEffects();
 
-		// Every model-pass feature draws into the scene target, so the
-		// direct path only ever needs the plain single-output variant and
-		// the featured variants keep one output layout each.
+		// The index pass only pays off for a reader. The outlines, the post
+		// effects' masks, or a scene effect handed the index texture.
+		const needsIndex =
+			useOutline ||
+			useGradientOutline ||
+			pipeline.hasActivePostEffects() ||
+			pipeline.hasActiveSceneEffects();
+
+		// Every model-pass feature draws into the scene target, where the
+		// model draws twice, color then index, so every variant has a single
+		// output and no draw ever meets a layout its program was not linked
+		// for. The direct path only ever needs the plain variant.
 		const features = modelFeatureKey(settings);
 		this.modelFeatures = features;
 		const useFbo =
@@ -866,7 +883,6 @@ export class Renderer {
 			}
 
 			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-			pipeline.pool.clearIndex(gl);
 			gl.viewport(0, 0, w, h);
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -888,22 +904,33 @@ export class Renderer {
 			gl.viewport(x, y, w, h);
 		}
 
-		// Right after context creation the scene-target variant of the plain
-		// model may still be linking, and the pass has nothing to draw with.
-		if (
-			settings.renderMode < 2 &&
-			this.selectPassPrograms(
-				useFbo ? features | MODEL_FEATURE.indexOut : features,
-			)
-		) {
+		if (settings.renderMode < 2 && this.selectPassPrograms(features)) {
 			this.drawModel(resources);
+		}
+
+		// The index pass replays the model's depth phases into the index
+		// texture alone, from a cleared depth like the color pass, so both
+		// resolve the same surface. The floor plate and the index-writing
+		// scene effects then draw color and index together.
+		if (useFbo && needsIndex) {
+			pipeline.pool.bindIndexTarget(gl);
+			if (
+				settings.renderMode < 2 &&
+				this.selectPassPrograms(features | MODEL_FEATURE.indexOut)
+			) {
+				gl.clear(gl.DEPTH_BUFFER_BIT);
+				this.drawModel(resources);
+			}
+			pipeline.pool.rebindScene(gl);
+		} else if (useFbo) {
+			pipeline.pool.enableIndexWrites(gl);
 		}
 
 		if (floor && floorOn) {
 			this.drawFloorPlane(floor, model, resources, vpMatrix, w, h);
 		}
 
-		// Only the model shader and the floor plate write the index attachment,
+		// Only the model passes and the floor plate write the index texture,
 		// later passes (wireframe, outline, post effects) draw to the color
 		// buffer alone.
 		if (useFbo) {
@@ -1277,7 +1304,7 @@ export class Renderer {
 		if (
 			reflection.enabled &&
 			reflection.strength > 0 &&
-			this.selectPassPrograms(features | MODEL_FEATURE.indexOut)
+			this.selectPassPrograms(features)
 		) {
 			writeFloorMirror(res.mirror, planeY);
 			mat4.multiply(mu.u_vp, vpMatrix, res.mirror);

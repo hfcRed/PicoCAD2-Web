@@ -3,10 +3,13 @@ precision highp float;
 
  /**
  * The model surface. Program variants compile in only the features a
- * frame uses (see programs.ts). FX_INDEX_OUT adds the palette index
- * output for the scene target, FX_DEPTH_ONLY drops every color output for
- * the floor's shadow map and stops after the discards, and each effect
- * chunk carries its own feature switch.
+ * frame uses (see programs.ts). FX_INDEX_OUT writes the palette index
+ * instead of the color, for the index pass of the scene target,
+ * FX_DEPTH_ONLY drops every output for the floor's shadow map and stops
+ * after the discards, and each effect chunk carries its own feature
+ * switch. Every variant has at most one output: the Direct3D backend of
+ * ANGLE compiles a two-output program a second time at its first draw,
+ * on the GPU process's main thread, which froze every tab for seconds.
  */
 
 in vec3 v_normal;
@@ -33,11 +36,10 @@ uniform float u_clipBelowY; // the floor's reflection pass clips real geometry b
 #include chunks/voxel-cut.glsl;
 #include chunks/display.glsl;
 
-#ifndef FX_DEPTH_ONLY
+#if defined(FX_INDEX_OUT)
+layout(location = 0) out vec4 fragIndex;
+#elif !defined(FX_DEPTH_ONLY)
 layout(location = 0) out vec4 fragColor;
-#endif
-#ifdef FX_INDEX_OUT
-layout(location = 1) out vec4 fragIndex;
 #endif
 
 void main() {
@@ -146,7 +148,6 @@ void main() {
     // Premultiplied. The blended pass of a smooth dissolve composites over
     // what is behind the fragment, every other pass writes whole pixels.
     float alpha = fadeAlpha(coverage);
-    fragColor = vec4(color * alpha, alpha);
 
 #ifdef FX_INDEX_OUT
     // Base palette index (R), shade row (G) and the fade's coverage (B) for
@@ -155,6 +156,8 @@ void main() {
     // masks select materials, not displayed colors. The alpha of 1 keeps
     // the index whole under the blended pass's blending.
     fragIndex = vec4(colorIdx / 255.0, float(paletteRow) / 255.0, coverage, 1.0);
+#else
+    fragColor = vec4(color * alpha, alpha);
 #endif
 #endif
 }

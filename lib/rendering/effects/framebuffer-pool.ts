@@ -27,6 +27,7 @@ export class FramebufferPool {
 		null,
 	];
 	private indexCurrent = 0;
+	private indexFbo: WebGLFramebuffer | null = null;
 	private width = 0;
 	private height = 0;
 	private currentIndex = 0;
@@ -137,6 +138,26 @@ export class FramebufferPool {
 			0,
 		);
 
+		// The index pass draws the model a second time into the scene's
+		// index texture alone, over the scene's depth, so every model program
+		// keeps a single output.
+		this.indexFbo = gl.createFramebuffer();
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.indexFbo);
+		gl.framebufferTexture2D(
+			gl.FRAMEBUFFER,
+			gl.COLOR_ATTACHMENT0,
+			gl.TEXTURE_2D,
+			this.indexTextures[0],
+			0,
+		);
+		gl.framebufferTexture2D(
+			gl.FRAMEBUFFER,
+			gl.DEPTH_ATTACHMENT,
+			gl.TEXTURE_2D,
+			this.depthTexture,
+			0,
+		);
+
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		this.width = w;
 		this.height = h;
@@ -145,10 +166,10 @@ export class FramebufferPool {
 	}
 
 	/**
-	 * Binds the scene FBO (with depth and index attachments) for 3D rendering.
-	 * Reattaches the textures if they were previously detached and enables
-	 * drawing to both color attachments. The scene pass always writes index
-	 * texture 0, so the index ping-pong resets here.
+	 * Binds the scene target for the color pass, with the index texture
+	 * attached but not drawn to, so the model program's single output goes
+	 * to the color attachment. Index writers enable the second attachment
+	 * with {@link enableIndexWrites}.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
@@ -170,18 +191,31 @@ export class FramebufferPool {
 			this.indexTextures[0],
 			0,
 		);
-		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+		gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
 	}
 
 	/**
-	 * Clears the palette index attachment to "no model pixel" (index 255).
-	 * Call after the regular scene clear while the scene FBO is bound with
-	 * both draw buffers enabled.
+	 * Binds the scene's index texture as the only color target, over the
+	 * scene's depth, and clears it to "no model pixel" for the index pass.
+	 * Rebind the scene with {@link rebindScene} afterwards.
 	 *
 	 * @param gl - The WebGL 2 rendering context.
 	 */
-	clearIndex(gl: WebGL2RenderingContext): void {
-		gl.clearBufferfv(gl.COLOR, 1, INDEX_CLEAR);
+	bindIndexTarget(gl: WebGL2RenderingContext): void {
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.indexFbo);
+		gl.clearBufferfv(gl.COLOR, 0, INDEX_CLEAR);
+	}
+
+	/**
+	 * Binds the scene target again after the index pass, with both
+	 * attachments drawn to for the passes that write color and index
+	 * together.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	rebindScene(gl: WebGL2RenderingContext): void {
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbos[0]!.fbo);
+		gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
 	}
 
 	/**
@@ -340,6 +374,11 @@ export class FramebufferPool {
 	 * @param gl - The WebGL 2 rendering context.
 	 */
 	private disposeFbos(gl: WebGL2RenderingContext): void {
+		if (this.indexFbo) {
+			gl.deleteFramebuffer(this.indexFbo);
+			this.indexFbo = null;
+		}
+
 		for (let i = 0; i < 2; i++) {
 			const managed = this.fbos[i];
 			if (managed) {

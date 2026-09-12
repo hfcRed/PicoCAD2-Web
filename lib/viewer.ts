@@ -489,9 +489,13 @@ export class PicoCAD2Viewer {
 	 *
 	 * @param syncWithAnimation - When `true` (default), camera mode offset
 	 *   syncs to animation playback. When `false`, uses {@link cameraModeSpeed}.
+	 * @returns Whether the frame reached the canvas. `false` without a
+	 *   model, or when a shader link still queued on the context would have
+	 *   made capturing the frame wait for it, in which case the canvas keeps
+	 *   its last frame and a later call presents.
 	 */
-	draw(syncWithAnimation = true): void {
-		if (!this.model || !this.resources) return;
+	draw(syncWithAnimation = true): boolean {
+		if (!this.model || !this.resources) return false;
 
 		this.prepareFrame(syncWithAnimation);
 
@@ -506,7 +510,7 @@ export class PicoCAD2Viewer {
 			this.pipeline,
 		);
 
-		if (this.context._linkQueued) return;
+		if (this.context._linkQueued) return false;
 
 		// Use transferToImageBitmap to atomically capture the WebGL drawing buffer.
 		// Direct drawImage from a shared WebGL OffscreenCanvas can read stale content
@@ -514,6 +518,7 @@ export class PicoCAD2Viewer {
 		const bitmap = this.context.canvas.transferToImageBitmap();
 		this.present(bitmap, 0, 0);
 		bitmap.close();
+		return true;
 	}
 
 	/**
@@ -1014,8 +1019,12 @@ export class PicoCAD2Viewer {
 		this.renderWidth = w;
 		this.renderHeight = h;
 		this.renderScale = s;
-		this.canvas.width = w * s;
-		this.canvas.height = h * s;
+
+		// Assigning a size clears a canvas even when it is unchanged, so a
+		// viewer taking over a canvas at the same size keeps its picture
+		// until the first frame lands. Thanks React.
+		if (this.canvas.width !== w * s) this.canvas.width = w * s;
+		if (this.canvas.height !== h * s) this.canvas.height = h * s;
 		this.ctx2d.imageSmoothingEnabled = false;
 		this.canvas.style.width = `${w * s}px`;
 		this.canvas.style.height = `${h * s}px`;

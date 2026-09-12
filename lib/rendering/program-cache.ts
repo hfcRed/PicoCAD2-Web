@@ -281,7 +281,9 @@ export class ProgramCompiler {
 	 * given condition holds, polling once per animation frame (or timer,
 	 * when frames are not delivered). The condition lets a caller wait for
 	 * its own programs alone, the empty pending list still resolves it,
-	 * so a program whose link failed cannot hold the wait forever.
+	 * so a program whose link failed cannot hold the wait forever. While a
+	 * link is queued in the command stream the condition does not count.
+	 * A frame drawn then could not be presented without waiting for it.
 	 *
 	 * @param isReady - Reports whether the caller's programs have settled.
 	 */
@@ -289,7 +291,10 @@ export class ProgramCompiler {
 		return new Promise((resolve) => {
 			const check = (): void => {
 				this.poll();
-				if (this.pending.length === 0 || isReady?.()) {
+				if (
+					this.pending.length === 0 ||
+					(isReady?.() === true && !this.linkQueued)
+				) {
 					resolve();
 					return;
 				}

@@ -62,7 +62,7 @@ const viewer2 = new PicoCAD2Viewer({ canvas: canvas2, context });
 
 Viewers sharing a context also share a single render loop: each frame, all viewers render into one combined framebuffer that is captured once and distributed to their canvases. Capturing the drawing buffer is expensive (especially on Firefox), so sharing a context scales to much more viewers.
 
-Shader programs compile in the background. Until a program is ready, frames draw with the programs they already have, so enabling an effect never freezes the page. The effect appears a few frames later. Where the browser offers no parallel shader compilation (Firefox), the canvas keeps its last frame until compilation. Pass `shaderCompile: "sync"` to block on every compile instead, so the first frame after a change always shows it:
+Shader programs compile in the background. Until a program is ready, frames draw with the programs they already have, so enabling an effect never freezes the page. The effect appears a few frames later. Where the browser offers no parallel shader compilation (Firefox), the canvas keeps its last frame until compilation, and `draw()` returns `false` for such a frame so a one-shot caller can try again on a later frame. Pass `shaderCompile: "sync"` to block on every compile instead, so the first frame after a change always shows it:
 
 ```typescript
 const context = new PicoCAD2Context({ shaderCompile: "sync" });

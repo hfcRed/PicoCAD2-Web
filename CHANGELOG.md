@@ -2,6 +2,10 @@
 
 ## 2.0.3 (UNRELEASED)
 
+### Added
+
+- **`draw()` reports whether the frame reached the canvas** — It returns `false` without a model or when a shader link still queued on the context would have made capturing the frame wait, in which case the canvas keeps its last frame. A caller that draws once and disposes can retry on a later frame instead of ending up with a blank canvas.
+
 ### Changed
 
 - **Shader programs link in the background in every browser** — Browsers without `KHR_parallel_shader_compile` (Firefox, software rasterizers) used to block the page for the whole compile of every program. The library now queues a fence behind the link and polls it, so the link status is only read once the link has run in the command stream, and since capturing a frame would wait for the queued link too, the canvas keeps its last frame until then instead of the page blocking. `shaderCompile: "sync"` still blocks. The wireframe's deform and glitch variants are now requested with the other programs, so `whenReady()` waits for them as well.
@@ -11,7 +15,8 @@
 
 ### Fixed
 
-- **`whenReady()` waits for the viewer's own programs** — On a shared context it waited until every program any viewer had requested was linked, including those of viewers already disposed, so a page with many viewers saw them all become ready together once the slowest had compiled. It now resolves as soon as the programs the viewer's current settings need have settled.
+- **A canvas keeps its picture across viewers** — Setting the resolution assigned the canvas size even when it was unchanged, which clears a canvas, so a viewer created on a canvas another viewer had just drawn to blanked it until its own first frame. The size is now only assigned when it changes.
+- **`whenReady()` waits for the viewer's own programs** — On a shared context it waited until every program any viewer had requested was linked, including those of viewers already disposed, so a page with many viewers saw them all become ready together once the slowest had compiled. It now resolves as soon as the programs the viewer's current settings need have settled, except on a context without parallel shader compilation, where a frame cannot be presented while any link is still queued, so it keeps waiting for those.
 - **No GL errors from a viewer disposed while its programs compile** — Deleting a program whose background link was still running made Chrome's GPU process query the deleted program afterwards and log `GL_INVALID_VALUE: glGetProgramiv: Program object expected` on every later check, which a page that mounts a viewer twice during hydration hit on every first load. A program disposed while linking is now freed once its link is done.
 - **Animations no longer speed up under the frame cap** — With `maxFps` set, the clock now advances by the time since the last drawn frame while the cap keeps its remainder, so animation and camera mode speed match wall time regardless of refresh rate.
 - **A frame cap holds its rate on a matching display** — A 60 fps cap on a 60 Hz display no longer drops frames whenever the refresh timestamps jitter.

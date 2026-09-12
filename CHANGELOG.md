@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.3 (UNRELEASED)
+## 2.0.3
 
 ### Added
 

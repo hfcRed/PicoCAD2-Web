@@ -7,7 +7,6 @@ uniform sampler2D u_texture;
 uniform bool u_bgIsTransparent;
 uniform vec2 u_resolution;
 uniform float u_time;
-uniform int u_pattern;
 uniform vec3 u_colorA;
 uniform vec3 u_colorB;
 uniform float u_scale;
@@ -38,7 +37,7 @@ void main() {
 
     vec3 p;
     float period = 0.0;
-    if (u_pattern >= 4) {
+    if (PATTERN_ONLY_ID >= 4) {
         // grid / truchet / constellations are planar line patterns. The 3D
         // ray domain below slices them into bands (floor(p.z) variant seams
         // for the 2D fields, lattice cross-sections for the grid). Keep them
@@ -58,7 +57,7 @@ void main() {
             period = snapped;
         }
 
-        if (u_pattern == 4) {
+        if (PATTERN_ONLY_ID == 4) {
             p = vec3(q + ft * 0.1, -0.3 * ft);
         } else {
             p = vec3(q, u_seed * 43.7);
@@ -79,7 +78,7 @@ void main() {
     }
 
     float rand;
-    float f = clamp(patternField(u_pattern, p, ft, period, rand), 0.0, 1.0);
+    float f = clamp(patternField(PATTERN_ONLY_ID, p, ft, period, rand), 0.0, 1.0);
 
     if (u_dither) {
         float checker = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);

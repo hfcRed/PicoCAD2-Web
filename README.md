@@ -358,7 +358,7 @@ viewer.extras.noise.amount = 0.1;
 viewer.extras.noise.enabled = false;
 ```
 
-Shaders are compiled lazily and in the background, so effects have no GPU cost until first enabled and enabling one never freezes the page. The model shader is compiled per combination of enabled material and geometry effects, so a plain model compiles in milliseconds and a combination only carries the code of its effects. While a program is still compiling, frames keep drawing with the programs they already have, and the effect appears once its program is ready. `await viewer.whenReady()` waits for that, `new PicoCAD2Context({ shaderCompile: "sync" })` blocks on every compile instead.
+Shaders are compiled lazily and in the background, so effects have no GPU cost until first enabled and enabling one never freezes the page. The model shader is compiled per combination of enabled material and geometry effects, so a plain model compiles in milliseconds and a combination only carries the code of its effects. The patterns the interior, the projection and the procedural background sample are part of that combination. Switching a pattern compiles a small program in the background while the previous one keeps drawing. While a program is still compiling, frames keep drawing with the programs they already have, and the effect appears once its program is ready. `await viewer.whenReady()` waits for that, `new PicoCAD2Context({ shaderCompile: "sync" })` blocks on every compile instead.
 
 ### Color Masks
 
@@ -1211,7 +1211,7 @@ Custom effects can also be color-masked: the scene's palette index buffer is ava
 
 ### Implementing PostProcessEffect
 
-For multi-pass effects or effects that manage their own framebuffers. Compile programs through the context's compiler (`compilerFor(gl)`) and report `ready` while they link, so the effect joins the background compilation. The pipeline skips an effect whose `ready` is `false` for the frame. An effect without a `ready` property counts as ready.
+For multi-pass effects or effects that manage their own framebuffers. Compile programs through the context's compiler (`compilerFor(gl)`) and report `ready` while they link, so the effect joins the background compilation. The pipeline skips an effect whose `ready` is `false` for the frame. An effect without a `ready` property counts as ready. An effect that compiles a program per setting can implement `requestPrograms(modelFeatures)` to start the compile of the variant the next frame needs, so `whenReady()` waits for it too.
 
 ```typescript
 import type { EffectContext, PostProcessEffect } from "picocad2-web";

@@ -33,6 +33,7 @@
 #include hash.glsl;
 #include color.glsl;
 #if defined(FX_INTERIOR) || defined(FX_PROJECTION)
+#include model-patterns.glsl;
 #include patterns.glsl;
 #endif
 #include dissolve.glsl;
@@ -48,7 +49,6 @@ uniform float u_boundsMinY; // model rest-pose world bounds, for worldY ramps
 uniform float u_boundsSpanY;
 
 uniform bool u_interiorEnabled;
-uniform int u_interiorPattern; // 0 = stars, 1 = dust, 2 = voronoi, 3 = lava, 4 = grid
 uniform float u_interiorDepth;
 uniform int u_interiorLayers;
 uniform float u_interiorScale;
@@ -121,7 +121,6 @@ uniform bool u_emissionSmooth;
 uniform int u_emissionMask;
 
 uniform bool u_projectionEnabled;
-uniform int u_projectionPattern;
 uniform int u_projectionMode; // 0 = light, 1 = shadow, 2 = tint
 uniform vec3 u_projectionDir; // normalized travel direction
 uniform vec3 u_projectionU; // plane basis perpendicular to the direction
@@ -227,9 +226,9 @@ float projectionAmount(float colorIdx, vec3 normal, vec3 worldPos) {
         * u_projectionScale;
     float t = u_time * u_projectionSpeed;
     vec3 p;
-    if (u_projectionPattern == 4) {
+    if (PROJECTION_PATTERN == 4) {
         p = vec3(q + t * 0.1, -0.3 * t);
-    } else if (u_projectionPattern > 4) {
+    } else if (PROJECTION_PATTERN > 4) {
         p = vec3(q, u_projectionSeed * 43.7);
     } else {
         // Slice the volumetric fields obliquely. A flat slice at one depth
@@ -238,7 +237,7 @@ float projectionAmount(float colorIdx, vec3 normal, vec3 worldPos) {
         p = vec3(q, dot(q, vec2(0.37, 0.61))) + vec3(u_projectionSeed * 43.7);
     }
 
-    float f = clamp(patternField(u_projectionPattern, p, t), 0.0, 1.0);
+    float f = clamp(patternField(PROJECTION_PATTERN, p, t), 0.0, 1.0);
     return clamp(f * u_projectionStrength, 0.0, 1.0);
 #endif
 }
@@ -306,7 +305,7 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
     float t = u_time * u_interiorSpeed;
     vec3 result = u_interiorBgColor;
 
-    bool planar = u_interiorPattern >= 4;
+    bool planar = INTERIOR_PATTERN >= 4;
     vec3 an = abs(normal);
     int axis = an.x >= an.y && an.x >= an.z ? 0 : (an.y >= an.z ? 1 : 2);
 
@@ -318,7 +317,7 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
         if (planar) {
             vec2 uv = (axis == 0 ? q.zy : (axis == 1 ? q.xz : q.xy))
                 * u_interiorScale;
-            p = u_interiorPattern == 4
+            p = INTERIOR_PATTERN == 4
                 // pin the grid slice to the lattice plane (its time scroll
                 // along z pulses a fixed slice) and drift in-plane instead
                 ? vec3(uv + t * 0.1, -0.3 * t)
@@ -327,7 +326,7 @@ vec3 applyInterior(vec3 worldPos, vec3 viewDir, vec3 normal) {
             p = q * u_interiorScale + vec3(u_interiorSeed * 43.7);
         }
         float rand;
-        float f = patternField(u_interiorPattern, p, t, 0.0, rand);
+        float f = patternField(INTERIOR_PATTERN, p, t, 0.0, rand);
 
         vec3 layerColor = u_interiorColor;
         if (u_interiorHueRange > 0.0) {

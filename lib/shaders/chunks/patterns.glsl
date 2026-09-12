@@ -10,12 +10,36 @@
  * blob, tile or edge the pixel belongs to, 0.5 = neutral) through the
  * five-argument patternField overload, which consumers can turn into
  * per-feature hue rotation with hueRotate().
+ *
+ * A program carries only the fields it defines FX_PATTERN_<NAME> for,
+ * see patternField.
  */
 
 #include hash.glsl;
 #include color.glsl;
 
 const float PATTERN_TAU = 6.28318530718;
+
+/*
+ * A consumer compiled with a single pattern reads its id from
+ * PATTERN_ONLY_ID, the lowest field it defined, so a program drawn while
+ * another variant still compiles shows the pattern it was built for.
+ */
+#if defined(FX_PATTERN_STARS)
+#define PATTERN_ONLY_ID 0
+#elif defined(FX_PATTERN_DUST)
+#define PATTERN_ONLY_ID 1
+#elif defined(FX_PATTERN_VORONOI)
+#define PATTERN_ONLY_ID 2
+#elif defined(FX_PATTERN_LAVA)
+#define PATTERN_ONLY_ID 3
+#elif defined(FX_PATTERN_GRID)
+#define PATTERN_ONLY_ID 4
+#elif defined(FX_PATTERN_TRUCHET)
+#define PATTERN_ONLY_ID 5
+#else
+#define PATTERN_ONLY_ID 6
+#endif
 
 /**
  * Tiny twinkling points, one per hashed cell. Centers stay a radius away
@@ -187,58 +211,67 @@ float truchetField(vec3 p, float t, out float rand) {
 const float MAX_CONNECTIONS = 3.0;
 
 /**
- * Counts how many of a cell's eight connection gates score higher than
- * the given gate. A connection is accepted by a star when fewer than
- * MAX_CONNECTIONS of its gates are stronger, and a line only exists when
- * both endpoint stars accept it. Every pixel can evaluate both endpoints
- * from the same hashes, so the cap stays consistent from either side.
+ * The gate of the connection from a cell toward a neighbor offset. The
+ * hash of the unordered cell pair, so both endpoints and every cell a
+ * segment crosses derive the identical value.
  */
-float strongerGates(vec2 cell, float z, float gate, float period) {
-    float count = 0.0;
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
-            if (x == 0 && y == 0) continue;
-            vec2 pair = cell * 2.0 + vec2(float(x), float(y));
-            if (period > 0.0) pair.x = mod(pair.x, period * 2.0);
-            if (hash13(vec3(pair, z + 7.0)) > gate) count += 1.0;
-        }
-    }
-    return count;
+float connectionGate(vec2 cell, vec2 delta, float z, float period) {
+    vec2 pair = cell * 2.0 + delta;
+    if (period > 0.0) pair.x = mod(pair.x, period * 2.0);
+    return hash13(vec3(pair, z + 7.0));
 }
 
 /**
- * Evaluates one constellation line between the stars of two adjacent
- * cells against the pixel's local point. cellA is the canonical
- * (wrapped) cell and delta the raw offset from A to B, so every cell a
- * segment can cross derives the identical gate, caps and geometry.
- * Returns the line intensity at the point; lrand is its feature rand.
+ * The third-strongest of a cell's eight connection gates. A connection
+ * is accepted by a star when fewer than MAX_CONNECTIONS of its gates are
+ * stronger, which is the same as the connection's gate reaching this
+ * threshold, and a line only exists when both endpoint stars accept it.
+ * Hashed once per cell of the neighborhood, counting the stronger gates
+ * per line instead, for both endpoints, re-hashed the same gates sixteen
+ * times per line and made the field cost most of a second to compile.
+ */
+float acceptThreshold(vec2 cell, float z, float period) {
+    float s1 = -1.0;
+    float s2 = -1.0;
+    float s3 = -1.0;
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            if (x == 0 && y == 0) continue;
+            float g = connectionGate(cell, vec2(float(x), float(y)), z, period);
+            // Branchless insertion into the sorted top three.
+            float d1 = min(g, s1);
+            s1 = max(g, s1);
+            float d2 = min(d1, s2);
+            s2 = max(d1, s2);
+            s3 = max(d2, s3);
+        }
+    }
+    return s3;
+}
+
+/**
+ * Evaluates one constellation line between two stars against the
+ * pixel's local point, given the connection's gate and the acceptance
+ * thresholds of both endpoint cells. Returns the line intensity at the
+ * point; lrand is its feature rand.
  */
 float constellationLine(
     vec2 local,
     vec2 starA,
     vec2 starB,
-    vec2 cellA,
-    vec2 delta,
-    float z,
-    float period,
+    float gate,
+    float acceptA,
+    float acceptB,
     float t,
     out float lrand
 ) {
     lrand = 0.5;
-
-    vec2 pair = cellA * 2.0 + delta;
-    if (period > 0.0) pair.x = mod(pair.x, period * 2.0);
-    float gate = hash13(vec3(pair, z + 7.0));
     if (gate < 0.5) return 0.0;
 
     const float MIN_LINE_DIST = 1.0;
     vec2 ab = starB - starA;
     if (dot(ab, ab) < MIN_LINE_DIST * MIN_LINE_DIST) return 0.0;
-
-    vec2 cellB = cellA + delta;
-    if (period > 0.0) cellB.x = mod(cellB.x, period);
-    if (strongerGates(cellA, z, gate, period) >= MAX_CONNECTIONS) return 0.0;
-    if (strongerGates(cellB, z, gate, period) >= MAX_CONNECTIONS) return 0.0;
+    if (gate < acceptA || gate < acceptB) return 0.0;
 
     float gr = (gate - 0.5) * 2.0;
     float width = mix(0.6, 1.6, fract(gr * 7.13));
@@ -282,15 +315,20 @@ float constellationsField(vec3 p, float t, float period, out float rand) {
     float intensity = 0.0;
     rand = 0.5;
 
-    // Cache the 3x3 neighborhood's stars, indexed (y + 1) * 3 + (x + 1),
-    // and draw them. Positions are relative to the own cell.
+    // Cache the 3x3 neighborhood's cells, stars and acceptance thresholds,
+    // indexed (y + 1) * 3 + (x + 1), and draw the stars. Positions are
+    // relative to the own cell.
+    vec2 cells[9];
     vec2 stars[9];
+    float accept[9];
     for (int i = 0; i < 9; i++) {
         vec2 off = vec2(float(i % 3 - 1), float(i / 3 - 1));
         vec2 nc = cell + off;
         if (period > 0.0) nc.x = mod(nc.x, period);
         vec3 h = hash33(vec3(nc, z));
+        cells[i] = nc;
         stars[i] = off + 0.2 + 0.6 * h.xy;
+        accept[i] = acceptThreshold(nc, z, period);
 
         // Flickering size and brightness
         float speed = 0.6 + 0.8 * fract(h.y * 7.31);
@@ -309,9 +347,10 @@ float constellationsField(vec3 p, float t, float period, out float rand) {
     for (int i = 0; i < 9; i++) {
         if (i == 4) continue;
         vec2 delta = vec2(float(i % 3 - 1), float(i / 3 - 1));
+        float gate = connectionGate(cells[4], delta, z, period);
         float lrand;
         float li = constellationLine(
-            local, stars[4], stars[i], cell, delta, z, period, t, lrand
+            local, stars[4], stars[i], gate, accept[4], accept[i], t, lrand
         );
         if (li > intensity) {
             intensity = li;
@@ -326,11 +365,10 @@ float constellationsField(vec3 p, float t, float period, out float rand) {
         int b = k == 0 ? 1 : (k == 1 ? 5 : (k == 2 ? 7 : 3));
         vec2 offA = vec2(float(a % 3 - 1), float(a / 3 - 1));
         vec2 offB = vec2(float(b % 3 - 1), float(b / 3 - 1));
-        vec2 cellA = cell + offA;
-        if (period > 0.0) cellA.x = mod(cellA.x, period);
+        float gate = connectionGate(cells[a], offB - offA, z, period);
         float lrand;
         float li = constellationLine(
-            local, stars[a], stars[b], cellA, offB - offA, z, period, t, lrand
+            local, stars[a], stars[b], gate, accept[a], accept[b], t, lrand
         );
         if (li > intensity) {
             intensity = li;
@@ -347,19 +385,42 @@ float constellationsField(vec3 p, float t, float period, out float rand) {
  * A period > 0 makes the hashed 2D fields periodic every that many whole
  * cells along x (see constellationsField). Grid is 1-periodic and truchet
  * hashes only its own cell, so a caller wrapping p.x needs no help there.
+ *
+ * Only the fields the program was compiled with are reachable.
+ * A consumer defines FX_PATTERN_<NAME> for every pattern it can select
+ * and passes compile-time ids, so an id the program was not compiled
+ * with never occurs and samples as empty if it did. With the whole
+ * library inlined at every sample site a program took most of a second
+ * to compile per site, and a program only ever samples the patterns its
+ * settings name.
  */
 float patternField(int id, vec3 p, float t, float period, out float rand) {
+#ifdef FX_PATTERN_STARS
     if (id == 0) return starsField(p, t, rand);
+#endif
+#ifdef FX_PATTERN_DUST
     if (id == 1) return dustField(p, t, rand);
+#endif
+#ifdef FX_PATTERN_VORONOI
     if (id == 2) return voronoiField(p, t, rand);
+#endif
+#ifdef FX_PATTERN_LAVA
     if (id == 3) return lavaField(p, t, rand);
+#endif
+#ifdef FX_PATTERN_GRID
     if (id == 4) {
         rand = 0.5;
         return gridField(p, t);
     }
+#endif
+#ifdef FX_PATTERN_TRUCHET
     if (id == 5) return truchetField(p, t, rand);
-
-    return constellationsField(p, t, period, rand);
+#endif
+#ifdef FX_PATTERN_CONSTELLATIONS
+    if (id == 6) return constellationsField(p, t, period, rand);
+#endif
+    rand = 0.5;
+    return 0.0;
 }
 
 /** Samples a pattern field by id without the per-feature random. */

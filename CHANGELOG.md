@@ -5,6 +5,7 @@
 ### Changed
 
 - **Shader programs link in the background in every browser** — Browsers without `KHR_parallel_shader_compile` (Firefox, software rasterizers) used to block the page for the whole compile of every program. The library now queues a fence behind the link and polls it, so the link status is only read once the link has run in the command stream, and since capturing a frame would wait for the queued link too, the canvas keeps its last frame until then instead of the page blocking. `shaderCompile: "sync"` still blocks. The wireframe's deform and glitch variants are now requested with the other programs, so `whenReady()` waits for them as well.
+- **Pattern effects compile several times faster** — On an RTX 5080 the material stack's two compiles went from 2.7 s each to about 0.12 s, a projection or interior alone from 0.8 s to 0.05 s, and the procedural background from 0.9 s to 0.03 s.
 - **A moving camera mode continues from where an interaction left it** — With `useFixedOnInteract`, restoring spin, sway or pingpong interpolated the horizontal angle back to the model's camera, which after a long interaction or a rotation against the spin whipped the model around to catch up on the rotation it missed while paused, as PicoCAD 2 does. The restore now brings distance, elevation and target back and keeps the horizontal angle, so the mode continues from the current angle. Fixed mode still restores the whole camera.
 
 ### Fixed

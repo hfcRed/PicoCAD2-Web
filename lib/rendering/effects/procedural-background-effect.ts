@@ -1,6 +1,10 @@
+import type * as twgl from "twgl.js";
+import fullscreenVert from "../../shaders/effects/fullscreen.vert";
 import proceduralBackgroundFrag from "../../shaders/effects/procedural-background.frag";
 import type { ProceduralBackgroundOptions } from "../../types/options.ts";
 import type { Color3 } from "../../types/scene.ts";
+import { compilerFor, ProgramVariants } from "../program-cache.ts";
+import { PATTERN_FEATURE_NAMES } from "../programs.ts";
 import {
 	type DeepRequired,
 	deepFreeze,
@@ -31,6 +35,8 @@ export type BackgroundPattern = PatternName;
 export class ProceduralBackgroundEffect extends FullscreenEffect {
 	private readonly styledA: Color3 = [0, 0, 0];
 	private readonly styledB: Color3 = [0, 0, 0];
+	private programs: ProgramVariants | null = null;
+	private lastKey = -1;
 
 	/**
 	 * Creates a new procedural background effect.
@@ -53,6 +59,56 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 	 * @param ctx - The rendering context info.
 	 * @returns The uniform values.
 	 */
+	/**
+	 * Starts compiling the current pattern's variant, so waiting for the
+	 * compiler covers a pattern switch.
+	 */
+	requestPrograms(): void {
+		this.programs?.get(this.patternKey());
+	}
+
+	/**
+	 * One program per pattern.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	protected initPrograms(gl: WebGL2RenderingContext): void {
+		this.programs = new ProgramVariants(
+			compilerFor(gl),
+			fullscreenVert,
+			this.fragSource,
+			PATTERN_FEATURE_NAMES,
+		);
+		this.programs.get(this.patternKey());
+	}
+
+	/**
+	 * The current pattern's program, else the last pattern drawn until it
+	 * has compiled.
+	 *
+	 * @returns The ready program info, or null.
+	 */
+	protected programInfo(): twgl.ProgramInfo | null {
+		if (!this.programs) return null;
+		const key = this.patternKey();
+		const info = this.programs.get(key).info;
+		if (info) {
+			this.lastKey = key;
+			return info;
+		}
+		return this.lastKey < 0 ? null : this.programs.ready(this.lastKey);
+	}
+
+	protected disposePrograms(): void {
+		this.programs?.dispose();
+		this.programs = null;
+		this.lastKey = -1;
+	}
+
+	private patternKey(): number {
+		return 1 << (PATTERN_ID[this.pattern] ?? 0);
+	}
+
 	private getUniforms(ctx: EffectContext): Record<string, unknown> {
 		const snap = this.style === "palette" && ctx.palette.length >= 3;
 		writeStyledColor(
@@ -71,7 +127,6 @@ export class ProceduralBackgroundEffect extends FullscreenEffect {
 		return {
 			u_resolution: [ctx.width, ctx.height],
 			u_time: ctx.time,
-			u_pattern: PATTERN_ID[this.pattern] ?? 0,
 			u_colorA: this.styledA,
 			u_colorB: this.styledB,
 			u_scale: this.scale,

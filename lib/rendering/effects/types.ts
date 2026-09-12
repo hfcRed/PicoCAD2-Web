@@ -53,6 +53,7 @@ export interface PostProcessEffect {
 	modelOnly?: boolean;
 	maskedColors?: number[];
 	init(gl: WebGL2RenderingContext): void;
+	requestPrograms?(modelFeatures: number): void;
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void;
 	dispose(): void;
 }

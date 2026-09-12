@@ -117,7 +117,9 @@ export class PostProcessPipeline {
 	 */
 	initEnabledEffects(gl: WebGL2RenderingContext, modelFeatures: number): void {
 		for (const effect of this.postEffects) {
-			if (effect.enabled && !effect.initialized) effect.init(gl);
+			if (!effect.enabled) continue;
+			if (!effect.initialized) effect.init(gl);
+			effect.requestPrograms?.(modelFeatures);
 		}
 		for (const effect of this.sceneEffectsList) {
 			if (!effect.enabled) continue;

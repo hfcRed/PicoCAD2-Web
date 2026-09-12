@@ -46,7 +46,6 @@ import {
 } from "./effects/mesh-deform-effect.ts";
 import type { PaletteSwapEffect } from "./effects/palette-swap-effect.ts";
 import { ParticlesEffect } from "./effects/particles-effect.ts";
-import { PATTERN_ID } from "./effects/patterns.ts";
 import type { PostProcessPipeline } from "./effects/pipeline.ts";
 import {
 	type ProjectionEffect,
@@ -79,6 +78,7 @@ import {
 	DEPTH_FEATURES,
 	FUR_FEATURES,
 	MODEL_FEATURE,
+	patternFeature,
 	ShaderPrograms,
 } from "./programs.ts";
 import {
@@ -174,13 +174,21 @@ export function modelFeatureKey(settings: RenderSettings): number {
 	if (settings.triangleFlash?.enabled) key |= MODEL_FEATURE.flash;
 	if (settings.dissolve?.enabled) key |= MODEL_FEATURE.dissolve;
 	if (settings.paletteSwap?.enabled) key |= MODEL_FEATURE.paletteBlend;
-	if (settings.interior?.enabled) key |= MODEL_FEATURE.interior;
+	if (settings.interior?.enabled) {
+		key |=
+			MODEL_FEATURE.interior |
+			patternFeature("interior", settings.interior.pattern);
+	}
 	if (settings.rimLight?.enabled) key |= MODEL_FEATURE.rimLight;
 	if (settings.gradientLight?.enabled) key |= MODEL_FEATURE.gradientLight;
 	if (settings.specular?.enabled) key |= MODEL_FEATURE.specular;
 	if (settings.glitter?.enabled) key |= MODEL_FEATURE.glitter;
 	if (settings.emission?.enabled) key |= MODEL_FEATURE.emission;
-	if (settings.projection?.enabled) key |= MODEL_FEATURE.projection;
+	if (settings.projection?.enabled) {
+		key |=
+			MODEL_FEATURE.projection |
+			patternFeature("projection", settings.projection.pattern);
+	}
 	if (settings.display?.enabled) key |= MODEL_FEATURE.display;
 	return key;
 }
@@ -299,7 +307,6 @@ export class Renderer {
 		u_flashMask: 0,
 
 		u_interiorEnabled: false,
-		u_interiorPattern: 0,
 		u_interiorDepth: 0,
 		u_interiorLayers: 1,
 		u_interiorScale: 1,
@@ -376,7 +383,6 @@ export class Renderer {
 		u_emissionMask: 0,
 
 		u_projectionEnabled: false,
-		u_projectionPattern: 0,
 		u_projectionMode: 0,
 		u_projectionDir: [0, -1, 0] as Color3,
 		u_projectionU: [1, 0, 0] as Color3,
@@ -1622,7 +1628,6 @@ export class Renderer {
 				interior.style,
 				palette,
 			);
-			u.u_interiorPattern = PATTERN_ID[interior.pattern] ?? 0;
 			u.u_interiorDepth = Math.max(interior.depth, 0);
 			u.u_interiorLayers = Math.min(
 				Math.max(Math.round(interior.layers), 1),
@@ -1769,7 +1774,6 @@ export class Renderer {
 		const projection = settings.projection;
 		u.u_projectionEnabled = projection?.enabled ?? false;
 		if (projection?.enabled) {
-			u.u_projectionPattern = PATTERN_ID[projection.pattern] ?? 0;
 			u.u_projectionMode =
 				projection.mode === "light" ? 0 : projection.mode === "shadow" ? 1 : 2;
 			writeProjectionBasis(

@@ -35,9 +35,9 @@ function maskSettingsOf(effect: object): MaskSettings {
  */
 export class FullscreenEffect implements PostProcessEffect {
 	private program: ManagedProgram | null = null;
-	private gl: WebGL2RenderingContext | null = null;
+	protected gl: WebGL2RenderingContext | null = null;
 	private emptyVao: WebGLVertexArrayObject | null = null;
-	private readonly fragSource: string;
+	protected readonly fragSource: string;
 	private readonly getUniformsFn: (
 		ctx: EffectContext,
 	) => Record<string, unknown>;
@@ -67,9 +67,9 @@ export class FullscreenEffect implements PostProcessEffect {
 		this.warpsIndex = warpsIndex;
 	}
 
-	/** Whether the program has linked and the effect can draw. */
+	/** Whether a program has linked and the effect can draw. */
 	get ready(): boolean {
-		return this.program?.ready === true;
+		return this.programInfo() !== null;
 	}
 
 	/**
@@ -80,9 +80,41 @@ export class FullscreenEffect implements PostProcessEffect {
 	init(gl: WebGL2RenderingContext): void {
 		if (this.initialized) return;
 		this.gl = gl;
-		this.program = compilerFor(gl).compile(fullscreenVert, this.fragSource);
+		this.initPrograms(gl);
 		this.emptyVao = gl.createVertexArray();
 		this.initialized = true;
+	}
+
+	/**
+	 * Starts compiling the effect's program. An effect with several
+	 * variants overrides this, {@link programInfo} and
+	 * {@link disposePrograms}.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	protected initPrograms(gl: WebGL2RenderingContext): void {
+		this.program = compilerFor(gl).compile(fullscreenVert, this.fragSource);
+	}
+
+	/**
+	 * The program to draw with, or null while it links.
+	 *
+	 * @returns The ready program info, or null.
+	 */
+	protected programInfo(): twgl.ProgramInfo | null {
+		return this.program?.info ?? null;
+	}
+
+	/**
+	 * Frees the effect's programs.
+	 *
+	 * @param gl - The WebGL 2 rendering context.
+	 */
+	protected disposePrograms(gl: WebGL2RenderingContext): void {
+		if (!this.program) return;
+		compilerFor(gl).forget(this.program);
+		this.program.dispose(gl);
+		this.program = null;
 	}
 
 	/**
@@ -92,7 +124,7 @@ export class FullscreenEffect implements PostProcessEffect {
 	 * @param inputTexture - The texture to read from.
 	 */
 	apply(ctx: EffectContext, inputTexture: WebGLTexture): void {
-		const info = this.program?.info;
+		const info = this.programInfo();
 		if (!info) return;
 		const gl = ctx.gl;
 
@@ -120,11 +152,7 @@ export class FullscreenEffect implements PostProcessEffect {
 	dispose(): void {
 		if (!this.gl) return;
 
-		if (this.program) {
-			compilerFor(this.gl).forget(this.program);
-			this.program.dispose(this.gl);
-			this.program = null;
-		}
+		this.disposePrograms(this.gl);
 		if (this.emptyVao) {
 			this.gl.deleteVertexArray(this.emptyVao);
 			this.emptyVao = null;

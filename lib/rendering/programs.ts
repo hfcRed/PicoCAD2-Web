@@ -8,6 +8,7 @@ import modelVert from "../shaders/model.vert";
 import outlineFrag from "../shaders/outline.frag";
 import outlineVert from "../shaders/outline.vert";
 import { MODEL_ATTRIB_LOCATIONS } from "./buffers.ts";
+import { PATTERN_ID, type PatternName } from "./effects/patterns.ts";
 import {
 	compilerFor,
 	type ManagedProgram,
@@ -38,7 +39,44 @@ export const MODEL_FEATURE = Object.freeze({
 	display: 1 << 13,
 	indexOut: 1 << 14,
 	depthOnly: 1 << 15,
+	patterns: 0x3fff << 16,
 });
+
+/**
+ * The preprocessor symbol of each pattern field, in {@link PATTERN_ID}
+ * order, for a program that samples one pattern. A program carries only
+ * the fields it defines and samples with compile-time ids, since every
+ * field inlined at every sample site made the pattern-heavy programs
+ * take most of a second per site to compile.
+ */
+export const PATTERN_FEATURE_NAMES: readonly string[] = [
+	"FX_PATTERN_STARS",
+	"FX_PATTERN_DUST",
+	"FX_PATTERN_VORONOI",
+	"FX_PATTERN_LAVA",
+	"FX_PATTERN_GRID",
+	"FX_PATTERN_TRUCHET",
+	"FX_PATTERN_CONSTELLATIONS",
+];
+
+/** The bit positions of the interior's and the projection's pattern. */
+const MODEL_PATTERN_SHIFT = { interior: 16, projection: 23 } as const;
+
+/**
+ * The model feature bit of the pattern one of the model's pattern
+ * consumers samples, so the model program carries that field and the
+ * consumer reads the pattern it was compiled for.
+ *
+ * @param consumer - The material effect sampling the pattern.
+ * @param pattern - The pattern name.
+ * @returns The feature bit.
+ */
+export function patternFeature(
+	consumer: keyof typeof MODEL_PATTERN_SHIFT,
+	pattern: PatternName,
+): number {
+	return 1 << (MODEL_PATTERN_SHIFT[consumer] + (PATTERN_ID[pattern] ?? 0));
+}
 
 /** The preprocessor symbol of each feature bit, in bit order. */
 export const MODEL_FEATURE_NAMES: readonly string[] = [
@@ -58,6 +96,12 @@ export const MODEL_FEATURE_NAMES: readonly string[] = [
 	"FX_DISPLAY",
 	"FX_INDEX_OUT",
 	"FX_DEPTH_ONLY",
+	...PATTERN_FEATURE_NAMES.map((name) =>
+		name.replace("FX_PATTERN_", "FX_INTERIOR_PATTERN_"),
+	),
+	...PATTERN_FEATURE_NAMES.map((name) =>
+		name.replace("FX_PATTERN_", "FX_PROJECTION_PATTERN_"),
+	),
 ];
 
 /** The features the fur program shares with the model program. */

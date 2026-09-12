@@ -1585,6 +1585,8 @@ export class PicoCAD2Viewer {
 	private onPointerDown(e: PointerEvent): void {
 		this.onCameraInteraction();
 		this.inertiaActive = false;
+		this.inertiaX = 0;
+		this.inertiaY = 0;
 		this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 		this.dragButton = e.button;
 		this.canvas.setPointerCapture(e.pointerId);
@@ -1649,13 +1651,14 @@ export class PicoCAD2Viewer {
 	}
 
 	/**
-	 * Handles pointer up and pointer leave events.
+	 * Handles pointer up, leave and cancel events for a pointer that is down.
+	 * A pointer that only hovered is ignored..
 	 *
 	 * @param e - The pointer event.
 	 */
 	private onPointerUp(e: PointerEvent): void {
 		const hadMultiple = this.activePointers.size >= 2;
-		this.activePointers.delete(e.pointerId);
+		if (!this.activePointers.delete(e.pointerId)) return;
 		try {
 			this.canvas.releasePointerCapture(e.pointerId);
 		} catch {}

@@ -766,13 +766,15 @@ Unlike the other geometry effects, fur's mask is per texel. The strand cutout sa
 
 ### Billboard
 
-Turns selected nodes toward the camera, keeping translation and scale. Children inherit the billboarded frame, billboard wins over animated rotation on the same node. The wireframe follows automatically.
+Turns selected nodes toward the camera, keeping translation and scale. A node's local +Z side faces the camera, with local +X to the right and local +Y up on screen. The node's own rotation is applied on top of that, relative to the camera. Children inherit the billboarded frame. The wireframe follows automatically.
 
 ```typescript
 viewer.extras.billboard.enabled = true;
 viewer.extras.billboard.nodes = ["sign"];  // Node names (default: [] = all top-level nodes, groups included)
 viewer.extras.billboard.mode = "full";     // "full" (face the camera on all axes) | "yaw" (spin around world Y, default: "full")
 ```
+
+A node's X or Z rotation still tilts it in the camera frame, so keep those at zero for an upright sprite.
 
 ## Scene Effects
 

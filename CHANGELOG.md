@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.4 (UNRELEASED)
+
+### Changed
+
+- **Billboarded nodes keep their own rotation** — The billboard effect used to discard a selected node's rotation along with its parents'. The node's rotation is now composed on top of the camera-facing basis, relative to the camera. Parent rotation is still discarded and children still inherit the billboarded frame.
+
 ## 2.0.3
 
 ### Added

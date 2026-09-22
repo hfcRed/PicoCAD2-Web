@@ -447,8 +447,8 @@ export class Renderer {
 
 		...createMeshDeformUniforms(),
 	};
-	/** Camera-facing rotation basis for the billboard effect, as columns. */
 	private readonly billboardBasis = new Float32Array(9);
+	private readonly billboardLocal = mat4.create();
 	private readonly outlineUniforms = {
 		u_texture: null as WebGLTexture | null,
 		u_indexTexture: null as WebGLTexture | null,
@@ -2217,9 +2217,10 @@ export class Renderer {
 	/**
 	 * Applies the billboard effect. Replaces the rotation basis of the
 	 * selected nodes' world matrices with a camera-facing one, keeping
-	 * translation and scale. Runs right after the scene graph update, so
-	 * billboard wins over animated rotation and children inherit the
-	 * billboarded frame.
+	 * translation and scale. Each node's own rotation is composed on top
+	 * of the camera basis, so it turns the node relative to the camera.
+	 * Runs right after the scene graph update, so parent rotation is
+	 * discarded and children inherit the billboarded frame.
 	 *
 	 * @param settings - The current render settings.
 	 * @param root - The scene graph root.
@@ -2276,7 +2277,11 @@ export class Renderer {
 
 	/**
 	 * Replaces one node's world rotation with the prepared camera-facing
-	 * basis and recomputes its descendants' world matrices from it.
+	 * basis, composed with the node's own rotation, and recomputes its
+	 * descendants' world matrices from it. The node's rotation is applied
+	 * in the camera frame, so with no rotation the node's local +Z faces
+	 * the camera, and a rotation set in the editor or by animation turns
+	 * the node relative to the camera instead of the world.
 	 *
 	 * @param node - The node to billboard.
 	 */
@@ -2289,15 +2294,23 @@ export class Renderer {
 		const sy = Math.hypot(w[4], w[5], w[6]);
 		const sz = Math.hypot(w[8], w[9], w[10]);
 
-		w[0] = b[0] * sx;
-		w[1] = b[1] * sx;
-		w[2] = b[2] * sx;
-		w[4] = b[3] * sy;
-		w[5] = b[4] * sy;
-		w[6] = b[5] * sy;
-		w[8] = b[6] * sz;
-		w[9] = b[7] * sz;
-		w[10] = b[8] * sz;
+		const r = this.billboardLocal;
+		const rot = node.transform.rotation;
+		mat4.identity(r);
+		mat4.rotateZ(r, r, rot[2]);
+		mat4.rotateY(r, r, rot[1]);
+		mat4.rotateX(r, r, rot[0]);
+
+		// j = camera basis * local rotation column j * scale j.
+		for (let j = 0; j < 3; j++) {
+			const rx = r[j * 4];
+			const ry = r[j * 4 + 1];
+			const rz = r[j * 4 + 2];
+			const s = j === 0 ? sx : j === 1 ? sy : sz;
+			w[j * 4] = (b[0] * rx + b[3] * ry + b[6] * rz) * s;
+			w[j * 4 + 1] = (b[1] * rx + b[4] * ry + b[7] * rz) * s;
+			w[j * 4 + 2] = (b[2] * rx + b[5] * ry + b[8] * rz) * s;
+		}
 
 		node.dirty = true;
 		this.refreshDescendants(node);

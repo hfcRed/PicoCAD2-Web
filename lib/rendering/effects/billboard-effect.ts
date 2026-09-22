@@ -10,10 +10,10 @@ export type BillboardMode = "full" | "yaw";
  * Turns selected scene nodes toward the camera. Applied by the renderer
  * as CPU matrix surgery after the scene graph update. The rotation basis
  * of each selected node's world matrix is replaced with a camera-facing
- * one, keeping translation and scale.
+ * one, keeping translation and scale. The node's own rotation is applied
+ * on top.
  *
- * Children inherit the billboarded frame, and billboard wins over
- * animated rotation on the same node. The wireframe shares the world
+ * Children inherit the billboarded frame. The wireframe shares the world
  * matrices, so it follows automatically.
  */
 export class BillboardEffect {

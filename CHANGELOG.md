@@ -6,6 +6,10 @@
 
 - **Billboarded nodes keep their own rotation** — The billboard effect used to discard a selected node's rotation along with its parents'. The node's rotation is now composed on top of the camera-facing basis, relative to the camera. Parent rotation is still discarded and children still inherit the billboarded frame.
 
+### Fixed
+
+- **Yaw billboards no longer flip when viewed from straight above or below** — The camera's up vector, which lies flat at the poles, is is now blended in.
+
 ## 2.0.3
 
 ### Added

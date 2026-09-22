@@ -2246,14 +2246,21 @@ export class Renderer {
 		b[8] = view[10];
 
 		if (bb.mode === "yaw") {
-			const len = Math.hypot(b[6], b[8]);
+			const s = b[7] < 0 ? -1 : 1;
+			let hx = b[6] - s * b[3];
+			let hz = b[8] - s * b[5];
+			const len = Math.hypot(hx, hz);
+
 			if (len > 1e-5) {
-				b[6] /= len;
-				b[8] /= len;
+				hx /= len;
+				hz /= len;
 			} else {
-				b[6] = 0;
-				b[8] = 1;
+				hx = 0;
+				hz = 1;
 			}
+
+			b[6] = hx;
+			b[8] = hz;
 			b[7] = 0;
 			b[3] = 0;
 			b[4] = 1;

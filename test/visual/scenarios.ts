@@ -1453,6 +1453,15 @@ const geometry: Scenario[] = [
 		},
 	},
 	{
+		// Straight overhead: the yaw heading must not snap to the +Z fallback.
+		name: "geometry/billboard-yaw-overhead",
+		model: "rig",
+		settings: { camera: { omega: 0.52, theta: Math.PI / 2 } },
+		extras: {
+			billboard: { enabled: true, nodes: ["front bumper"], mode: "yaw" },
+		},
+	},
+	{
 		name: "geometry/billboard-animated-inheritance",
 		model: "helicopter_takeoff",
 		extras: { billboard: { enabled: true, nodes: ["body"] } },
